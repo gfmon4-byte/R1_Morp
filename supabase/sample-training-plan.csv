@@ -1,0 +1,63 @@
+date,day_of_week,phase,session_type,description,distance_km,pace_target,hr_zone,rpe,notes
+2026-07-01,Wed,Base,Rest,Busy Day,0,-,-,-,No Training
+2026-07-02,Thu,Base,Strength A,Bulgarian Split Squat 3x8; Single-leg RDL 3x8; Hip Thrust 3x10; Standing Calf Raise 3x15; Soleus Raise 3x20; Plank 3x60s; Side Plank 3x45s,0,-,-,7,Heavy Strength
+2026-07-03,Fri,Base,Easy Run,5 km Easy,5,6:45-7:10/km,Z2,3,Conversational Pace
+2026-07-04,Sat,Base,Mobility,Foam Roll + Hip Mobility + Stretch,0,-,-,1,Recovery
+2026-07-05,Sun,Base,Rest,Busy Day,0,-,-,-,No Training
+2026-07-06,Mon,Base,Rest,Busy Day,0,-,-,-,No Training
+2026-07-07,Tue,Base,Easy Run,6 km Easy,6,6:45-7:10/km,Z2,3,Relaxed
+2026-07-08,Wed,Base,Rest,Busy Day,0,-,-,-,No Training
+2026-07-09,Thu,Base,Strength B,Step Up 3x10; Reverse Lunge 3x10; Romanian Deadlift 3x8; Box Jump 3x5; Calf Raise 3x15; Dead Bug 3x12,0,-,-,7,Power Focus
+2026-07-10,Fri,Base,Easy Run,6 km Easy,6,6:40-7:05/km,Z2,3,
+2026-07-11,Sat,Base,Long Run,8 km Easy,8,6:45-7:10/km,Z2,4,
+2026-07-12,Sun,Base,Rest,Busy Day,0,-,-,-,No Training
+2026-07-13,Mon,Base,Strength A,เพิ่มน้ำหนัก 2-5%,0,-,-,8,Progressive Overload
+2026-07-14,Tue,Base,Rest,Busy Day,0,-,-,-,No Training
+2026-07-15,Wed,Base,Easy Run,6 km Easy + 4×20 sec Strides,6,6:40-7:00/km,Z2,4,เริ่มระบบประสาท
+2026-07-16,Thu,Base,Strength B,Heavy Lower Body,0,-,-,8,
+2026-07-17,Fri,Base,Rest,Busy Day,0,-,-,-,No Training
+2026-07-18,Sat,Base,Long Run,10 km Easy,10,6:40-7:05/km,Z2,4,
+2026-07-19,Sun,Base,Recovery Run,5 km Recovery,5,7:00-7:20/km,Z1,2,
+2026-07-20,Mon,Base,Rest,Busy Day,0,-,-,-,No Training
+2026-07-21,Tue,Base,Easy Run,7 km Easy,7,6:40-7:00/km,Z2,3,
+2026-07-22,Wed,Base,Easy Run,5 km Recovery,5,7:00-7:20/km,Z1,2,
+2026-07-23,Thu,Base,Strength A,Bulgarian Split Squat; Hip Thrust; RDL; Soleus,0,-,-,8,
+2026-07-24,Fri,Base,Easy Run,7 km Easy + 6×20 sec Strides,7,6:35-7:00/km,Z2,4,
+2026-07-25,Sat,Base,Long Run,12 km Easy,12,6:35-7:00/km,Z2,5,Fuel ทดลองดื่มน้ำ
+2026-07-26,Sun,Base,Recovery Run,5 km Recovery,5,7:00-7:20/km,Z1,2,
+2026-07-27,Mon,Base,Strength B,Deload Week ลดน้ำหนัก 20%,0,-,-,6,
+2026-07-28,Tue,Base,Easy Run,6 km Easy,6,6:45-7:10/km,Z2,3,
+2026-07-29,Wed,Base,Easy Run,5 km Recovery,5,7:00-7:20/km,Z1,2,
+2026-07-30,Thu,Base,Strength A,Deload Week,0,-,-,6,
+2026-07-31,Fri,Base,Easy Run,6 km Easy + 6×100 m Strides,6,6:40-7:05/km,Z2,4,เตรียมเข้า Base Phase
+2026-08-01,Sat,Base,Easy Run,8 km Easy,8,6:35-7:00/km,Z2,3,เริ่ม Base Phase
+2026-08-02,Sun,Base,Long Run,12 km Easy,12,6:35-6:55/km,Z2,4,ฝึกดื่มน้ำระหว่างวิ่ง
+2026-08-03,Mon,Base,Strength A,Bulgarian Split Squat 3x6; Single-leg RDL 3x8; Hip Thrust 3x8; Standing Calf Raise 3x15; Soleus Raise 3x20; Core,0,-,-,7,ลด Volume เพื่อรองรับงานวิ่ง
+2026-08-04,Tue,Base,Intervals,WU 2 km + Drills + 6×400 m @4:35-4:45/km (Jog 200 m) + CD 2 km,8,4:35-4:45/km,Z5,8,เน้นฟอร์ม
+2026-08-05,Wed,Base,Rest,Busy Day,0,-,-,-,No Training
+2026-08-06,Thu,Base,Strength B,Step Up 3x8; Reverse Lunge 3x8; Romanian Deadlift 3x6; Box Jump 3x5; Dead Bug; Bird Dog,0,-,-,7,Power
+2026-08-07,Fri,Base,tempo,WU 2 km + 4 km @5:00/km + CD 2 km,8,5:00/km,Z4,7,Threshold ครั้งแรก
+2026-08-08,Sat,Base,Recovery Run,5 km Recovery,5,7:00-7:20/km,Z1,2,
+2026-08-09,Sun,Base,Long Run,14 km Easy,14,6:30-6:50/km,Z2,5,Fuel 30g Carb
+2026-08-10,Mon,Base,Strength A,Heavy Lower Body,0,-,-,7,
+2026-08-11,Tue,Base,Intervals,WU 2 km + 5×800 m @4:40/km (Jog 400 m) + CD 2 km,10,4:40/km,Z5,8,
+2026-08-12,Wed,Base,Easy Run,7 km Easy,7,6:35-6:55/km,Z2,3,
+2026-08-13,Thu,Base,Strength B,Maintenance Strength,0,-,-,7,
+2026-08-14,Fri,Base,Rest,Busy Day,0,-,-,-,
+2026-08-15,Sat,Base,Rest,Busy Day,0,-,-,-,
+2026-08-16,Sun,Base,Rest,Busy Day,0,-,-,-,
+2026-08-17,Mon,Base,Strength A,Heavy Lower Body,0,-,-,7,
+2026-08-18,Tue,Base,Tempo,WU 2 km + 5 km @4:55/km + CD 2 km,9,4:55/km,Z4,7,
+2026-08-19,Wed,Base,Rest,Busy Day,0,-,-,-,
+2026-08-20,Thu,Base,Strength B,Step Up; Hip Thrust; Soleus; Core,0,-,-,7,
+2026-08-21,Fri,Base,Easy Run,8 km Easy + 6×100 m Strides,8,6:30-6:50/km,Z2,4,
+2026-08-22,Sat,Base,Rest,Busy Day,0,-,-,-,
+2026-08-23,Sun,Base,Long Run,16 km Easy,16,6:25-6:45/km,Z2,5,Fuel 30-45g Carb/hr
+2026-08-24,Mon,Base,Strength A,Deload (-20%),0,-,-,6,
+2026-08-25,Tue,Base,Rest,Busy Day,0,-,-,-,
+2026-08-26,Wed,Base,Rest,Busy Day,0,-,-,-,
+2026-08-27,Thu,Base,Strength B,Deload (-20%),0,-,-,6,
+2026-08-28,Fri,Base,tempo,WU 2 km + 6 km @4:55/km + CD 2 km,10,4:55/km,Z4,7,
+2026-08-29,Sat,Base,Recovery Run,5 km Recovery,5,7:00-7:20/km,Z1,2,
+2026-08-30,Sun,Base,Long Run,16 km Easy + 2 km Marathon Pace (~5:20/km),16,6:20-6:40/km,Z2→Z3,6,เริ่ม Fast Finish
+2026-08-31,Mon,Base,Strength A,Maintenance Strength,0,-,-,6,เตรียมเข้าสู่ Build Phase
