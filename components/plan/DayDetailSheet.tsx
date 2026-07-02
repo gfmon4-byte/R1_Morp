@@ -183,6 +183,25 @@ export function DayDetailSheet({ date, plan, activities, hrZones, onClose, onLog
                       {a.avg_hr && <ActivityMetric label="Avg HR" value={`${a.avg_hr} bpm`} />}
                       {a.rpe && <ActivityMetric label="RPE" value={`${a.rpe}/10`} />}
                     </div>
+
+                    {a.hr_zone_breakdown && Object.keys(a.hr_zone_breakdown).length > 0 && (
+                      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 10, fontSize: '0.75rem', alignItems: 'center', borderTop: '1px dashed var(--color-border)', paddingTop: 8 }}>
+                        <span style={{ color: 'var(--color-text-muted)', fontSize: '0.6875rem', fontWeight: 600 }}>Zones:</span>
+                        {hrZones.map((z) => {
+                          const sec = a.hr_zone_breakdown?.[`Z${z.zone}`];
+                          if (!sec) return null;
+                          const mins = Math.round(sec / 60);
+                          if (mins === 0) return null;
+                          return (
+                            <span key={z.zone} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                              <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: z.color }} />
+                              <span style={{ fontWeight: 600, color: 'var(--color-text)' }}>{z.label}</span>
+                              <span style={{ color: 'var(--color-text-muted)' }}>{mins}m</span>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
                     {a.notes && (
                       <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', marginTop: 8, fontStyle: 'italic', borderTop: '1px solid var(--color-border)', paddingTop: 8 }}>
                         {a.notes}
@@ -245,8 +264,8 @@ export function DayDetailSheet({ date, plan, activities, hrZones, onClose, onLog
                   delta={paceDelta !== null ? <DeltaChip value={-paceDelta} unit="s/km" lowerIsBetter /> : null}
                   note={paceDelta !== null
                     ? paceDelta < -5 ? '🔥 Faster than plan'
-                    : paceDelta > 30 ? '⚠️ Slower than plan'
-                    : '✓ On target'
+                      : paceDelta > 30 ? '⚠️ Slower than plan'
+                        : '✓ On target'
                     : undefined}
                 />
               )}
@@ -301,7 +320,7 @@ export function DayDetailSheet({ date, plan, activities, hrZones, onClose, onLog
         {!hasLogged && (
           <button className="btn btn-primary" style={{ width: '100%' }} onClick={onLogRun}>
             <Lightning size={16} weight="fill" />
-            {isPlanned ? 'Log This Run' : 'Log an Activity'}
+            {isPlanned ? 'Add This Run' : 'Log an Activity'}
           </button>
         )}
       </div>

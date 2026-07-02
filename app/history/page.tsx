@@ -230,6 +230,25 @@ function ActivityCard({
             )}
           </div>
 
+          {activity.hr_zone_breakdown && Object.keys(activity.hr_zone_breakdown).length > 0 && (
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 10, fontSize: '0.75rem', alignItems: 'center', borderTop: '1px dashed var(--color-border)', paddingTop: 8 }}>
+              <span style={{ color: 'var(--color-text-muted)', fontSize: '0.6875rem', fontWeight: 600 }}>Zones:</span>
+              {hrZones.map((z) => {
+                const sec = activity.hr_zone_breakdown?.[`Z${z.zone}`];
+                if (!sec) return null;
+                const mins = Math.round(sec / 60);
+                if (mins === 0) return null;
+                return (
+                  <span key={z.zone} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: z.color }} />
+                    <span style={{ fontWeight: 600, color: 'var(--color-text)' }}>{z.label}</span>
+                    <span style={{ color: 'var(--color-text-muted)' }}>{mins}m</span>
+                  </span>
+                );
+              })}
+            </div>
+          )}
+
           {activity.notes && (
             <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', marginTop: 8, fontStyle: 'italic', borderTop: '1px solid var(--color-border)', paddingTop: 8 }}>
               {activity.notes}

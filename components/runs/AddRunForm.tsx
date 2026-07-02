@@ -24,6 +24,11 @@ const schema = z.object({
   rpe: z.coerce.number().min(1).max(10).optional().nullable(),
   notes: z.string().max(500).optional(),
   route_name: z.string().max(100).optional(),
+  z1_minutes: z.coerce.number().min(0).max(1440).optional().nullable(),
+  z2_minutes: z.coerce.number().min(0).max(1440).optional().nullable(),
+  z3_minutes: z.coerce.number().min(0).max(1440).optional().nullable(),
+  z4_minutes: z.coerce.number().min(0).max(1440).optional().nullable(),
+  z5_minutes: z.coerce.number().min(0).max(1440).optional().nullable(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -33,9 +38,10 @@ interface Props {
   onClose: () => void;
   onSaved: () => void;
   hrZones: HRZone[];
+  defaultDate?: string;
 }
 
-export function AddRunForm({ activity, onClose, onSaved, hrZones }: Props) {
+export function AddRunForm({ activity, onClose, onSaved, hrZones, defaultDate }: Props) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -59,8 +65,13 @@ export function AddRunForm({ activity, onClose, onSaved, hrZones }: Props) {
       rpe: activity.rpe ?? undefined,
       notes: activity.notes ?? '',
       route_name: activity.route_name ?? '',
+      z1_minutes: activity.hr_zone_breakdown?.Z1 ? Math.round((activity.hr_zone_breakdown.Z1 / 60) * 100) / 100 : undefined,
+      z2_minutes: activity.hr_zone_breakdown?.Z2 ? Math.round((activity.hr_zone_breakdown.Z2 / 60) * 100) / 100 : undefined,
+      z3_minutes: activity.hr_zone_breakdown?.Z3 ? Math.round((activity.hr_zone_breakdown.Z3 / 60) * 100) / 100 : undefined,
+      z4_minutes: activity.hr_zone_breakdown?.Z4 ? Math.round((activity.hr_zone_breakdown.Z4 / 60) * 100) / 100 : undefined,
+      z5_minutes: activity.hr_zone_breakdown?.Z5 ? Math.round((activity.hr_zone_breakdown.Z5 / 60) * 100) / 100 : undefined,
     } : {
-      date: thaiToday(),
+      date: defaultDate || thaiToday(),
       session_type: 'Easy Run',
       distance_km: 0,
       duration_hh: 0,
@@ -93,6 +104,13 @@ export function AddRunForm({ activity, onClose, onSaved, hrZones }: Props) {
     const duration_seconds = data.duration_hh * 3600 + data.duration_mm * 60 + data.duration_ss;
     const avg_pace_sec_per_km = distNum > 0 && duration_seconds > 0 ? Math.round(duration_seconds / distNum) : null;
 
+    const hr_zone_breakdown: Record<string, number> = {};
+    if (data.z1_minutes) hr_zone_breakdown.Z1 = Math.round(data.z1_minutes * 60);
+    if (data.z2_minutes) hr_zone_breakdown.Z2 = Math.round(data.z2_minutes * 60);
+    if (data.z3_minutes) hr_zone_breakdown.Z3 = Math.round(data.z3_minutes * 60);
+    if (data.z4_minutes) hr_zone_breakdown.Z4 = Math.round(data.z4_minutes * 60);
+    if (data.z5_minutes) hr_zone_breakdown.Z5 = Math.round(data.z5_minutes * 60);
+
     const payload = {
       date: data.date,
       session_type: data.session_type,
@@ -101,6 +119,7 @@ export function AddRunForm({ activity, onClose, onSaved, hrZones }: Props) {
       avg_pace_sec_per_km,
       avg_hr: data.avg_hr || null,
       max_hr: data.max_hr || null,
+      hr_zone_breakdown: Object.keys(hr_zone_breakdown).length > 0 ? hr_zone_breakdown : {},
       elevation_gain_m: data.elevation_gain_m,
       rpe: data.rpe || null,
       notes: data.notes || null,
@@ -130,7 +149,7 @@ export function AddRunForm({ activity, onClose, onSaved, hrZones }: Props) {
       <div className="sheet animate-slide-up" role="dialog" aria-modal aria-label={activity ? 'Edit activity' : 'Add run'}>
         <div className="sheet-handle" />
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-          <h2 style={{ fontSize: '1.25rem' }}>{activity ? 'Edit Activity' : 'Log a Run'}</h2>
+          <h2 style={{ fontSize: '1.25rem' }}>{activity ? 'Edit Activity' : 'Add a Run'}</h2>
           <button className="btn btn-ghost btn-icon" onClick={onClose} aria-label="Close">
             <X size={20} />
           </button>
@@ -207,6 +226,35 @@ export function AddRunForm({ activity, onClose, onSaved, hrZones }: Props) {
               </div>
             </div>
 
+            {/* HR Zone Breakdown */}
+            <div>
+              <label className="form-label" style={{ marginBottom: 6 }}>HR Zone Breakdown (mins)</label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
+                {hrZones.map((z) => {
+                  const fieldName = `z${z.zone}_minutes` as 'z1_minutes' | 'z2_minutes' | 'z3_minutes' | 'z4_minutes' | 'z5_minutes';
+                  return (
+                    <div key={z.zone} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: z.color }}>
+                        {z.label}
+                      </span>
+                      <input
+                        type="number"
+                        step="any"
+                        className="form-input"
+                        placeholder="0"
+                        style={{ textAlign: 'center', padding: '6px 4px', fontSize: '0.8125rem' }}
+                        aria-label={`Zone ${z.zone} minutes`}
+                        {...register(fieldName)}
+                      />
+                      <span style={{ fontSize: '0.625rem', color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>
+                        {z.minBpm}–{z.maxBpm}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Elevation + RPE */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div>
@@ -232,7 +280,7 @@ export function AddRunForm({ activity, onClose, onSaved, hrZones }: Props) {
             )}
 
             <button type="submit" className="btn btn-primary" disabled={saving} style={{ width: '100%', marginTop: 4 }}>
-              {saving ? 'Saving…' : activity ? 'Save Changes' : 'Log Run'}
+              {saving ? 'Saving…' : activity ? 'Save Changes' : 'Save Run'}
             </button>
           </div>
         </form>

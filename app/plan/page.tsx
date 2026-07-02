@@ -404,6 +404,7 @@ export default function PlanPage() {
           onClose={() => { setShowAddRun(false); setAddRunDate(null); }}
           onSaved={handleRunSaved}
           hrZones={hrZones}
+          defaultDate={addRunDate ?? undefined}
         />
       )}
 
