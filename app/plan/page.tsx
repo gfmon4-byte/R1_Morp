@@ -12,6 +12,7 @@ import {
   CalendarBlank, CaretLeft, CaretRight,
   List, UploadSimple, CheckCircle,
   Target, TrendUp, CheckSquare, Timer,
+  ClipboardText, CheckFat,
 } from '@phosphor-icons/react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
@@ -23,8 +24,9 @@ function thaiNow() {
 }
 
 function getContrastColor(sessionType: string): string {
+  // Recovery Run and Race use lighter chips — use dark text for contrast
   if (sessionType === 'Recovery Run' || sessionType === 'Race') {
-    return '#0F172A';
+    return '#4A3B52';
   }
   return '#FFFFFF';
 }
@@ -254,11 +256,11 @@ export default function PlanPage() {
                     onClick={() => handleDayClick(dateStr)}
                     aria-label={`${format(day, 'MMMM d')}${plan ? ': ' + plan.session_type : ''}`}
                     style={{
-                      borderRadius: 10,
-                      border: isToday ? '1.5px solid var(--color-primary)' : '1px solid transparent',
+                      borderRadius: 12,
+                      border: isToday ? '2px solid var(--color-primary)' : '2px solid rgba(255,143,163,0.15)',
                       background: hasPlan && sessionColor
-                        ? `${sessionColor}12`
-                        : isToday ? 'var(--color-primary-soft)' : 'var(--color-bg-card)',
+                        ? `${sessionColor}18`
+                        : isToday ? 'rgba(255,143,163,0.12)' : '#FFFFFF',
                       cursor: 'pointer',
                       display: 'flex',
                       flexDirection: 'column',
@@ -266,10 +268,11 @@ export default function PlanPage() {
                       justifyContent: 'flex-start',
                       padding: '6px',
                       gap: 4,
-                      transition: 'all 0.15s',
+                      transition: 'all 200ms ease',
                       position: 'relative',
                       WebkitTapHighlightColor: 'transparent',
                       overflow: 'hidden',
+                      boxShadow: '0 2px 6px rgba(255,143,163,0.08)',
                     }}
                   >
                     {/* Date number */}
@@ -280,6 +283,7 @@ export default function PlanPage() {
                       lineHeight: 1,
                       alignSelf: 'flex-end',
                       marginBottom: 2,
+                      fontFamily: "'Baloo 2', sans-serif",
                     }}>
                       {format(day, 'd')}
                     </span>
@@ -308,8 +312,8 @@ export default function PlanPage() {
                       <div
                         className="calendar-event-chip"
                         style={{
-                          background: isOver || !hasPlan ? '#059669' : 'var(--color-secondary)',
-                          color: '#FFFFFF',
+                          background: isOver || !hasPlan ? '#7FDBB6' : 'rgba(201,167,235,0.6)',
+                          color: '#4A3B52',
                         }}
                         title={`Actual: ${actualKm.toFixed(2)} km`}
                       >
@@ -330,22 +334,22 @@ export default function PlanPage() {
               { label: 'Today', type: 'today' },
               { label: 'Planned Session', type: 'plan-chip' },
               { label: 'Actual Run', type: 'actual-chip' },
-              { label: 'Target Short', type: 'short-chip' },
+              { label: 'Short of Target', type: 'short-chip' },
             ].map(({ label, type }) => (
               <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                {type === 'today' && <div style={{ width: 12, height: 12, borderRadius: 3, border: '1.5px solid var(--color-primary)' }} />}
+                {type === 'today' && <div style={{ width: 12, height: 12, borderRadius: 4, border: '2px solid var(--color-primary)' }} />}
                 {type === 'plan-chip' && (
-                  <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 3, background: '#60A5FA', color: '#fff', fontWeight: 600, textTransform: 'uppercase' }}>
+                  <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 4, background: '#8ECDF0', color: '#4A3B52', fontWeight: 700, textTransform: 'uppercase' }}>
                     Plan
                   </div>
                 )}
                 {type === 'actual-chip' && (
-                  <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 3, background: '#059669', color: '#fff', fontWeight: 600, textTransform: 'uppercase' }}>
+                  <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 4, background: '#7FDBB6', color: '#4A3B52', fontWeight: 700, textTransform: 'uppercase' }}>
                     ✓ Run
                   </div>
                 )}
                 {type === 'short-chip' && (
-                  <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 3, background: 'var(--color-secondary)', color: '#fff', fontWeight: 600, textTransform: 'uppercase' }}>
+                  <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 4, background: 'rgba(201,167,235,0.6)', color: '#4A3B52', fontWeight: 700, textTransform: 'uppercase' }}>
                     Short
                   </div>
                 )}
@@ -359,19 +363,19 @@ export default function PlanPage() {
         <div style={{
           marginTop: 28,
           marginBottom: 16,
-          borderTop: '1px dashed var(--color-border)',
+          borderTop: '2px dashed rgba(255,143,163,0.25)',
           paddingTop: 24,
         }}>
           <h3 style={{
             fontSize: '1.25rem',
-            fontFamily: 'Barlow Condensed, sans-serif',
+            fontFamily: "'Baloo 2', sans-serif",
             fontWeight: 700,
             textTransform: 'uppercase',
             letterSpacing: '0.03em',
             display: 'flex',
             alignItems: 'center',
             gap: 8,
-            color: 'var(--color-text)'
+            color: 'var(--color-foreground)'
           }}>
             <List size={20} color="var(--color-primary)" weight="bold" />
             Monthly Sessions
@@ -387,9 +391,9 @@ export default function PlanPage() {
             <div style={{
               textAlign: 'center',
               padding: '32px 16px',
-              background: 'var(--color-bg-card)',
-              borderRadius: 12,
-              border: '1px dashed var(--color-border)',
+              background: '#FFFFFF',
+              borderRadius: 20,
+              border: '2px dashed rgba(255,143,163,0.25)',
               color: 'var(--color-text-subtle)',
               fontSize: '0.875rem'
             }}>
@@ -410,10 +414,11 @@ export default function PlanPage() {
                   key={dateStr}
                   onClick={() => handleDayClick(dateStr)}
                   className="plan-list-btn"
+                  aria-label={`${format(day, 'EEEE d MMMM')}${plan ? ': ' + plan.session_type : ''}`}
                 >
-                  <div style={{ width: 40, flexShrink: 0, textAlign: 'center' }}>
+                  <div style={{ width: 40, flexShrink: 0, textAlign: 'center', fontFamily: "'Baloo 2', sans-serif" }}>
                     <div style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>{format(day, 'EEE')}</div>
-                    <div style={{ fontSize: '1.25rem', fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, color: dateStr === todayStr ? 'var(--color-primary)' : 'var(--color-text)', lineHeight: 1 }}>{format(day, 'd')}</div>
+                    <div style={{ fontSize: '1.25rem', fontFamily: "'Baloo 2', sans-serif", fontWeight: 700, color: dateStr === todayStr ? 'var(--color-primary)' : 'var(--color-foreground)', lineHeight: 1 }}>{format(day, 'd')}</div>
                   </div>
                   <div style={{ width: 3, height: 36, borderRadius: 2, background: color, flexShrink: 0 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -427,21 +432,23 @@ export default function PlanPage() {
                     {(plannedKm > 0 || actualKm > 0) && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
                         {plannedKm > 0 && (
-                          <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                            📋 {plannedKm} km
+                          <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <ClipboardText size={12} color="var(--color-secondary)" weight="bold" />
+                            {plannedKm} km
                           </span>
                         )}
                         {actualKm > 0 && (
-                          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: acts.length > 0 ? '#059669' : 'var(--color-text-muted)' }}>
-                            ✅ {actualKm.toFixed(2)} km
+                          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: acts.length > 0 ? '#059669' : 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <CheckFat size={12} color="#7FDBB6" weight="fill" />
+                            {actualKm.toFixed(2)} km
                           </span>
                         )}
                         {distDelta !== null && (
                           <span style={{
-                            fontSize: '0.6875rem', fontWeight: 700, padding: '1px 5px',
-                            borderRadius: 5,
-                            background: distDelta >= -0.3 ? '#05966920' : '#EF444420',
-                            color: distDelta >= -0.3 ? '#059669' : '#EF4444',
+                            fontSize: '0.6875rem', fontWeight: 700, padding: '1px 6px',
+                            borderRadius: 999,
+                            background: distDelta >= -0.3 ? 'rgba(127,219,182,0.25)' : 'rgba(255,107,129,0.15)',
+                            color: distDelta >= -0.3 ? '#059669' : '#FF6B81',
                           }}>
                             {distDelta >= 0 ? `+${distDelta.toFixed(2)}` : distDelta.toFixed(2)} km
                           </span>
@@ -507,20 +514,20 @@ interface StatCardProps {
 
 function StatCard({ label, value, unit, color, icon: Icon, subtext }: StatCardProps) {
   return (
-    <div className="stat-card" style={{ padding: '8px 12px', borderLeft: `3px solid ${color}`, position: 'relative', overflow: 'hidden' }}>
-      <span className="stat-label" style={{ fontSize: '0.625rem', letterSpacing: '0.04em' }}>{label}</span>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 2, marginTop: 1 }}>
-        <span className="stat-value" style={{ fontSize: '1.25rem', lineHeight: 1.1 }}>{value}</span>
+    <div className="stat-card" style={{ padding: '10px 14px', borderLeft: `3px solid ${color}`, position: 'relative', overflow: 'hidden' }}>
+      <span className="stat-label" style={{ fontSize: '0.625rem', letterSpacing: '0.04em', color: 'var(--color-text-muted)' }}>{label}</span>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 2, marginTop: 2 }}>
+        <span className="stat-value" style={{ fontSize: '1.25rem', lineHeight: 1.1, color: 'var(--color-foreground)' }}>{value}</span>
         {unit && <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>{unit}</span>}
       </div>
       {subtext && (
-        <span style={{ fontSize: '0.625rem', color: 'var(--color-text-subtle)', marginTop: 1, display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '85%' }}>
+        <span style={{ fontSize: '0.625rem', color: 'var(--color-text-subtle)', marginTop: 2, display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '85%' }}>
           {subtext}
         </span>
       )}
       {Icon && (
-        <div style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', opacity: 0.1, pointerEvents: 'none' }}>
-          <Icon size={20} color={color} weight="fill" />
+        <div style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', opacity: 0.12, pointerEvents: 'none' }}>
+          <Icon size={22} color={color} weight="fill" />
         </div>
       )}
     </div>

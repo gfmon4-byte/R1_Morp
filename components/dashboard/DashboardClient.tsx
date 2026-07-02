@@ -94,7 +94,7 @@ export function DashboardClient({ profile, activities, hrZones }: Props) {
         <div style={{ marginBottom: 20 }}>
           {/* Year pills */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)', fontFamily: 'Barlow, sans-serif', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)', fontFamily: "'Baloo 2', sans-serif", letterSpacing: '0.06em', textTransform: 'uppercase' }}>
               Year
             </span>
             {availableYears.map((yr) => (
@@ -109,10 +109,10 @@ export function DashboardClient({ profile, activities, hrZones }: Props) {
                   borderRadius: 100,
                   fontSize: '0.8125rem',
                   fontWeight: 600,
-                  fontFamily: 'Barlow Condensed, sans-serif',
+                  fontFamily: "'Baloo 2', sans-serif",
                   border: 'none',
                   cursor: 'pointer',
-                  background: selectedYear === yr ? 'var(--color-primary)' : 'rgba(255,255,255,0.07)',
+                  background: selectedYear === yr ? 'var(--color-primary)' : 'rgba(255,143,163,0.12)',
                   color: selectedYear === yr ? '#fff' : 'var(--color-text-muted)',
                   transition: 'all 0.15s',
                 }}
@@ -124,7 +124,7 @@ export function DashboardClient({ profile, activities, hrZones }: Props) {
 
           {/* Month pills */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)', fontFamily: 'Barlow, sans-serif', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)', fontFamily: "'Baloo 2', sans-serif", letterSpacing: '0.06em', textTransform: 'uppercase' }}>
               Month
             </span>
             <button
@@ -134,10 +134,10 @@ export function DashboardClient({ profile, activities, hrZones }: Props) {
                 borderRadius: 100,
                 fontSize: '0.75rem',
                 fontWeight: 600,
-                fontFamily: 'Barlow, sans-serif',
+                fontFamily: "'Baloo 2', sans-serif",
                 border: 'none',
                 cursor: 'pointer',
-                background: selectedMonth === null ? 'var(--color-primary-soft)' : 'rgba(255,255,255,0.05)',
+                background: selectedMonth === null ? 'var(--color-primary-soft)' : 'rgba(255,143,163,0.08)',
                 color: selectedMonth === null ? 'var(--color-primary)' : 'var(--color-text-muted)',
                 transition: 'all 0.15s',
               }}
@@ -158,10 +158,10 @@ export function DashboardClient({ profile, activities, hrZones }: Props) {
                     borderRadius: 100,
                     fontSize: '0.75rem',
                     fontWeight: isActive ? 700 : 500,
-                    fontFamily: 'Barlow, sans-serif',
-                    border: isCurrent && !isActive ? '1px solid rgba(255,118,216,0.4)' : 'none',
+                    fontFamily: "'Baloo 2', sans-serif",
+                    border: isCurrent && !isActive ? '1px solid rgba(255,143,163,0.4)' : 'none',
                     cursor: 'pointer',
-                    background: isActive ? 'var(--color-primary)' : 'rgba(255,255,255,0.05)',
+                    background: isActive ? 'var(--color-primary)' : 'rgba(255,143,163,0.08)',
                     color: isActive ? '#fff' : isCurrent ? 'var(--color-primary)' : 'var(--color-text-muted)',
                     transition: 'all 0.15s',
                   }}
@@ -241,12 +241,12 @@ function RecentActivityRow({ activity }: { activity: Activity }) {
           flexShrink: 0,
         }}
       >
-        <span style={{ fontSize: '0.625rem', fontWeight: 700, color, fontFamily: 'Barlow Condensed, sans-serif', letterSpacing: '0.03em' }}>
+        <span style={{ fontSize: '0.625rem', fontWeight: 700, color, fontFamily: "'Baloo 2', sans-serif", letterSpacing: '0.03em' }}>
           {activity.session_type.split(' ').map((w: string) => w[0]).join('').slice(0, 3).toUpperCase()}
         </span>
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 600, fontSize: '0.9375rem', color: 'var(--color-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <div style={{ fontWeight: 600, fontSize: '0.9375rem', color: 'var(--color-foreground)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {activity.session_type}
         </div>
         <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: 1 }}>
@@ -254,7 +254,7 @@ function RecentActivityRow({ activity }: { activity: Activity }) {
         </div>
       </div>
       <div style={{ textAlign: 'right', flexShrink: 0 }}>
-        <div style={{ fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, fontSize: '1.125rem', color: 'var(--color-text)' }}>
+        <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 700, fontSize: '1.125rem', color: 'var(--color-foreground)' }}>
           {activity.distance_km > 0 ? `${activity.distance_km.toFixed(1)} km` : formatDuration(activity.duration_seconds)}
         </div>
         <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>

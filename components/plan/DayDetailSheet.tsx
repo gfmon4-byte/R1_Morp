@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import type { Activity, TrainingPlan } from '@/lib/supabase';
 import type { HRZone } from '@/lib/hrZones';
 import { formatPace, formatDuration, thaiDate, getSessionColor } from '@/lib/utils';
-import { X, CheckCircle, Circle, Lightning, MapPin, Heart, TrendUp, ArrowUp, ArrowDown, Minus } from '@phosphor-icons/react';
+import { X, CheckCircle, Circle, Lightning, MapPin, Heart, TrendUp, ArrowUp, ArrowDown, Minus, ClipboardText, CheckFat, ChartBar } from '@phosphor-icons/react';
 
 interface Props {
   date: string;
@@ -101,10 +101,13 @@ export function DayDetailSheet({ date, plan, activities, hrZones, onClose, onLog
         {/* Planned session */}
         {isPlanned && (
           <section style={{ marginBottom: 20 }}>
-            <p className="section-title" style={{ marginBottom: 10 }}>📋 Planned</p>
+            <p className="section-title" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <ClipboardText size={14} color="var(--color-secondary)" weight="bold" />
+              Planned
+            </p>
             <div
               className="card"
-              style={{ borderLeft: `3px solid ${color}`, background: `${color}08` }}
+              style={{ borderLeft: `3px solid ${color}`, background: `${color}10` }}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                 <div style={{ flex: 1 }}>
@@ -161,8 +164,9 @@ export function DayDetailSheet({ date, plan, activities, hrZones, onClose, onLog
 
         {/* Actual activities */}
         <section style={{ marginBottom: 20 }}>
-          <p className="section-title" style={{ marginBottom: 10 }}>
-            ✅ Actual {hasLogged ? `(${activities.length})` : ''}
+          <p className="section-title" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <CheckFat size={14} color="#7FDBB6" weight="fill" />
+            Actual {hasLogged ? `(${activities.length})` : ''}
           </p>
           {hasLogged ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -212,7 +216,7 @@ export function DayDetailSheet({ date, plan, activities, hrZones, onClose, onLog
               })}
             </div>
           ) : (
-            <div style={{ padding: '16px', background: 'var(--color-bg-elevated)', borderRadius: 12, textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>
+            <div style={{ padding: '16px', background: 'var(--color-muted)', borderRadius: 16, textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>
               No activities logged for this day
             </div>
           )}
@@ -221,18 +225,21 @@ export function DayDetailSheet({ date, plan, activities, hrZones, onClose, onLog
         {/* ── Plan vs Actual comparison ── */}
         {showComparison && (
           <section style={{ marginBottom: 20 }}>
-            <p className="section-title" style={{ marginBottom: 10 }}>📊 Plan vs Actual</p>
+            <p className="section-title" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <ChartBar size={14} color="var(--color-sky)" weight="bold" />
+              Plan vs Actual
+            </p>
             <div style={{
-              background: 'var(--color-bg-elevated)',
-              borderRadius: 14,
+              background: '#FFFFFF',
+              borderRadius: 16,
               overflow: 'hidden',
-              border: '1px solid var(--color-border)',
+              border: '2px solid var(--color-border)',
+              boxShadow: 'var(--shadow-sm)',
             }}>
-              {/* Header */}
               <div style={{
                 display: 'grid', gridTemplateColumns: '1fr 1fr 1fr',
                 padding: '8px 14px',
-                background: 'var(--color-bg-card)',
+                background: 'var(--color-muted)',
                 borderBottom: '1px solid var(--color-border)',
               }}>
                 {['Metric', 'Plan', 'Actual'].map((h, i) => (
@@ -299,18 +306,18 @@ export function DayDetailSheet({ date, plan, activities, hrZones, onClose, onLog
             {/* Summary verdict */}
             {distDelta !== null && (
               <div style={{
-                marginTop: 10, padding: '10px 14px', borderRadius: 10,
-                background: distDelta >= -0.5 ? '#05966912' : '#EF444412',
-                border: `1px solid ${distDelta >= -0.5 ? '#05966930' : '#EF444430'}`,
+                marginTop: 10, padding: '10px 14px', borderRadius: 12,
+                background: distDelta >= -0.5 ? 'rgba(127,219,182,0.15)' : 'rgba(255,107,129,0.10)',
+                border: `1px solid ${distDelta >= -0.5 ? 'rgba(127,219,182,0.4)' : 'rgba(255,107,129,0.3)'}`,
                 fontSize: '0.8125rem',
-                color: distDelta >= -0.5 ? '#059669' : '#EF4444',
+                color: distDelta >= -0.5 ? '#059669' : '#FF6B81',
                 fontWeight: 600,
               }}>
                 {distDelta >= 0
-                  ? `✅ You ran ${distDelta.toFixed(2)} km more than planned!`
+                  ? `You ran ${distDelta.toFixed(2)} km more than planned!`
                   : distDelta >= -0.5
-                    ? `✅ Very close — only ${Math.abs(distDelta).toFixed(2)} km short of target`
-                    : `📉 ${Math.abs(distDelta).toFixed(2)} km short of target`}
+                    ? `Very close — only ${Math.abs(distDelta).toFixed(2)} km short of target`
+                    : `${Math.abs(distDelta).toFixed(2)} km short of target`}
               </div>
             )}
           </section>
@@ -348,9 +355,9 @@ function CompareRow({
         <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text)' }}>{label}</div>
         {note && <div style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', marginTop: 1 }}>{note}</div>}
       </div>
-      <div style={{ textAlign: 'center', fontSize: '0.875rem', fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, color: 'var(--color-text-muted)' }}>{plan}</div>
+      <div style={{ textAlign: 'center', fontSize: '0.875rem', fontFamily: "'Baloo 2', sans-serif", fontWeight: 600, color: 'var(--color-text-muted)' }}>{plan}</div>
       <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
-        <span style={{ fontSize: '0.875rem', fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, color: 'var(--color-text)' }}>{actual}</span>
+        <span style={{ fontSize: '0.875rem', fontFamily: "'Baloo 2', sans-serif", fontWeight: 700, color: 'var(--color-foreground)' }}>{actual}</span>
         {delta}
       </div>
     </div>
@@ -362,7 +369,7 @@ function PlanMetric({ icon, label, value }: { icon?: React.ReactNode; label: str
     <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
       {icon && <span style={{ color: 'var(--color-text-muted)' }}>{icon}</span>}
       <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{label}:</span>
-      <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text)', fontFamily: 'Barlow Condensed, sans-serif' }}>{value}</span>
+      <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-foreground)', fontFamily: "'Baloo 2', sans-serif" }}>{value}</span>
     </div>
   );
 }
@@ -371,7 +378,7 @@ function ActivityMetric({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <div style={{ fontSize: '0.6875rem', color: 'var(--color-text-subtle)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 1 }}>{label}</div>
-      <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text)', fontFamily: 'Barlow Condensed, sans-serif' }}>{value}</div>
+      <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-foreground)', fontFamily: "'Baloo 2', sans-serif" }}>{value}</div>
     </div>
   );
 }

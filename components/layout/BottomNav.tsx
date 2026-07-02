@@ -28,15 +28,16 @@ export function BottomNav() {
         left: 0,
         right: 0,
         zIndex: 100,
-        background: 'rgba(0,0,0,0.95)',
+        background: 'rgba(255,248,244,0.92)',
         backdropFilter: 'blur(16px)',
         WebkitBackdropFilter: 'blur(16px)',
-        borderTop: '1px solid var(--color-border)',
+        borderTop: '1px solid rgba(255,143,163,0.25)',
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         height: 'calc(68px + env(safe-area-inset-bottom, 0px))',
         display: 'flex',
         alignItems: 'flex-start',
         paddingTop: '2px',
+        boxShadow: '0 -4px 20px rgba(255,143,163,0.12)',
       }}
     >
       <div
@@ -77,23 +78,23 @@ export function BottomNav() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  borderRadius: 10,
-                  background: isActive ? 'var(--color-primary-soft)' : 'transparent',
+                  borderRadius: 999,
+                  background: isActive ? 'rgba(255,143,163,0.15)' : 'transparent',
                   transition: 'background 0.2s',
                 }}
               >
                 <Icon
                   size={24}
                   weight={isActive ? 'fill' : 'regular'}
-                  color={isActive ? 'var(--color-primary)' : '#64748B'}
+                  color={isActive ? '#FF8FA3' : '#C9A7EB'}
                 />
               </div>
               <span
                 style={{
                   fontSize: '10px',
-                  fontFamily: 'Barlow, sans-serif',
-                  fontWeight: 500,
-                  color: isActive ? 'var(--color-primary)' : '#64748B',
+                  fontFamily: "'Baloo 2', sans-serif",
+                  fontWeight: 600,
+                  color: isActive ? '#FF8FA3' : '#C9A7EB',
                   letterSpacing: '0.02em',
                   transition: 'color 0.2s',
                 }}

@@ -1,25 +1,25 @@
 import type { Metadata } from 'next';
-import { Barlow, Barlow_Condensed } from 'next/font/google';
+import { Baloo_2, Mali } from 'next/font/google';
 import './globals.css';
 import { BottomNav } from '@/components/layout/BottomNav';
 
-const barlow = Barlow({
+const baloo2 = Baloo_2({
   subsets: ['latin'],
-  weight: ['300', '400', '500', '600', '700'],
-  variable: '--font-barlow',
+  weight: ['500', '600', '700', '800'],
+  variable: '--font-baloo2',
   display: 'swap',
 });
 
-const barlowCondensed = Barlow_Condensed({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-barlow-condensed',
+const mali = Mali({
+  subsets: ['latin', 'thai'],
+  weight: ['300', '400', '500', '600', '700'],
+  variable: '--font-mali',
   display: 'swap',
 });
 
 export const metadata: Metadata = {
-  title: 'RunMorp — Elite Training',
-  description: 'Personal training dashboard for an elite runner. Track runs, manage training plans, and monitor performance metrics.',
+  title: 'RunMorp — Happy Running',
+  description: 'แอปติดตามการวิ่งสุดน่ารัก บันทึกรัน จัดการแผนซ้อม และดูสถิติการวิ่งของคุณ',
 };
 
 export const viewport = {
@@ -34,10 +34,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${barlow.variable} ${barlowCondensed.variable}`}>
+    <html lang="th" className={`${baloo2.variable} ${mali.variable}`}>
       <head>
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
       </head>
       <body>
         <div className="page-container">
