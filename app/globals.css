@@ -61,6 +61,45 @@
   font-family: 'Mali', system-ui, sans-serif;
 }
 
+/* ============================================================
+   Dark Pink — Dark Mode Tokens
+   Activated via data-theme="dark" on <html>
+   ============================================================ */
+[data-theme="dark"] {
+  /* Core palette */
+  --color-primary:       #FF2D78;
+  --color-on-primary:    #FFFFFF;
+  --color-primary-soft:  rgba(255,45,120,0.20);
+  --color-secondary:     #E040B0;
+  --color-accent:        #FF6EB4;
+  --color-background:    #0F0711;
+  --color-foreground:    #FFD6EA;
+  --color-muted:         #1E0D18;
+  --color-border:        rgba(255,45,120,0.28);
+  --color-border-muted:  rgba(255,45,120,0.12);
+  --color-destructive:   #FF4D6D;
+  --color-ring:          #FF2D78;
+  --color-sky:           #B07BFF;
+  --color-sun:           #FFB347;
+
+  /* Legacy aliases */
+  --color-bg:            #0F0711;
+  --color-bg-surface:    #1A0C16;
+  --color-bg-elevated:   #240E1D;
+  --color-bg-card:       #1A0C16;
+  --color-text:          #FFD6EA;
+  --color-text-muted:    #E090C0;
+  --color-text-subtle:   #9A5878;
+
+  /* Shadows — deep dark with pink glow */
+  --shadow-sm: 0 2px 6px rgba(255,45,120,0.20);
+  --shadow-md: 0 6px 16px rgba(255,45,120,0.28);
+  --shadow-lg: 0 12px 24px rgba(255,45,120,0.35);
+  --shadow-xl: 0 20px 40px rgba(255,45,120,0.40);
+
+  color-scheme: dark;
+}
+
 /* ---- Base Reset ---- */
 *, *::before, *::after {
   box-sizing: border-box;
@@ -71,6 +110,7 @@ html {
   color: var(--color-foreground);
   -webkit-text-size-adjust: 100%;
   scroll-behavior: smooth;
+  transition: background-color 300ms ease, color 300ms ease;
 }
 
 body {
@@ -80,6 +120,7 @@ body {
   color: var(--color-foreground);
   overscroll-behavior-y: none;
   font-family: 'Mali', system-ui, sans-serif;
+  transition: background-color 300ms ease, color 300ms ease;
 }
 
 /* ---- Typography ---- */
@@ -107,11 +148,13 @@ h1, h2, h3, h4, h5 {
   position: sticky;
   top: 0;
   z-index: 40;
-  background: rgba(255,248,244,0.92);
+  background: rgba(from var(--color-background) r g b / 0.92);
+  background-color: color-mix(in srgb, var(--color-background) 92%, transparent);
   border-bottom: 1px solid var(--color-border);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   padding: 16px 20px 12px;
+  transition: background-color 300ms ease, border-color 300ms ease;
 }
 
 .page-content {
@@ -129,7 +172,7 @@ h1, h2, h3, h4, h5 {
 
 /* ---- Cards ---- */
 .card {
-  background: #FFFFFF;
+  background: var(--color-bg-card);
   border: 2px solid var(--color-border);
   border-radius: 20px;
   padding: 16px;
@@ -144,7 +187,7 @@ h1, h2, h3, h4, h5 {
 }
 
 .card-elevated {
-  background: #FFFFFF;
+  background: var(--color-bg-card);
   border: 2px solid var(--color-border);
   border-radius: 20px;
   padding: 16px;
@@ -153,7 +196,7 @@ h1, h2, h3, h4, h5 {
 
 /* ---- Stat card ---- */
 .stat-card {
-  background: #FFFFFF;
+  background: var(--color-bg-card);
   border: 2px solid var(--color-border);
   border-radius: 20px;
   padding: 16px;
@@ -200,7 +243,7 @@ h1, h2, h3, h4, h5 {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #FF8FA3, #FFB4C6);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
   color: #FFFFFF;
   box-shadow: var(--shadow-md);
 }
@@ -208,9 +251,10 @@ h1, h2, h3, h4, h5 {
 .btn-primary:active { transform: translateY(0) scale(0.98); }
 
 .btn-ghost {
-  background: #FFFFFF;
+  background: var(--color-bg-card);
   color: var(--color-primary);
   border: 2px solid var(--color-border);
+  transition: all 200ms ease;
 }
 .btn-ghost:hover { background: var(--color-muted); border-color: var(--color-primary); transform: translateY(-1px); }
 
@@ -262,20 +306,20 @@ h1, h2, h3, h4, h5 {
 .form-input {
   width: 100%;
   min-height: 44px;
-  background: #FFFFFF;
+  background: var(--color-bg-surface);
   border: 2px solid var(--color-border);
   border-radius: 16px;
   color: var(--color-foreground);
   padding: 0 14px;
   font-family: 'Mali', sans-serif;
   font-size: 0.9375rem;
-  transition: border-color 200ms ease, box-shadow 200ms ease;
+  transition: border-color 200ms ease, box-shadow 200ms ease, background-color 300ms ease;
   outline: none;
 }
 
 .form-input:focus {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 4px rgba(255,143,163,0.20);
+  box-shadow: 0 0 0 4px var(--color-primary-soft);
 }
 
 .form-input::placeholder { color: var(--color-text-subtle); }
@@ -304,7 +348,7 @@ input[type="date"].form-input::-webkit-date-and-time-value {
 
 .form-textarea {
   width: 100%;
-  background: #FFFFFF;
+  background: var(--color-bg-surface);
   border: 2px solid var(--color-border);
   border-radius: 16px;
   color: var(--color-foreground);
@@ -313,17 +357,17 @@ input[type="date"].form-input::-webkit-date-and-time-value {
   font-size: 0.9375rem;
   resize: vertical;
   outline: none;
-  transition: border-color 200ms ease, box-shadow 200ms ease;
+  transition: border-color 200ms ease, box-shadow 200ms ease, background-color 300ms ease;
 }
 .form-textarea:focus {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 4px rgba(255,143,163,0.20);
+  box-shadow: 0 0 0 4px var(--color-primary-soft);
 }
 
 .form-select {
   width: 100%;
   min-height: 44px;
-  background: #FFFFFF;
+  background: var(--color-bg-surface);
   border: 2px solid var(--color-border);
   border-radius: 16px;
   color: var(--color-foreground);
@@ -337,10 +381,10 @@ input[type="date"].form-input::-webkit-date-and-time-value {
   background-repeat: no-repeat;
   background-position: right 14px center;
   padding-right: 38px;
-  transition: border-color 200ms ease;
+  transition: border-color 200ms ease, background-color 300ms ease;
 }
-.form-select:focus { border-color: var(--color-primary); box-shadow: 0 0 0 4px rgba(255,143,163,0.20); outline: none; }
-.form-select option { background: #FFFFFF; color: var(--color-foreground); }
+.form-select:focus { border-color: var(--color-primary); box-shadow: 0 0 0 4px var(--color-primary-soft); outline: none; }
+.form-select option { background: var(--color-bg-surface); color: var(--color-foreground); }
 
 .form-error {
   font-size: 0.8125rem;
@@ -387,7 +431,7 @@ input[type="date"].form-input::-webkit-date-and-time-value {
   left: 0;
   right: 0;
   height: var(--visual-viewport-height, 100dvh);
-  background: rgba(74,59,82,0.35);
+  background: rgba(0,0,0,0.45);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   z-index: 150;
@@ -403,7 +447,7 @@ input[type="date"].form-input::-webkit-date-and-time-value {
 }
 
 .sheet {
-  background: #FFFFFF;
+  background: var(--color-bg-surface);
   border-radius: 28px 28px 0 0;
   border: 3px solid var(--color-muted);
   border-bottom: none;
@@ -413,6 +457,7 @@ input[type="date"].form-input::-webkit-date-and-time-value {
   padding: 8px 20px calc(32px + env(safe-area-inset-bottom, 0px));
   position: relative;
   box-shadow: var(--shadow-xl);
+  transition: background-color 300ms ease, border-color 300ms ease;
 }
 
 @media (min-width: 640px) {
@@ -476,7 +521,7 @@ input[type="date"].form-input::-webkit-date-and-time-value {
 
 /* ---- Loading / skeleton ---- */
 .skeleton {
-  background: linear-gradient(90deg, var(--color-muted) 0%, rgba(255,255,255,0.8) 50%, var(--color-muted) 100%);
+  background: linear-gradient(90deg, var(--color-muted) 0%, var(--color-bg-elevated) 50%, var(--color-muted) 100%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
   border-radius: 12px;
@@ -595,7 +640,7 @@ input[type="date"].form-input::-webkit-date-and-time-value {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: #FFFFFF;
+  background: var(--color-bg-card);
   border: 2px solid var(--color-border);
   border-radius: 16px;
   padding: 12px 14px;
@@ -603,7 +648,7 @@ input[type="date"].form-input::-webkit-date-and-time-value {
   text-align: left;
   width: 100%;
   -webkit-tap-highlight-color: transparent;
-  transition: border-color 200ms ease, transform 200ms ease, box-shadow 200ms ease;
+  transition: border-color 200ms ease, transform 200ms ease, box-shadow 200ms ease, background-color 300ms ease;
   box-shadow: var(--shadow-sm);
 }
 

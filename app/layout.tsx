@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Baloo_2, Mali } from 'next/font/google';
 import './globals.css';
 import { BottomNav } from '@/components/layout/BottomNav';
+import { ThemeProvider } from '@/components/layout/ThemeProvider';
 
 const baloo2 = Baloo_2({
   subsets: ['latin'],
@@ -40,10 +41,12 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
       </head>
       <body>
-        <div className="page-container">
-          {children}
-        </div>
-        <BottomNav />
+        <ThemeProvider>
+          <div className="page-container">
+            {children}
+          </div>
+          <BottomNav />
+        </ThemeProvider>
       </body>
     </html>
   );
