@@ -1,109 +1,167 @@
-# Pacelog — Elite Training Tracker
+# RunMorp — Elite Running Training App
 
-A mobile-first personal training web app for competitive runners. Built with **Next.js 14+ (App Router)**, **Supabase (Postgres)**, and **Tailwind CSS**. Single-user, no authentication — a private tool for one athlete.
+A mobile-first personal training dashboard for an elite runner. Built with Next.js 15 + Supabase + Tailwind CSS.
 
 ## Features
 
-- **Dashboard** — distance stats, weekly/monthly charts, HR zone distribution, recent activities
-- **Run History** — manual run logging with auto pace calculation and live HR zone feedback
-- **Training Plan** — CSV import with upsert, agenda/calendar views, completion tracking
-- **Profile** — runner stats, pace zones, auto-computed Karvonen HR zones
+- 📊 **Dashboard** — Stat cards, weekly/monthly volume charts, Pace vs HR dual-axis chart, HR zone distribution
+- 🏃 **Run History** — Log activities manually (Apple Watch data entry), filter, edit, delete
+- 📅 **Training Plan** — Month calendar + list view, CSV import, planned vs actual comparison, mark complete
+- 👤 **Profile** — VO₂max benchmark, PBs, HR zones (Karvonen formula), Pace zones (auto/manual)
 
-## Prerequisites
+## Quick Start
 
-- Node.js 18+
-- A [Supabase](https://supabase.com) project (free tier works)
+### 1. Supabase Setup
 
-## Supabase Setup
+1. Create a project at [supabase.com](https://supabase.com)
+2. In the **SQL Editor**, run `supabase/schema.sql`
+3. Then run `supabase/seed.sql` for sample data
+4. Copy your project URL and anon key from **Project Settings → API**
 
-### 1. Create a project
+### 2. Environment Variables
 
-Create a new Supabase project at [supabase.com/dashboard](https://supabase.com/dashboard).
-
-### 2. Run migrations
-
-Open the **SQL Editor** in Supabase and run the migration file:
-
-```
-supabase/migrations/001_initial_schema.sql
+```bash
+cp .env.local.example .env.local
 ```
 
-This creates `profiles`, `activities`, and `training_plan` tables with permissive RLS policies for single-user access.
+Edit `.env.local`:
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+```
 
-### 3. Seed sample data (optional)
-
-Run `supabase/seed.sql` in the SQL Editor to populate a sample profile and activities.
-
-### 4. Environment variables
-
-Edit `.env.local` in the project root and add your Supabase credentials:
-
-| Variable | Where to find it |
-|----------|------------------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Project Settings → API → Project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Project Settings → API → anon public key |
-| `SUPABASE_SERVICE_ROLE_KEY` | Project Settings → API → service_role key (keep secret) |
-
-The app uses the **service role key server-side** for all database operations. The anon key is optional but recommended if you add client-side Supabase calls later.
-
-## Local Development
+### 3. Install & Run
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000)
 
-## Import Training Plan CSV
+---
 
-1. Go to **Training Plan**
-2. Upload a CSV with columns: `date, day_of_week, phase, session_type, description, distance_km, pace_target, hr_zone, rpe, notes`
-3. Review the preview and confirm import
+## CSV Import (Training Plan)
 
-A sample file is included at `supabase/sample-training-plan.csv`. Re-importing updates existing rows by date (no duplicates).
+### Format
 
-## HR Zones
+Your CSV must have these headers (extra columns are ignored):
 
-HR zones (Z1–Z5) are computed automatically from **HR Max** and **HR Rest** using the Karvonen formula:
+```csv
+date,day_of_week,phase,session_type,description,distance_km,pace_target,hr_zone,rpe,notes
+2026-07-01,Wed,Base,Easy Run,5 km Easy,5,6:45-7:10/km,Z2,3,Conversational Pace
+```
+
+| Column | Required | Format | Example |
+|--------|----------|--------|---------|
+| `date` | ✅ | YYYY-MM-DD | `2026-07-15` |
+| `day_of_week` | No | Text | `Mon` |
+| `phase` | No | Text | `Base`, `Build` |
+| `session_type` | No | Text | `Easy Run`, `Intervals` |
+| `description` | No | Text | `6x400m @4:40/km` |
+| `distance_km` | No | Number | `8` |
+| `pace_target` | No | Text | `6:00-6:30/km` |
+| `hr_zone` | No | Text | `Z2`, `Z4` |
+| `rpe` | No | Number or `-` | `7` |
+| `notes` | No | Text | `Fuel practice` |
+
+### Import Steps
+
+1. Go to **Training Plan** page
+2. Tap the **↑ (upload)** icon in the header
+3. Drop your CSV file or browse to select it
+4. Review the preview (first 5 rows)
+5. Tap **Import Plan** — rows are upserted on `date` (existing rows are updated)
+
+The bundled CSV `Running - 10k sup60.csv` can be imported directly.
+
+---
+
+## HR Zones — Karvonen Formula
+
+All HR zones are computed in `lib/hrZones.ts` using:
 
 ```
 HRR = hr_max - hr_rest
-Zone HR = hr_rest + (HRR × intensity%)
+Zone N Min = (HRR × band_min%) + hr_rest
+Zone N Max = (HRR × band_max%) + hr_rest
 ```
 
-Update these values in **Profile** and all zone displays across the app update automatically.
+| Zone | % HRR | Name |
+|------|-------|------|
+| Z1 | 50–60% | Recovery |
+| Z2 | 60–70% | Aerobic Base |
+| Z3 | 70–80% | Tempo |
+| Z4 | 80–90% | Threshold |
+| Z5 | 90–100% | VO₂max |
+
+---
+
+## Pace Zones
+
+Computed in `lib/paceZones.ts`.
+
+**Auto mode** (recommended): derives zones from your 10K and Half Marathon PBs using a threshold-pace percentage model.
+
+**Manual mode**: enter custom min/max pace strings per zone (e.g., `6:45/km`).
+
+Toggle between modes in the **Profile** page.
+
+---
 
 ## Deploy to Vercel
 
-1. Push the repo to GitHub
-2. Import the project in [Vercel](https://vercel.com)
-3. Add the three environment variables from `.env.local`
-4. Deploy
+```bash
+# Install Vercel CLI (if needed)
+npm i -g vercel
 
-All routes are open — no auth required.
+# Deploy
+vercel --prod
+```
+
+Or connect your GitHub repo to [vercel.com](https://vercel.com):
+
+1. Push this repo to GitHub
+2. Import project in Vercel
+3. Add environment variables:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+4. Deploy → done
+
+---
 
 ## Tech Stack
 
-- Next.js 16 (App Router) + TypeScript
-- Supabase Postgres
-- Tailwind CSS v4
-- Recharts
-- React Hook Form + Zod
-- PapaParse (CSV import)
-- date-fns + date-fns-tz (Asia/Bangkok timezone)
+| Tool | Purpose |
+|------|---------|
+| Next.js 15 (App Router) | Framework |
+| Supabase | Postgres database + client |
+| Tailwind CSS v4 | Styling |
+| Recharts v3 | Charts |
+| React Hook Form + Zod | Forms + validation |
+| PapaParse | CSV parsing |
+| date-fns + date-fns-tz | Date handling (Asia/Bangkok) |
+| Phosphor Icons | Icon system |
 
 ## Project Structure
 
 ```
-src/
-  app/              # Pages (Dashboard, Runs, Training Plan, Profile)
-  components/       # UI, charts, page clients
-  lib/
-    hrZones.ts      # Karvonen HR zone calculations (single source of truth)
-    actions/        # Server actions for Supabase
-    supabase/       # Supabase client
+app/
+  dashboard/     # Dashboard with charts
+  history/       # Run log
+  plan/          # Training plan calendar
+  profile/       # Athlete profile
+components/
+  dashboard/     # Chart components
+  layout/        # BottomNav
+  plan/          # Calendar, DayDetailSheet, CsvImport
+  runs/          # AddRunForm
+lib/
+  hrZones.ts     # Karvonen HR zone logic (single source of truth)
+  paceZones.ts   # Pace zone logic (single source of truth)
+  supabase.ts    # Client + TypeScript types
+  utils.ts       # Formatting helpers
 supabase/
-  migrations/       # SQL schema
-  seed.sql          # Sample data
+  schema.sql     # Database schema
+  seed.sql       # Sample data
 ```

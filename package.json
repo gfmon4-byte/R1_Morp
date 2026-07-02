@@ -1,38 +1,35 @@
 {
-  "name": "dr2",
-  "version": "0.1.0",
+  "name": "run-morp",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "next lint"
   },
   "dependencies": {
-    "@hookform/resolvers": "^5.4.0",
-    "@supabase/supabase-js": "^2.110.0",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "date-fns": "^4.4.0",
+    "@hookform/resolvers": "^5.0.1",
+    "@phosphor-icons/react": "^2.1.7",
+    "@supabase/supabase-js": "^2.49.8",
+    "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
-    "lucide-react": "^1.22.0",
-    "next": "16.2.9",
-    "papaparse": "^5.5.4",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "react-hook-form": "^7.80.0",
+    "next": "^15.3.3",
+    "papaparse": "^5.5.2",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-hook-form": "^7.56.4",
     "recharts": "^3.9.1",
-    "tailwind-merge": "^3.6.0",
-    "zod": "^4.4.3"
+    "zod": "^3.25.28"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
-    "@types/papaparse": "^5.5.2",
+    "@types/papaparse": "^5.3.15",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.2.9",
+    "eslint-config-next": "^15.3.3",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
