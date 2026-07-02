@@ -124,7 +124,7 @@ export default function PlanPage() {
       {/* Header */}
       <header className="page-header">
         <div style={{ maxWidth: 900, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <CalendarBlank size={22} color="#EA580C" weight="fill" />
+          <CalendarBlank size={22} color="var(--color-primary)" weight="fill" />
           <h1 style={{ fontSize: '1.5rem', flex: 1 }}>Training Plan</h1>
           <button
             className="btn btn-ghost btn-icon"
@@ -266,7 +266,7 @@ export default function PlanPage() {
                         <div
                           className="calendar-event-chip"
                           style={{
-                            background: isOver || !hasPlan ? '#059669' : '#F97316',
+                            background: isOver || !hasPlan ? '#059669' : 'var(--color-secondary)',
                             color: '#FFFFFF',
                           }}
                           title={`Actual: ${actualKm.toFixed(2)} km`}
@@ -303,7 +303,7 @@ export default function PlanPage() {
                     </div>
                   )}
                   {type === 'short-chip' && (
-                    <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 3, background: '#F97316', color: '#fff', fontWeight: 600, textTransform: 'uppercase' }}>
+                    <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 3, background: 'var(--color-secondary)', color: '#fff', fontWeight: 600, textTransform: 'uppercase' }}>
                       Short
                     </div>
                   )}

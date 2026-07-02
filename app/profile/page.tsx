@@ -171,7 +171,7 @@ export default function ProfilePage() {
         <div style={{ maxWidth: 640, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--color-primary-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <User size={20} color="#EA580C" weight="fill" />
+              <User size={20} color="var(--color-primary)" weight="fill" />
             </div>
             <h1 style={{ fontSize: '1.5rem' }}>Profile</h1>
           </div>
@@ -182,7 +182,7 @@ export default function ProfilePage() {
         <form onSubmit={handleSubmit(onSubmit)} noValidate>
 
           {/* Personal Info */}
-          <Section title="Personal Info" icon={<User size={16} color="#EA580C" />}>
+          <Section title="Personal Info" icon={<User size={16} color="var(--color-primary)" />}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div style={{ gridColumn: '1 / -1' }}>
                 <label className="form-label" htmlFor="p-name">Name</label>
@@ -214,7 +214,7 @@ export default function ProfilePage() {
           </Section>
 
           {/* VO2max / VT2 */}
-          <Section title="Performance Metrics" icon={<Gauge size={16} color="#EA580C" />}>
+          <Section title="Performance Metrics" icon={<Gauge size={16} color="var(--color-primary)" />}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div>
                 <label className="form-label" htmlFor="p-vo2">VO₂max (ml/kg/min)</label>
@@ -231,7 +231,7 @@ export default function ProfilePage() {
               <div style={{ marginTop: 16 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: '0.8125rem' }}>
                   <span style={{ color: 'var(--color-text-muted)' }}>VO₂max comparison</span>
-                  <span style={{ fontWeight: 700, color: '#EA580C', fontFamily: 'Barlow Condensed' }}>{watchVo2.toFixed(1)} ml/kg/min</span>
+                  <span style={{ fontWeight: 700, color: 'var(--color-primary)', fontFamily: 'Barlow Condensed' }}>{watchVo2.toFixed(1)} ml/kg/min</span>
                 </div>
                 <div style={{ height: 8, background: 'var(--color-bg-elevated)', borderRadius: 4, overflow: 'hidden', position: 'relative' }}>
                   {/* Elite range band 85-90 → but we normalize against 85 ml/kg/min max */}
@@ -239,7 +239,7 @@ export default function ProfilePage() {
                   <div style={{
                     height: '100%',
                     width: `${Math.min((watchVo2 / 90) * 100, 100)}%`,
-                    background: watchVo2 >= 75 ? '#059669' : watchVo2 >= 60 ? '#EA580C' : '#FBBF24',
+                    background: watchVo2 >= 75 ? '#059669' : watchVo2 >= 60 ? 'var(--color-primary)' : '#FBBF24',
                     borderRadius: 4,
                     transition: 'width 0.4s',
                   }} />
@@ -263,7 +263,7 @@ export default function ProfilePage() {
           </Section>
 
           {/* Personal Bests */}
-          <Section title="Personal Bests" icon={<Trophy size={16} color="#EA580C" />}>
+          <Section title="Personal Bests" icon={<Trophy size={16} color="var(--color-primary)" />}>
             <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', marginBottom: 12 }}>Format: H:MM:SS or MM:SS</p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               {[

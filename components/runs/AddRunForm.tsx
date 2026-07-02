@@ -182,7 +182,7 @@ export function AddRunForm({ activity, onClose, onSaved, hrZones }: Props) {
               {/* Live pace */}
               <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>Avg Pace:</span>
-                <span style={{ fontSize: '0.875rem', fontWeight: 700, color: '#EA580C', fontFamily: 'Barlow Condensed, sans-serif' }}>
+                <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-primary)', fontFamily: 'Barlow Condensed, sans-serif' }}>
                   {livePaceStr}
                 </span>
               </div>

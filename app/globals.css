@@ -5,22 +5,22 @@
    OLED Dark Mode / Barlow / Orange + Green
    ============================================================ */
 :root {
-  --color-bg:           #0A0E1A;
-  --color-bg-surface:   #111827;
-  --color-bg-elevated:  #1A2235;
-  --color-bg-card:      #0F1929;
-  --color-border:       rgba(255,255,255,0.07);
-  --color-border-muted: rgba(255,255,255,0.04);
+  --color-bg:           #000000;
+  --color-bg-surface:   #09090B;
+  --color-bg-elevated:  #141416;
+  --color-bg-card:      #0B0C10;
+  --color-border:       rgba(255,118,216,0.12);
+  --color-border-muted: rgba(255,118,216,0.06);
 
-  --color-primary:      #EA580C;
-  --color-primary-soft: rgba(234,88,12,0.15);
-  --color-secondary:    #F97316;
+  --color-primary:      #FF76D8;
+  --color-primary-soft: rgba(255,118,216,0.15);
+  --color-secondary:    #FFAAD4;
   --color-accent:       #059669;
   --color-accent-soft:  rgba(5,150,105,0.15);
 
-  --color-text:         #F8FAFC;
-  --color-text-muted:   #94A3B8;
-  --color-text-subtle:  #475569;
+  --color-text:         #FFFFFF;
+  --color-text-muted:   #E4E4E7;
+  --color-text-subtle:  #71717A;
 
   /* Zone colors */
   --zone-1: #6EE7B7;
@@ -171,7 +171,7 @@ h1, h2, h3, h4, h5 {
   background: var(--color-primary);
   color: #fff;
 }
-.btn-primary:hover  { background: #C2450A; }
+.btn-primary:hover  { background: #E85EC2; }
 .btn-primary:active { opacity: 0.85; transform: scale(0.98); }
 
 .btn-ghost {
@@ -409,8 +409,8 @@ h1, h2, h3, h4, h5 {
 }
 
 /* ---- Glow accent ---- */
-.glow-orange {
-  box-shadow: 0 0 20px rgba(234,88,12,0.25);
+.glow-orange, .glow-pink {
+  box-shadow: 0 0 20px rgba(255,118,216,0.25);
 }
 .glow-green {
   box-shadow: 0 0 20px rgba(5,150,105,0.25);

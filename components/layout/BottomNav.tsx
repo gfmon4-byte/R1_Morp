@@ -28,10 +28,10 @@ export function BottomNav() {
         left: 0,
         right: 0,
         zIndex: 100,
-        background: 'rgba(10,14,26,0.95)',
+        background: 'rgba(0,0,0,0.95)',
         backdropFilter: 'blur(16px)',
         WebkitBackdropFilter: 'blur(16px)',
-        borderTop: '1px solid rgba(255,255,255,0.07)',
+        borderTop: '1px solid var(--color-border)',
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         height: 'calc(68px + env(safe-area-inset-bottom, 0px))',
         display: 'flex',
@@ -78,14 +78,14 @@ export function BottomNav() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   borderRadius: 10,
-                  background: isActive ? 'rgba(234,88,12,0.15)' : 'transparent',
+                  background: isActive ? 'var(--color-primary-soft)' : 'transparent',
                   transition: 'background 0.2s',
                 }}
               >
                 <Icon
                   size={24}
                   weight={isActive ? 'fill' : 'regular'}
-                  color={isActive ? '#EA580C' : '#64748B'}
+                  color={isActive ? 'var(--color-primary)' : '#64748B'}
                 />
               </div>
               <span
@@ -93,7 +93,7 @@ export function BottomNav() {
                   fontSize: '10px',
                   fontFamily: 'Barlow, sans-serif',
                   fontWeight: 500,
-                  color: isActive ? '#EA580C' : '#64748B',
+                  color: isActive ? 'var(--color-primary)' : '#64748B',
                   letterSpacing: '0.02em',
                   transition: 'color 0.2s',
                 }}

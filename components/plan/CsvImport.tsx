@@ -127,12 +127,12 @@ export function CsvImport({ onClose, onImported }: Props) {
           onDrop={handleDrop}
           onClick={() => fileRef.current?.click()}
           style={{
-            border: `2px dashed ${dragOver ? '#EA580C' : 'rgba(255,255,255,0.15)'}`,
+            border: `2px dashed ${dragOver ? 'var(--color-primary)' : 'rgba(255,255,255,0.15)'}`,
             borderRadius: 16,
             padding: 32,
             textAlign: 'center',
             cursor: 'pointer',
-            background: dragOver ? 'rgba(234,88,12,0.06)' : 'var(--color-bg-elevated)',
+            background: dragOver ? 'var(--color-primary-soft)' : 'var(--color-bg-elevated)',
             transition: 'all 0.2s',
             marginBottom: 16,
           }}
@@ -145,7 +145,7 @@ export function CsvImport({ onClose, onImported }: Props) {
             onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
             aria-label="Upload CSV file"
           />
-          <UploadSimple size={36} color={dragOver ? '#EA580C' : '#64748B'} style={{ margin: '0 auto 12px' }} />
+          <UploadSimple size={36} color={dragOver ? 'var(--color-primary)' : '#64748B'} style={{ margin: '0 auto 12px' }} />
           <p style={{ fontWeight: 600, color: 'var(--color-text)', marginBottom: 4 }}>
             {file ? file.name : 'Drop CSV or tap to browse'}
           </p>

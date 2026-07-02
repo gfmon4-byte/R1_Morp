@@ -21,8 +21,8 @@ const CHART_STYLE = {
 };
 
 const CustomTooltipStyle = {
-  background: '#1A2235',
-  border: '1px solid rgba(255,255,255,0.1)',
+  background: 'var(--color-bg-elevated)',
+  border: '1px solid var(--color-border)',
   borderRadius: 10,
   padding: '8px 12px',
   fontSize: '0.8125rem',
@@ -106,9 +106,9 @@ export function DashboardCharts({ activities, hrZones }: Props) {
               cursor={{ fill: 'rgba(255,255,255,0.04)' }}
               formatter={(v) => [`${v ?? 0} km`, 'Distance']}
             />
-            <Bar dataKey="km" fill="#EA580C" radius={[5, 5, 0, 0]}>
+            <Bar dataKey="km" fill="var(--color-primary)" radius={[5, 5, 0, 0]}>
               {weeklyData.map((_, i) => (
-                <Cell key={i} fill={i === weeklyData.length - 1 ? '#EA580C' : 'rgba(234,88,12,0.55)'} />
+                <Cell key={i} fill={i === weeklyData.length - 1 ? 'var(--color-primary)' : 'rgba(255,118,216,0.55)'} />
               ))}
             </Bar>
           </BarChart>
@@ -156,7 +156,7 @@ export function DashboardCharts({ activities, hrZones }: Props) {
                   fontFamily: 'Barlow, sans-serif',
                   border: 'none',
                   cursor: 'pointer',
-                  background: paceHrFilter === t ? '#EA580C' : 'rgba(255,255,255,0.07)',
+                  background: paceHrFilter === t ? 'var(--color-primary)' : 'rgba(255,255,255,0.07)',
                   color: paceHrFilter === t ? '#fff' : '#64748B',
                   transition: 'all 0.15s',
                 }}
@@ -179,7 +179,7 @@ export function DashboardCharts({ activities, hrZones }: Props) {
               <YAxis
                 yAxisId="pace"
                 orientation="left"
-                tick={{ fill: '#EA580C', fontSize: 11 }}
+                tick={{ fill: 'var(--color-primary)', fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
                 width={36}
@@ -209,7 +209,7 @@ export function DashboardCharts({ activities, hrZones }: Props) {
               <Legend
                 wrapperStyle={{ fontSize: '0.75rem', color: '#64748B' }}
               />
-              <Bar yAxisId="pace" dataKey="pace" name="pace" fill="rgba(234,88,12,0.4)" radius={[3, 3, 0, 0]} />
+              <Bar yAxisId="pace" dataKey="pace" name="pace" fill="rgba(255,118,216,0.4)" radius={[3, 3, 0, 0]} />
               <Line yAxisId="hr" type="monotone" dataKey="hr" name="hr" stroke="#EF4444" strokeWidth={2} dot={{ r: 3, fill: '#EF4444', strokeWidth: 0 }} />
             </ComposedChart>
           </ResponsiveContainer>

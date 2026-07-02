@@ -79,9 +79,9 @@ export function DashboardClient({ profile, activities, hrZones }: Props) {
               {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'Asia/Bangkok' })}
             </p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--color-primary-soft)', border: '1px solid rgba(234,88,12,0.25)', borderRadius: 10, padding: '6px 12px' }}>
-            <Lightning size={16} color="#EA580C" weight="fill" />
-            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#EA580C' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--color-primary-soft)', border: '1px solid rgba(255,118,216,0.25)', borderRadius: 10, padding: '6px 12px' }}>
+            <Lightning size={16} color="var(--color-primary)" weight="fill" />
+            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-primary)' }}>
               {profile?.vo2max ? `VO₂: ${profile.vo2max}` : 'Elite'}
             </span>
           </div>
@@ -112,7 +112,7 @@ export function DashboardClient({ profile, activities, hrZones }: Props) {
                   fontFamily: 'Barlow Condensed, sans-serif',
                   border: 'none',
                   cursor: 'pointer',
-                  background: selectedYear === yr ? '#EA580C' : 'rgba(255,255,255,0.07)',
+                  background: selectedYear === yr ? 'var(--color-primary)' : 'rgba(255,255,255,0.07)',
                   color: selectedYear === yr ? '#fff' : 'var(--color-text-muted)',
                   transition: 'all 0.15s',
                 }}
@@ -137,8 +137,8 @@ export function DashboardClient({ profile, activities, hrZones }: Props) {
                 fontFamily: 'Barlow, sans-serif',
                 border: 'none',
                 cursor: 'pointer',
-                background: selectedMonth === null ? 'rgba(234,88,12,0.2)' : 'rgba(255,255,255,0.05)',
-                color: selectedMonth === null ? '#EA580C' : 'var(--color-text-muted)',
+                background: selectedMonth === null ? 'var(--color-primary-soft)' : 'rgba(255,255,255,0.05)',
+                color: selectedMonth === null ? 'var(--color-primary)' : 'var(--color-text-muted)',
                 transition: 'all 0.15s',
               }}
             >
@@ -159,10 +159,10 @@ export function DashboardClient({ profile, activities, hrZones }: Props) {
                     fontSize: '0.75rem',
                     fontWeight: isActive ? 700 : 500,
                     fontFamily: 'Barlow, sans-serif',
-                    border: isCurrent && !isActive ? '1px solid rgba(234,88,12,0.4)' : 'none',
+                    border: isCurrent && !isActive ? '1px solid rgba(255,118,216,0.4)' : 'none',
                     cursor: 'pointer',
-                    background: isActive ? '#EA580C' : 'rgba(255,255,255,0.05)',
-                    color: isActive ? '#fff' : isCurrent ? '#EA580C' : 'var(--color-text-muted)',
+                    background: isActive ? 'var(--color-primary)' : 'rgba(255,255,255,0.05)',
+                    color: isActive ? '#fff' : isCurrent ? 'var(--color-primary)' : 'var(--color-text-muted)',
                     transition: 'all 0.15s',
                   }}
                 >
@@ -175,7 +175,7 @@ export function DashboardClient({ profile, activities, hrZones }: Props) {
 
         {/* ---- Stat Cards ---- */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
-          <StatCard label="Total Distance" value={`${totalDistance.toFixed(1)}`} unit="km" color="#EA580C" />
+          <StatCard label="Total Distance" value={`${totalDistance.toFixed(1)}`} unit="km" color="var(--color-primary)" />
           <StatCard label="Total Runs" value={`${totalRuns}`} unit="runs" color="#059669" />
           <StatCard label="Avg Pace" value={avgPace > 0 ? formatPace(avgPace) : '—'} unit="" color="#FBBF24" />
           <StatCard label={periodLabel} value={`${periodKm.toFixed(1)}`} unit="km" color="#60A5FA" />
