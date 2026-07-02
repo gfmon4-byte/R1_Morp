@@ -109,6 +109,11 @@ export default function ProfilePage() {
   };
 
   const handleCancelEdit = () => {
+    const isDirty = !!newRaceName.trim() || !!newRaceDate;
+    if (isDirty) {
+      const confirmClose = confirm('คุณต้องการยกเลิกการกรอกข้อมูลและปิดหน้านี้ใช่หรือไม่? ข้อมูลที่คุณกรอกจะสูญหาย');
+      if (!confirmClose) return;
+    }
     setEditingRaceId(null);
     setNewRaceName('');
     setNewRaceDate('');

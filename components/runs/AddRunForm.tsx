@@ -50,7 +50,7 @@ export function AddRunForm({ activity, onClose, onSaved, hrZones, defaultDate }:
   const dm = Math.floor((durationSec % 3600) / 60);
   const ds = durationSec % 60;
 
-  const { register, handleSubmit, watch, formState: { errors } } = useForm<FormValues>({
+  const { register, handleSubmit, watch, formState: { errors, isDirty } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: activity ? {
       date: activity.date,
@@ -80,6 +80,14 @@ export function AddRunForm({ activity, onClose, onSaved, hrZones, defaultDate }:
       elevation_gain_m: 0,
     },
   });
+
+  const handleClose = () => {
+    if (isDirty) {
+      const confirmClose = confirm('คุณต้องการยกเลิกการกรอกข้อมูลและปิดหน้านี้ใช่หรือไม่? ข้อมูลที่คุณกรอกจะสูญหาย');
+      if (!confirmClose) return;
+    }
+    onClose();
+  };
 
   const watchDist = watch('distance_km');
   const watchHH = watch('duration_hh');
@@ -145,12 +153,12 @@ export function AddRunForm({ activity, onClose, onSaved, hrZones, defaultDate }:
   }, []);
 
   return (
-    <div className="sheet-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="sheet-backdrop" onClick={(e) => e.target === e.currentTarget && handleClose()}>
       <div className="sheet animate-slide-up" role="dialog" aria-modal aria-label={activity ? 'Edit activity' : 'Add run'}>
         <div className="sheet-handle" />
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
           <h2 style={{ fontSize: '1.25rem' }}>{activity ? 'Edit Activity' : 'Add a Run'}</h2>
-          <button className="btn btn-ghost btn-icon" onClick={onClose} aria-label="Close">
+          <button className="btn btn-ghost btn-icon" onClick={handleClose} aria-label="Close" type="button">
             <X size={20} />
           </button>
         </div>
