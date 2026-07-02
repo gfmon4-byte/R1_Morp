@@ -21,6 +21,14 @@ function thaiNow() {
   return toZonedTime(new Date(), TZ);
 }
 
+function getContrastColor(sessionType: string): string {
+  if (sessionType === 'Recovery Run' || sessionType === 'Race') {
+    return '#0F172A';
+  }
+  return '#FFFFFF';
+}
+
+
 export default function PlanPage() {
   const [viewMonth, setViewMonth] = useState(thaiNow());
   const [plans, setPlans] = useState<TrainingPlan[]>([]);
@@ -200,22 +208,22 @@ export default function PlanPage() {
                   return (
                     <button
                       key={dateStr}
+                      className="calendar-day-btn"
                       onClick={() => handleDayClick(dateStr)}
                       aria-label={`${format(day, 'MMMM d')}${plan ? ': ' + plan.session_type : ''}`}
                       style={{
-                        aspectRatio: '1',
                         borderRadius: 10,
                         border: isToday ? '1.5px solid var(--color-primary)' : '1px solid transparent',
                         background: hasPlan && sessionColor
-                          ? `${sessionColor}15`
+                          ? `${sessionColor}12`
                           : isToday ? 'var(--color-primary-soft)' : 'var(--color-bg-card)',
                         cursor: 'pointer',
                         display: 'flex',
                         flexDirection: 'column',
-                        alignItems: 'center',
+                        alignItems: 'stretch',
                         justifyContent: 'flex-start',
-                        padding: '5px 4px 4px',
-                        gap: 2,
+                        padding: '6px',
+                        gap: 4,
                         transition: 'all 0.15s',
                         position: 'relative',
                         WebkitTapHighlightColor: 'transparent',
@@ -224,69 +232,49 @@ export default function PlanPage() {
                     >
                       {/* Date number */}
                       <span style={{
-                        fontSize: '0.8125rem',
+                        fontSize: '0.75rem',
                         fontWeight: isToday ? 700 : 500,
-                        color: isToday ? 'var(--color-primary)' : 'var(--color-text)',
+                        color: isToday ? 'var(--color-primary)' : 'var(--color-text-muted)',
                         lineHeight: 1,
+                        alignSelf: 'flex-end',
+                        marginBottom: 2,
                       }}>
                         {format(day, 'd')}
                       </span>
 
-                      {/* Dual bars: plan (muted) + actual (solid) */}
-                      {hasPlan && hasDistance && (
-                        <div style={{ width: '80%', display: 'flex', flexDirection: 'column', gap: 1, marginTop: 2 }}>
-                          {/* Plan bar */}
-                          <div style={{ width: '100%', height: 2.5, borderRadius: 2, background: 'var(--color-border)' }}>
-                            <div style={{
-                              width: `${planBarW}%`,
-                              height: '100%',
-                              borderRadius: 2,
-                              background: sessionColor ?? '#60A5FA',
-                              opacity: 0.5,
-                            }} />
-                          </div>
-                          {/* Actual bar */}
-                          {hasActivity && (
-                            <div style={{ width: '100%', height: 2.5, borderRadius: 2, background: 'var(--color-border)' }}>
-                              <div style={{
-                                width: `${Math.min(actualBarW, 100)}%`,
-                                height: '100%',
-                                borderRadius: 2,
-                                background: isOver ? '#059669' : '#F97316',
-                              }} />
-                            </div>
-                          )}
+                      {/* Planned Session Chip */}
+                      {hasPlan && (
+                        <div
+                          className="calendar-event-chip"
+                          style={{
+                            background: sessionColor ?? '#6B7280',
+                            color: getContrastColor(plan.session_type ?? ''),
+                            opacity: plan.completed ? 0.6 : 1,
+                          }}
+                          title={`${plan.session_type}${plan.distance_km ? ` - ${plan.distance_km}k` : ''}${plan.description ? `: ${plan.description}` : ''}`}
+                        >
+                          <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                            {plan.completed ? '✓ ' : ''}
+                            {plan.session_type}
+                            {plan.distance_km ? ` ${plan.distance_km}k` : ''}
+                          </span>
                         </div>
                       )}
 
-                      {/* Single session color bar (no distance data) */}
-                      {hasPlan && sessionColor && !hasDistance && (
-                        <div style={{
-                          width: '60%', height: 3, borderRadius: 2,
-                          background: sessionColor, opacity: plan.completed ? 0.4 : 1,
-                        }} />
-                      )}
-
-                      {/* Activity dot when no plan */}
-                      {!hasPlan && hasActivity && (
-                        <div style={{
-                          width: 5, height: 5, borderRadius: '50%',
-                          background: '#059669', marginTop: 2,
-                        }} />
-                      )}
-
-                      {/* Completed checkmark */}
-                      {plan?.completed && (
-                        <CheckCircle size={10} color="#059669" weight="fill" style={{ position: 'absolute', bottom: 3, right: 3 }} />
-                      )}
-
-                      {/* Activity dot badge when has plan too */}
-                      {hasPlan && hasActivity && !hasDistance && (
-                        <div style={{
-                          position: 'absolute', top: 4, right: 4,
-                          width: 5, height: 5, borderRadius: '50%',
-                          background: '#059669',
-                        }} />
+                      {/* Actual Activity Chip */}
+                      {hasActivity && (
+                        <div
+                          className="calendar-event-chip"
+                          style={{
+                            background: isOver || !hasPlan ? '#059669' : '#F97316',
+                            color: '#FFFFFF',
+                          }}
+                          title={`Actual: ${actualKm.toFixed(2)} km`}
+                        >
+                          <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                            ✓ {actualKm.toFixed(1)}k
+                          </span>
+                        </div>
                       )}
                     </button>
                   );
@@ -295,20 +283,31 @@ export default function PlanPage() {
             )}
 
             {/* Legend */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 14, paddingBottom: 4 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 14, paddingBottom: 4 }}>
               {[
-                { label: 'Today', color: '#EA580C', type: 'border' },
-                { label: 'Planned', color: '#60A5FA', type: 'bar-muted' },
-                { label: 'Actual ✓', color: '#059669', type: 'bar-solid' },
-                { label: 'Short', color: '#F97316', type: 'bar-solid' },
-                { label: 'Done', color: '#059669', type: 'check' },
-              ].map(({ label, color, type }) => (
-                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                  {type === 'border' && <div style={{ width: 10, height: 10, borderRadius: 3, border: `1.5px solid ${color}` }} />}
-                  {type === 'bar-muted' && <div style={{ width: 14, height: 3, borderRadius: 2, background: color, opacity: 0.5 }} />}
-                  {type === 'bar-solid' && <div style={{ width: 14, height: 3, borderRadius: 2, background: color }} />}
-                  {type === 'check' && <CheckCircle size={12} color={color} weight="fill" />}
-                  {label}
+                { label: 'Today', type: 'today' },
+                { label: 'Planned Session', type: 'plan-chip' },
+                { label: 'Actual Run', type: 'actual-chip' },
+                { label: 'Target Short', type: 'short-chip' },
+              ].map(({ label, type }) => (
+                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                  {type === 'today' && <div style={{ width: 12, height: 12, borderRadius: 3, border: '1.5px solid var(--color-primary)' }} />}
+                  {type === 'plan-chip' && (
+                    <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 3, background: '#60A5FA', color: '#fff', fontWeight: 600, textTransform: 'uppercase' }}>
+                      Plan
+                    </div>
+                  )}
+                  {type === 'actual-chip' && (
+                    <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 3, background: '#059669', color: '#fff', fontWeight: 600, textTransform: 'uppercase' }}>
+                      ✓ Run
+                    </div>
+                  )}
+                  {type === 'short-chip' && (
+                    <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 3, background: '#F97316', color: '#fff', fontWeight: 600, textTransform: 'uppercase' }}>
+                      Short
+                    </div>
+                  )}
+                  <span>{label}</span>
                 </div>
               ))}
             </div>
