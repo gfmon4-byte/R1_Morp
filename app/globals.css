@@ -348,6 +348,19 @@ input[type="date"].form-input::-webkit-date-and-time-value {
   margin-top: 4px;
 }
 
+.form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+@media (min-width: 480px) {
+  .form-grid-2 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+
 /* ---- Divider ---- */
 .divider {
   height: 1px;

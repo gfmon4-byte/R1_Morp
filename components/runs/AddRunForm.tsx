@@ -149,7 +149,13 @@ export function AddRunForm({ activity, onClose, onSaved, hrZones, defaultDate }:
   // Prevent body scroll
   useEffect(() => {
     document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
+    return () => {
+      document.body.style.overflow = '';
+      window.scrollTo(0, 0);
+      setTimeout(() => {
+        window.scrollTo(0, 0);
+      }, 100);
+    };
   }, []);
 
   return (
@@ -166,7 +172,7 @@ export function AddRunForm({ activity, onClose, onSaved, hrZones, defaultDate }:
         <form onSubmit={handleSubmit(onSubmit)} noValidate>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {/* Date + Session type */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div className="form-grid-2">
               <div>
                 <label className="form-label" htmlFor="run-date">Date</label>
                 <input id="run-date" type="date" className="form-input" {...register('date')} />
@@ -181,7 +187,7 @@ export function AddRunForm({ activity, onClose, onSaved, hrZones, defaultDate }:
             </div>
 
             {/* Distance + Route */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div className="form-grid-2">
               <div>
                 <label className="form-label" htmlFor="run-dist">Distance (km)</label>
                 <input id="run-dist" type="number" step="0.01" className="form-input" {...register('distance_km')} placeholder="0.00" />
@@ -216,7 +222,7 @@ export function AddRunForm({ activity, onClose, onSaved, hrZones, defaultDate }:
             </div>
 
             {/* HR */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div className="form-grid-2">
               <div>
                 <label className="form-label" htmlFor="run-avghr">
                   Avg HR (bpm)
@@ -250,7 +256,7 @@ export function AddRunForm({ activity, onClose, onSaved, hrZones, defaultDate }:
                         step="any"
                         className="form-input"
                         placeholder="0"
-                        style={{ textAlign: 'center', padding: '6px 4px', fontSize: '0.8125rem' }}
+                        style={{ textAlign: 'center', padding: '6px 4px', fontSize: '0.8125rem', minHeight: 'unset', height: '36px' }}
                         aria-label={`Zone ${z.zone} minutes`}
                         {...register(fieldName)}
                       />
@@ -264,7 +270,7 @@ export function AddRunForm({ activity, onClose, onSaved, hrZones, defaultDate }:
             </div>
 
             {/* Elevation + RPE */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div className="form-grid-2">
               <div>
                 <label className="form-label" htmlFor="run-elev">Elevation (m)</label>
                 <input id="run-elev" type="number" className="form-input" {...register('elevation_gain_m')} placeholder="0" />
