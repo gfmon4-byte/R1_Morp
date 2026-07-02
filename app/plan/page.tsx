@@ -35,15 +35,22 @@ export default function PlanPage() {
   const hrZones = computeHRZones(185, 42);
 
   const fetchData = useCallback(async () => {
-    const monthStart = format(startOfMonth(viewMonth), 'yyyy-MM-dd');
-    const monthEnd = format(endOfMonth(viewMonth), 'yyyy-MM-dd');
-    const [plansRes, activitiesRes] = await Promise.all([
-      supabase.from('training_plan').select('*').gte('date', monthStart).lte('date', monthEnd),
-      supabase.from('activities').select('*').gte('date', monthStart).lte('date', monthEnd),
-    ]);
-    setPlans(plansRes.data ?? []);
-    setActivities(activitiesRes.data ?? []);
-    setLoading(false);
+    try {
+      const monthStart = format(startOfMonth(viewMonth), 'yyyy-MM-dd');
+      const monthEnd = format(endOfMonth(viewMonth), 'yyyy-MM-dd');
+      const [plansRes, activitiesRes] = await Promise.all([
+        supabase.from('training_plan').select('*').gte('date', monthStart).lte('date', monthEnd),
+        supabase.from('activities').select('*').gte('date', monthStart).lte('date', monthEnd),
+      ]);
+      if (plansRes.error) console.error('fetch plans error:', plansRes.error);
+      if (activitiesRes.error) console.error('fetch activities error:', activitiesRes.error);
+      setPlans(plansRes.data ?? []);
+      setActivities(activitiesRes.data ?? []);
+    } catch (err) {
+      console.error('Error fetching data in PlanPage:', err);
+    } finally {
+      setLoading(false);
+    }
   }, [viewMonth]);
 
   useEffect(() => { setLoading(true); fetchData(); }, [fetchData]);
@@ -64,13 +71,15 @@ export default function PlanPage() {
     return map;
   }, [activities]);
 
-  // Calendar days
-  const monthStart = startOfMonth(viewMonth);
-  const monthEnd = endOfMonth(viewMonth);
-  const calDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
-  // Pad to start on Monday
-  const firstDow = (monthStart.getDay() + 6) % 7; // 0=Mon
-  const paddedDays: (Date | null)[] = [...Array(firstDow).fill(null), ...calDays];
+  // Calendar days — memoised to avoid infinite render loop
+  const { monthStart, monthEnd, calDays, paddedDays } = useMemo(() => {
+    const start = startOfMonth(viewMonth);
+    const end = endOfMonth(viewMonth);
+    const days = eachDayOfInterval({ start, end });
+    const firstDow = (start.getDay() + 6) % 7; // 0=Mon
+    const padded: (Date | null)[] = [...Array(firstDow).fill(null), ...days];
+    return { monthStart: start, monthEnd: end, calDays: days, paddedDays: padded };
+  }, [viewMonth]);
 
   const todayStr = thaiToday();
 
@@ -179,6 +188,15 @@ export default function PlanPage() {
                   const hasActivity = acts.length > 0;
                   const sessionColor = plan ? getSessionColor(plan.session_type ?? '') : null;
 
+                  // Comparison calc for cell indicator
+                  const plannedKm = plan?.distance_km ?? 0;
+                  const actualKm = acts.reduce((s, a) => s + (a.distance_km ?? 0), 0);
+                  const hasDistance = plannedKm > 0 || actualKm > 0;
+                  const maxKm = Math.max(plannedKm, actualKm, 0.1);
+                  const planBarW = Math.round((plannedKm / maxKm) * 100);
+                  const actualBarW = Math.round((actualKm / maxKm) * 100);
+                  const isOver = hasActivity && plannedKm > 0 && actualKm >= plannedKm - 0.3;
+
                   return (
                     <button
                       key={dateStr}
@@ -187,7 +205,7 @@ export default function PlanPage() {
                       style={{
                         aspectRatio: '1',
                         borderRadius: 10,
-                        border: isToday ? '1px solid var(--color-primary)' : '1px solid transparent',
+                        border: isToday ? '1.5px solid var(--color-primary)' : '1px solid transparent',
                         background: hasPlan && sessionColor
                           ? `${sessionColor}15`
                           : isToday ? 'var(--color-primary-soft)' : 'var(--color-bg-card)',
@@ -195,14 +213,16 @@ export default function PlanPage() {
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
-                        justifyContent: 'center',
-                        padding: 3,
+                        justifyContent: 'flex-start',
+                        padding: '5px 4px 4px',
                         gap: 2,
                         transition: 'all 0.15s',
                         position: 'relative',
                         WebkitTapHighlightColor: 'transparent',
+                        overflow: 'hidden',
                       }}
                     >
+                      {/* Date number */}
                       <span style={{
                         fontSize: '0.8125rem',
                         fontWeight: isToday ? 700 : 500,
@@ -211,28 +231,62 @@ export default function PlanPage() {
                       }}>
                         {format(day, 'd')}
                       </span>
-                      {hasPlan && sessionColor && (
+
+                      {/* Dual bars: plan (muted) + actual (solid) */}
+                      {hasPlan && hasDistance && (
+                        <div style={{ width: '80%', display: 'flex', flexDirection: 'column', gap: 1, marginTop: 2 }}>
+                          {/* Plan bar */}
+                          <div style={{ width: '100%', height: 2.5, borderRadius: 2, background: 'var(--color-border)' }}>
+                            <div style={{
+                              width: `${planBarW}%`,
+                              height: '100%',
+                              borderRadius: 2,
+                              background: sessionColor ?? '#60A5FA',
+                              opacity: 0.5,
+                            }} />
+                          </div>
+                          {/* Actual bar */}
+                          {hasActivity && (
+                            <div style={{ width: '100%', height: 2.5, borderRadius: 2, background: 'var(--color-border)' }}>
+                              <div style={{
+                                width: `${Math.min(actualBarW, 100)}%`,
+                                height: '100%',
+                                borderRadius: 2,
+                                background: isOver ? '#059669' : '#F97316',
+                              }} />
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Single session color bar (no distance data) */}
+                      {hasPlan && sessionColor && !hasDistance && (
                         <div style={{
-                          width: '60%',
-                          height: 3,
-                          borderRadius: 2,
-                          background: sessionColor,
-                          opacity: plan.completed ? 0.4 : 1,
+                          width: '60%', height: 3, borderRadius: 2,
+                          background: sessionColor, opacity: plan.completed ? 0.4 : 1,
                         }} />
                       )}
-                      {hasActivity && (
+
+                      {/* Activity dot when no plan */}
+                      {!hasPlan && hasActivity && (
                         <div style={{
-                          position: 'absolute',
-                          top: 4,
-                          right: 4,
-                          width: 5,
-                          height: 5,
-                          borderRadius: '50%',
-                          background: '#059669',
+                          width: 5, height: 5, borderRadius: '50%',
+                          background: '#059669', marginTop: 2,
                         }} />
                       )}
+
+                      {/* Completed checkmark */}
                       {plan?.completed && (
                         <CheckCircle size={10} color="#059669" weight="fill" style={{ position: 'absolute', bottom: 3, right: 3 }} />
+                      )}
+
+                      {/* Activity dot badge when has plan too */}
+                      {hasPlan && hasActivity && !hasDistance && (
+                        <div style={{
+                          position: 'absolute', top: 4, right: 4,
+                          width: 5, height: 5, borderRadius: '50%',
+                          background: '#059669',
+                        }} />
                       )}
                     </button>
                   );
@@ -243,16 +297,17 @@ export default function PlanPage() {
             {/* Legend */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 14, paddingBottom: 4 }}>
               {[
-                { label: 'Today', color: '#EA580C' },
-                { label: 'Planned', color: '#60A5FA', isBar: true },
-                { label: 'Logged', color: '#059669', isDot: true },
-                { label: 'Done', color: '#059669', isCheck: true },
-              ].map(({ label, color, isBar, isDot, isCheck }) => (
+                { label: 'Today', color: '#EA580C', type: 'border' },
+                { label: 'Planned', color: '#60A5FA', type: 'bar-muted' },
+                { label: 'Actual ✓', color: '#059669', type: 'bar-solid' },
+                { label: 'Short', color: '#F97316', type: 'bar-solid' },
+                { label: 'Done', color: '#059669', type: 'check' },
+              ].map(({ label, color, type }) => (
                 <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                  {isBar ? <div style={{ width: 14, height: 3, borderRadius: 2, background: color }} /> :
-                   isDot ? <div style={{ width: 6, height: 6, borderRadius: '50%', background: color }} /> :
-                   isCheck ? <CheckCircle size={12} color={color} weight="fill" /> :
-                   <div style={{ width: 10, height: 10, borderRadius: 3, border: `1.5px solid ${color}` }} />}
+                  {type === 'border' && <div style={{ width: 10, height: 10, borderRadius: 3, border: `1.5px solid ${color}` }} />}
+                  {type === 'bar-muted' && <div style={{ width: 14, height: 3, borderRadius: 2, background: color, opacity: 0.5 }} />}
+                  {type === 'bar-solid' && <div style={{ width: 14, height: 3, borderRadius: 2, background: color }} />}
+                  {type === 'check' && <CheckCircle size={12} color={color} weight="fill" />}
                   {label}
                 </div>
               ))}
@@ -267,6 +322,9 @@ export default function PlanPage() {
               const acts = activitiesByDate[dateStr] ?? [];
               if (!plan && acts.length === 0) return null;
               const color = plan ? getSessionColor(plan.session_type ?? '') : '#059669';
+              const plannedKm = plan?.distance_km ?? 0;
+              const actualKm = acts.reduce((s, a) => s + (a.distance_km ?? 0), 0);
+              const distDelta = (plannedKm > 0 && actualKm > 0) ? actualKm - plannedKm : null;
               return (
                 <button
                   key={dateStr}
@@ -291,8 +349,30 @@ export default function PlanPage() {
                     {plan?.description && (
                       <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 1 }}>{plan.description}</div>
                     )}
-                    {acts.length > 0 && (
-                      <div style={{ fontSize: '0.75rem', color: '#059669', marginTop: 2 }}>✓ {acts.length} logged</div>
+                    {/* Distance comparison */}
+                    {(plannedKm > 0 || actualKm > 0) && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                        {plannedKm > 0 && (
+                          <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                            📋 {plannedKm} km
+                          </span>
+                        )}
+                        {actualKm > 0 && (
+                          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: acts.length > 0 ? '#059669' : 'var(--color-text-muted)' }}>
+                            ✅ {actualKm.toFixed(2)} km
+                          </span>
+                        )}
+                        {distDelta !== null && (
+                          <span style={{
+                            fontSize: '0.6875rem', fontWeight: 700, padding: '1px 5px',
+                            borderRadius: 5,
+                            background: distDelta >= -0.3 ? '#05966920' : '#EF444420',
+                            color: distDelta >= -0.3 ? '#059669' : '#EF4444',
+                          }}>
+                            {distDelta >= 0 ? `+${distDelta.toFixed(2)}` : distDelta.toFixed(2)} km
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
                   {plan?.completed && <CheckCircle size={20} color="#059669" weight="fill" />}

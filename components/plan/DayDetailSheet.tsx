@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import type { Activity, TrainingPlan } from '@/lib/supabase';
 import type { HRZone } from '@/lib/hrZones';
 import { formatPace, formatDuration, thaiDate, getSessionColor } from '@/lib/utils';
-import { X, CheckCircle, Circle, Lightning, MapPin, Heart, TrendUp } from '@phosphor-icons/react';
+import { X, CheckCircle, Circle, Lightning, MapPin, Heart, TrendUp, ArrowUp, ArrowDown, Minus } from '@phosphor-icons/react';
 
 interface Props {
   date: string;
@@ -16,10 +16,64 @@ interface Props {
   onToggleComplete: () => void;
 }
 
+// Parse "M:SS" or "MM:SS/km" → sec/km; takes lower bound if range "6:45-7:10/km"
+function parsePaceToSec(paceStr: string | null | undefined): number | null {
+  if (!paceStr || paceStr === '-') return null;
+  const first = paceStr.split('-')[0].replace('/km', '').trim();
+  const parts = first.split(':').map(Number);
+  if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) return parts[0] * 60 + parts[1];
+  return null;
+}
+
+function DeltaChip({ value, unit, lowerIsBetter = false }: { value: number; unit: string; lowerIsBetter?: boolean }) {
+  const neutral = Math.abs(value) < 0.01;
+  const positive = neutral ? false : lowerIsBetter ? value < 0 : value > 0;
+  const color = neutral ? '#6B7280' : positive ? '#059669' : '#EF4444';
+  const Icon = neutral ? Minus : positive ? ArrowUp : ArrowDown;
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 2,
+      fontSize: '0.75rem', fontWeight: 600, color,
+      background: `${color}18`, borderRadius: 6, padding: '2px 7px',
+    }}>
+      <Icon size={10} weight="bold" />
+      {Math.abs(value).toFixed(Math.abs(value) % 1 < 0.005 ? 0 : 2)}{unit}
+    </span>
+  );
+}
+
 export function DayDetailSheet({ date, plan, activities, hrZones, onClose, onLogRun, onToggleComplete }: Props) {
   const color = plan ? getSessionColor(plan.session_type ?? '') : '#059669';
   const hasLogged = activities.length > 0;
   const isPlanned = !!plan;
+
+  // Aggregate actual totals across all activities on this day
+  const totalDistanceKm = activities.reduce((s, a) => s + (a.distance_km ?? 0), 0);
+  const totalDurationSec = activities.reduce((s, a) => s + (a.duration_seconds ?? 0), 0);
+  const paceActivities = activities.filter(a => a.avg_pace_sec_per_km);
+  const avgPaceSec = paceActivities.length > 0
+    ? paceActivities.reduce((s, a) => s + (a.avg_pace_sec_per_km ?? 0), 0) / paceActivities.length
+    : null;
+  const hrActivities = activities.filter(a => a.avg_hr);
+  const avgHR = hrActivities.length > 0
+    ? Math.round(hrActivities.reduce((s, a) => s + (a.avg_hr ?? 0), 0) / hrActivities.length)
+    : null;
+  const rpeActivities = activities.filter(a => a.rpe);
+  const avgRPE = rpeActivities.length > 0
+    ? rpeActivities.reduce((s, a) => s + (a.rpe ?? 0), 0) / rpeActivities.length
+    : null;
+
+  // Plan targets for comparison
+  const plannedDistKm = plan?.distance_km ?? null;
+  const plannedPaceSec = parsePaceToSec(plan?.pace_target);
+  const plannedRPE = plan?.rpe && plan.rpe !== '-' ? parseFloat(plan.rpe) : null;
+
+  // Deltas: actual - planned
+  const distDelta = (plannedDistKm && plannedDistKm > 0 && totalDistanceKm > 0) ? totalDistanceKm - plannedDistKm : null;
+  const paceDelta = (plannedPaceSec && avgPaceSec) ? avgPaceSec - plannedPaceSec : null; // negative = faster
+  const rpeDelta = (plannedRPE !== null && avgRPE !== null) ? avgRPE - plannedRPE : null;
+
+  const showComparison = isPlanned && hasLogged;
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -145,6 +199,104 @@ export function DayDetailSheet({ date, plan, activities, hrZones, onClose, onLog
           )}
         </section>
 
+        {/* ── Plan vs Actual comparison ── */}
+        {showComparison && (
+          <section style={{ marginBottom: 20 }}>
+            <p className="section-title" style={{ marginBottom: 10 }}>📊 Plan vs Actual</p>
+            <div style={{
+              background: 'var(--color-bg-elevated)',
+              borderRadius: 14,
+              overflow: 'hidden',
+              border: '1px solid var(--color-border)',
+            }}>
+              {/* Header */}
+              <div style={{
+                display: 'grid', gridTemplateColumns: '1fr 1fr 1fr',
+                padding: '8px 14px',
+                background: 'var(--color-bg-card)',
+                borderBottom: '1px solid var(--color-border)',
+              }}>
+                {['Metric', 'Plan', 'Actual'].map((h, i) => (
+                  <span key={h} style={{
+                    fontSize: '0.6875rem', fontWeight: 700,
+                    color: 'var(--color-text-muted)',
+                    textTransform: 'uppercase', letterSpacing: '0.05em',
+                    textAlign: i === 0 ? 'left' : 'center',
+                  }}>{h}</span>
+                ))}
+              </div>
+
+              {/* Distance */}
+              {plannedDistKm && plannedDistKm > 0 && (
+                <CompareRow
+                  label="Distance"
+                  plan={`${plannedDistKm} km`}
+                  actual={totalDistanceKm > 0 ? `${totalDistanceKm.toFixed(2)} km` : '—'}
+                  delta={distDelta !== null ? <DeltaChip value={distDelta} unit=" km" /> : null}
+                />
+              )}
+
+              {/* Pace */}
+              {plan?.pace_target && plan.pace_target !== '-' && (
+                <CompareRow
+                  label="Pace"
+                  plan={plan.pace_target}
+                  actual={avgPaceSec ? formatPace(Math.round(avgPaceSec)) : '—'}
+                  delta={paceDelta !== null ? <DeltaChip value={-paceDelta} unit="s/km" lowerIsBetter /> : null}
+                  note={paceDelta !== null
+                    ? paceDelta < -5 ? '🔥 Faster than plan'
+                    : paceDelta > 30 ? '⚠️ Slower than plan'
+                    : '✓ On target'
+                    : undefined}
+                />
+              )}
+
+              {/* RPE */}
+              {plannedRPE !== null && (
+                <CompareRow
+                  label="RPE"
+                  plan={`${plannedRPE}/10`}
+                  actual={avgRPE !== null ? `${avgRPE.toFixed(1)}/10` : '—'}
+                  delta={rpeDelta !== null ? <DeltaChip value={-rpeDelta} unit="" lowerIsBetter /> : null}
+                />
+              )}
+
+              {/* Duration */}
+              {totalDurationSec > 0 && (
+                <CompareRow label="Duration" plan="—" actual={formatDuration(totalDurationSec)} delta={null} />
+              )}
+
+              {/* HR */}
+              {avgHR && (
+                <CompareRow
+                  label="Avg HR"
+                  plan={plan?.hr_zone && plan.hr_zone !== '-' ? plan.hr_zone : '—'}
+                  actual={`${avgHR} bpm`}
+                  delta={null}
+                />
+              )}
+            </div>
+
+            {/* Summary verdict */}
+            {distDelta !== null && (
+              <div style={{
+                marginTop: 10, padding: '10px 14px', borderRadius: 10,
+                background: distDelta >= -0.5 ? '#05966912' : '#EF444412',
+                border: `1px solid ${distDelta >= -0.5 ? '#05966930' : '#EF444430'}`,
+                fontSize: '0.8125rem',
+                color: distDelta >= -0.5 ? '#059669' : '#EF4444',
+                fontWeight: 600,
+              }}>
+                {distDelta >= 0
+                  ? `✅ You ran ${distDelta.toFixed(2)} km more than planned!`
+                  : distDelta >= -0.5
+                    ? `✅ Very close — only ${Math.abs(distDelta).toFixed(2)} km short of target`
+                    : `📉 ${Math.abs(distDelta).toFixed(2)} km short of target`}
+              </div>
+            )}
+          </section>
+        )}
+
         {/* CTA: Log run */}
         {!hasLogged && (
           <button className="btn btn-primary" style={{ width: '100%' }} onClick={onLogRun}>
@@ -152,6 +304,35 @@ export function DayDetailSheet({ date, plan, activities, hrZones, onClose, onLog
             {isPlanned ? 'Log This Run' : 'Log an Activity'}
           </button>
         )}
+      </div>
+    </div>
+  );
+}
+
+function CompareRow({
+  label, plan, actual, delta, note,
+}: {
+  label: string;
+  plan: string;
+  actual: string;
+  delta: React.ReactNode;
+  note?: string;
+}) {
+  return (
+    <div style={{
+      display: 'grid', gridTemplateColumns: '1fr 1fr 1fr',
+      padding: '10px 14px',
+      borderBottom: '1px solid var(--color-border)',
+      alignItems: 'center',
+    }}>
+      <div>
+        <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text)' }}>{label}</div>
+        {note && <div style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', marginTop: 1 }}>{note}</div>}
+      </div>
+      <div style={{ textAlign: 'center', fontSize: '0.875rem', fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 600, color: 'var(--color-text-muted)' }}>{plan}</div>
+      <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+        <span style={{ fontSize: '0.875rem', fontFamily: 'Barlow Condensed, sans-serif', fontWeight: 700, color: 'var(--color-text)' }}>{actual}</span>
+        {delta}
       </div>
     </div>
   );
