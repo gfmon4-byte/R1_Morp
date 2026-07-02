@@ -9,7 +9,7 @@ import type { Profile } from '@/lib/supabase';
 import { computeHRZones } from '@/lib/hrZones';
 import { computeAutoPaceZones, computeManualPaceZones } from '@/lib/paceZones';
 import { secondsToHMMSS, mmssToSeconds, thaiToday } from '@/lib/utils';
-import { User, Lightning, FloppyDisk, Heart, Gauge, Trophy, ArrowsClockwise, CalendarBlank, Trash, PencilSimple } from '@phosphor-icons/react';
+import { User, Lightning, FloppyDisk, Heart, Gauge, Trophy, ArrowsClockwise, CalendarBlank, Trash, PencilSimple, Plus, X } from '@phosphor-icons/react';
 import { parseISO, differenceInCalendarDays } from 'date-fns';
 
 const pbToMMSS = (sec: number | null | undefined): string => {
@@ -59,6 +59,7 @@ export default function ProfilePage() {
   const [newRaceDistance, setNewRaceDistance] = useState('10k');
   const [newRaceError, setNewRaceError] = useState<string | null>(null);
   const [editingRaceId, setEditingRaceId] = useState<string | null>(null);
+  const [isRaceModalOpen, setIsRaceModalOpen] = useState(false);
 
   const handleAddRace = () => {
     setNewRaceError(null);
@@ -95,6 +96,7 @@ export default function ProfilePage() {
     setNewRaceName('');
     setNewRaceDate('');
     setNewRaceDistance('10k');
+    setIsRaceModalOpen(false);
   };
 
   const handleStartEdit = (race: { id: string; name: string; date: string; distance?: string }) => {
@@ -103,6 +105,7 @@ export default function ProfilePage() {
     setNewRaceDate(race.date);
     setNewRaceDistance(race.distance || '10k');
     setNewRaceError(null);
+    setIsRaceModalOpen(true);
   };
 
   const handleCancelEdit = () => {
@@ -111,6 +114,7 @@ export default function ProfilePage() {
     setNewRaceDate('');
     setNewRaceDistance('10k');
     setNewRaceError(null);
+    setIsRaceModalOpen(false);
   };
 
   const handleDeleteRace = (id: string) => {
@@ -172,6 +176,18 @@ export default function ProfilePage() {
       setLoading(false);
     });
   }, [reset]);
+
+  // Prevent body scroll when race modal is open
+  useEffect(() => {
+    if (isRaceModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isRaceModalOpen]);
 
   const watchHrMax = Number(watch('hr_max') || 185);
   const watchHrRest = Number(watch('hr_rest') || 42);
@@ -419,79 +435,26 @@ export default function ProfilePage() {
 
           {/* Races & Events */}
           <Section title="Races & Events" icon={<CalendarBlank size={16} color="var(--color-primary)" />}>
-            {/* Input Form for adding a new race */}
-            <div style={{ background: 'var(--color-muted)', padding: '16px', borderRadius: '18px', border: '1px solid var(--color-border)', marginBottom: '16px' }}>
-              <p style={{ fontSize: '0.875rem', fontWeight: 700, marginBottom: '10px', color: 'var(--color-foreground)', fontFamily: "'Baloo 2', sans-serif" }}>{editingRaceId ? 'Edit Race Info' : 'Add New Race'}</p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: '12px' }}>
-                <div style={{ gridColumn: '1 / -1' }}>
-                  <label className="form-label" style={{ fontSize: '0.75rem' }}>Race Name</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={newRaceName}
-                    onChange={(e) => setNewRaceName(e.target.value)}
-                    placeholder="e.g. Pattaya Marathon"
-                  />
-                </div>
-                <div>
-                  <label className="form-label" style={{ fontSize: '0.75rem' }}>Race Date</label>
-                  <input
-                    type="date"
-                    className="form-input"
-                    value={newRaceDate}
-                    onChange={(e) => setNewRaceDate(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="form-label" style={{ fontSize: '0.75rem' }}>Distance</label>
-                  <select
-                    className="form-select"
-                    value={newRaceDistance}
-                    onChange={(e) => setNewRaceDistance(e.target.value)}
-                  >
-                    <option value="5k">5K</option>
-                    <option value="10k">10K</option>
-                    <option value="Half">Half Marathon</option>
-                    <option value="Full">Full Marathon</option>
-                  </select>
-                </div>
-              </div>
-              {newRaceError && (
-                <p style={{ color: 'var(--color-destructive)', fontSize: '0.75rem', margin: '0 0 8px 0', fontWeight: 600, fontFamily: "'Mali', sans-serif" }}>{newRaceError}</p>
-              )}
-              {editingRaceId ? (
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    style={{ padding: '8px 18px', flex: 1, fontSize: '0.8125rem' }}
-                    onClick={handleAddRace}
-                  >
-                    ✓ Update Race
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    style={{ padding: '8px 18px', flex: 1, fontSize: '0.8125rem' }}
-                    onClick={handleCancelEdit}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  style={{ padding: '8px 18px', width: '100%', fontSize: '0.8125rem' }}
-                  onClick={handleAddRace}
-                >
-                  + Add Race
-                </button>
-              )}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <p style={{ fontSize: '0.875rem', fontWeight: 700, margin: 0, color: 'var(--color-foreground)', fontFamily: "'Baloo 2', sans-serif" }}>
+                Your Race List ({races.length})
+              </p>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                style={{ padding: '0 14px', height: '36px', minHeight: '36px', fontSize: '0.8125rem', display: 'flex', alignItems: 'center', gap: 6 }}
+                onClick={() => {
+                  setEditingRaceId(null);
+                  setNewRaceName('');
+                  setNewRaceDate('');
+                  setNewRaceDistance('10k');
+                  setNewRaceError(null);
+                  setIsRaceModalOpen(true);
+                }}
+              >
+                <Plus size={14} /> Add Race
+              </button>
             </div>
-
-            {/* List of currently added races */}
-            <p style={{ fontSize: '0.875rem', fontWeight: 700, marginBottom: '10px', color: 'var(--color-foreground)', fontFamily: "'Baloo 2', sans-serif" }}>Your Race List ({races.length})</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {races.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '24px', color: 'var(--color-text-muted)', border: '2px dashed var(--color-border)', borderRadius: '18px', fontSize: '0.8125rem', fontFamily: "'Mali', sans-serif" }}>
@@ -763,6 +726,92 @@ export default function ProfilePage() {
           <div style={{ height: 16 }} />
         </form>
       </div>
+
+      {/* Add/Edit Race Modal Sheet */}
+      {isRaceModalOpen && (
+        <div className="sheet-backdrop" onClick={(e) => e.target === e.currentTarget && handleCancelEdit()}>
+          <div className="sheet animate-slide-up" role="dialog" aria-modal aria-label={editingRaceId ? 'Edit Race' : 'Add New Race'}>
+            <div className="sheet-handle" />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 700, fontFamily: "'Baloo 2', sans-serif" }}>
+                {editingRaceId ? 'Edit Race Info' : 'Add New Race'}
+              </h2>
+              <button
+                type="button"
+                className="btn btn-ghost btn-icon"
+                onClick={handleCancelEdit}
+                aria-label="Close"
+                style={{ width: 36, height: 36, minWidth: 36, minHeight: 36 }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label className="form-label">Race Name</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={newRaceName}
+                  onChange={(e) => setNewRaceName(e.target.value)}
+                  placeholder="e.g. Pattaya Marathon"
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label className="form-label">Race Date</label>
+                  <input
+                    type="date"
+                    className="form-input"
+                    value={newRaceDate}
+                    onChange={(e) => setNewRaceDate(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="form-label">Distance</label>
+                  <select
+                    className="form-select"
+                    value={newRaceDistance}
+                    onChange={(e) => setNewRaceDistance(e.target.value)}
+                  >
+                    <option value="5k">5K</option>
+                    <option value="10k">10K</option>
+                    <option value="Half">Half Marathon</option>
+                    <option value="Full">Full Marathon</option>
+                  </select>
+                </div>
+              </div>
+
+              {newRaceError && (
+                <p style={{ color: 'var(--color-destructive)', fontSize: '0.75rem', margin: '4px 0 0 0', fontWeight: 600, fontFamily: "'Mali', sans-serif" }}>
+                  {newRaceError}
+                </p>
+              )}
+
+              <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ flex: 1, fontSize: '0.875rem' }}
+                  onClick={handleAddRace}
+                >
+                  {editingRaceId ? '✓ Update Race' : '+ Add Race'}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  style={{ flex: 1, fontSize: '0.875rem' }}
+                  onClick={handleCancelEdit}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
