@@ -8,8 +8,9 @@ import { supabase } from '@/lib/supabase';
 import type { Profile } from '@/lib/supabase';
 import { computeHRZones } from '@/lib/hrZones';
 import { computeAutoPaceZones, computeManualPaceZones } from '@/lib/paceZones';
-import { secondsToHMMSS, mmssToSeconds } from '@/lib/utils';
-import { User, Lightning, FloppyDisk, Heart, Gauge, Trophy, ArrowsClockwise } from '@phosphor-icons/react';
+import { secondsToHMMSS, mmssToSeconds, thaiToday } from '@/lib/utils';
+import { User, Lightning, FloppyDisk, Heart, Gauge, Trophy, ArrowsClockwise, CalendarBlank, Trash, PencilSimple } from '@phosphor-icons/react';
+import { parseISO, differenceInCalendarDays } from 'date-fns';
 
 const pbToMMSS = (sec: number | null | undefined): string => {
   if (!sec) return '';
@@ -52,6 +53,73 @@ export default function ProfilePage() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [races, setRaces] = useState<Array<{ id: string; name: string; date: string; distance?: string }>>([]);
+  const [newRaceName, setNewRaceName] = useState('');
+  const [newRaceDate, setNewRaceDate] = useState('');
+  const [newRaceDistance, setNewRaceDistance] = useState('10k');
+  const [newRaceError, setNewRaceError] = useState<string | null>(null);
+  const [editingRaceId, setEditingRaceId] = useState<string | null>(null);
+
+  const handleAddRace = () => {
+    setNewRaceError(null);
+    if (!newRaceName.trim()) {
+      setNewRaceError('กรุณากรอกชื่องานวิ่ง');
+      return;
+    }
+    if (!newRaceDate) {
+      setNewRaceError('กรุณาเลือกวันที่');
+      return;
+    }
+
+    if (editingRaceId) {
+      // Update existing race
+      setRaces((prev) =>
+        prev.map((r) =>
+          r.id === editingRaceId
+            ? { ...r, name: newRaceName.trim(), date: newRaceDate, distance: newRaceDistance }
+            : r
+        )
+      );
+      setEditingRaceId(null);
+    } else {
+      // Add new race
+      const newRace = {
+        id: Math.random().toString(36).substring(2, 9),
+        name: newRaceName.trim(),
+        date: newRaceDate,
+        distance: newRaceDistance,
+      };
+      setRaces((prev) => [...prev, newRace]);
+    }
+
+    setNewRaceName('');
+    setNewRaceDate('');
+    setNewRaceDistance('10k');
+  };
+
+  const handleStartEdit = (race: { id: string; name: string; date: string; distance?: string }) => {
+    setEditingRaceId(race.id);
+    setNewRaceName(race.name);
+    setNewRaceDate(race.date);
+    setNewRaceDistance(race.distance || '10k');
+    setNewRaceError(null);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingRaceId(null);
+    setNewRaceName('');
+    setNewRaceDate('');
+    setNewRaceDistance('10k');
+    setNewRaceError(null);
+  };
+
+  const handleDeleteRace = (id: string) => {
+    if (editingRaceId === id) {
+      handleCancelEdit();
+    }
+    setRaces((prev) => prev.filter((r) => r.id !== id));
+  };
+
   const { register, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { pace_zone_mode: 'auto', hr_max: 185, hr_rest: 42 },
@@ -87,6 +155,19 @@ export default function ProfilePage() {
           pace_zone_5_min: data.pace_zone_5_min,
           pace_zone_5_max: data.pace_zone_5_max,
         });
+
+        const localRaces = typeof window !== 'undefined' ? localStorage.getItem('profile_races') : null;
+        let loadedRaces: any[] = [];
+        if (data.races) {
+          loadedRaces = Array.isArray(data.races) ? data.races : JSON.parse(data.races);
+        } else if (localRaces) {
+          try {
+            loadedRaces = JSON.parse(localRaces);
+          } catch (e) {
+            loadedRaces = [];
+          }
+        }
+        setRaces(loadedRaces);
       }
       setLoading(false);
     });
@@ -101,6 +182,40 @@ export default function ProfilePage() {
   const watchPbHalf = watch('pb_half');
 
   const hrZones = computeHRZones(watchHrMax, watchHrRest);
+
+  const getCountdownText = (raceDateStr: string | null | undefined) => {
+    if (!raceDateStr) return null;
+    try {
+      const todayStr = thaiToday(); // "yyyy-MM-dd"
+      const raceDate = parseISO(raceDateStr);
+      const today = parseISO(todayStr);
+      const diff = differenceInCalendarDays(raceDate, today);
+      
+      if (diff > 0) {
+        return {
+          diff,
+          text: `เหลือเวลาอีก ${diff} วัน จะถึงวันแข่ง! 🏁`,
+          status: 'future'
+        };
+      } else if (diff === 0) {
+        return {
+          diff: 0,
+          text: `วันนี้เป็นวันแข่งของคุณแล้ว! สู้ๆ นะครับ! 🎉🏆`,
+          status: 'today'
+        };
+      } else {
+        return {
+          diff,
+          text: `แข่งเสร็จสิ้นแล้วเมื่อ ${Math.abs(diff)} วันก่อน 🏅`,
+          status: 'past'
+        };
+      }
+    } catch (e) {
+      return null;
+    }
+  };
+
+  // countdown helper inside map loop will use getCountdownText directly
 
   const paceZones = watchPaceMode === 'auto'
     ? computeAutoPaceZones(
@@ -146,7 +261,29 @@ export default function ProfilePage() {
       pace_zone_5_max: data.pace_zone_5_max || null,
       updated_at: new Date().toISOString(),
     };
-    const { error: err } = await supabase.from('profiles').upsert(payload, { onConflict: 'id' });
+
+    const payloadWithRaces = {
+      ...payload,
+      races: races,
+    };
+
+    let { error: err } = await supabase.from('profiles').upsert(payloadWithRaces, { onConflict: 'id' });
+    
+    // Fallback if races column does not exist in database yet
+    if (err && (err.message.includes('column') || err.code === '42703')) {
+      console.warn('Races column does not exist in DB yet. Saving locally to localStorage...', err);
+      const { error: fallbackErr } = await supabase.from('profiles').upsert(payload, { onConflict: 'id' });
+      err = fallbackErr;
+      
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('profile_races', JSON.stringify(races));
+      }
+    } else {
+      if (!err && typeof window !== 'undefined') {
+        localStorage.setItem('profile_races', JSON.stringify(races));
+      }
+    }
+
     if (err) { setError(err.message); }
     else { setSaved(true); setTimeout(() => setSaved(false), 2500); }
     setSaving(false);
@@ -277,6 +414,217 @@ export default function ProfilePage() {
                   <input id={id} type="text" className="form-input" {...register(field)} placeholder="e.g. 38:30" />
                 </div>
               ))}
+            </div>
+          </Section>
+
+          {/* Races & Events */}
+          <Section title="Races & Events" icon={<CalendarBlank size={16} color="var(--color-primary)" />}>
+            {/* Input Form for adding a new race */}
+            <div style={{ background: 'var(--color-muted)', padding: '16px', borderRadius: '18px', border: '1px solid var(--color-border)', marginBottom: '16px' }}>
+              <p style={{ fontSize: '0.875rem', fontWeight: 700, marginBottom: '10px', color: 'var(--color-foreground)', fontFamily: "'Baloo 2', sans-serif" }}>{editingRaceId ? 'Edit Race Info' : 'Add New Race'}</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: '12px' }}>
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <label className="form-label" style={{ fontSize: '0.75rem' }}>Race Name</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={newRaceName}
+                    onChange={(e) => setNewRaceName(e.target.value)}
+                    placeholder="e.g. Pattaya Marathon"
+                  />
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: '0.75rem' }}>Race Date</label>
+                  <input
+                    type="date"
+                    className="form-input"
+                    value={newRaceDate}
+                    onChange={(e) => setNewRaceDate(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="form-label" style={{ fontSize: '0.75rem' }}>Distance</label>
+                  <select
+                    className="form-select"
+                    value={newRaceDistance}
+                    onChange={(e) => setNewRaceDistance(e.target.value)}
+                  >
+                    <option value="5k">5K</option>
+                    <option value="10k">10K</option>
+                    <option value="Half">Half Marathon</option>
+                    <option value="Full">Full Marathon</option>
+                  </select>
+                </div>
+              </div>
+              {newRaceError && (
+                <p style={{ color: 'var(--color-destructive)', fontSize: '0.75rem', margin: '0 0 8px 0', fontWeight: 600, fontFamily: "'Mali', sans-serif" }}>{newRaceError}</p>
+              )}
+              {editingRaceId ? (
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    style={{ padding: '8px 18px', flex: 1, fontSize: '0.8125rem' }}
+                    onClick={handleAddRace}
+                  >
+                    ✓ Update Race
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ padding: '8px 18px', flex: 1, fontSize: '0.8125rem' }}
+                    onClick={handleCancelEdit}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  style={{ padding: '8px 18px', width: '100%', fontSize: '0.8125rem' }}
+                  onClick={handleAddRace}
+                >
+                  + Add Race
+                </button>
+              )}
+            </div>
+
+            {/* List of currently added races */}
+            <p style={{ fontSize: '0.875rem', fontWeight: 700, marginBottom: '10px', color: 'var(--color-foreground)', fontFamily: "'Baloo 2', sans-serif" }}>Your Race List ({races.length})</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {races.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '24px', color: 'var(--color-text-muted)', border: '2px dashed var(--color-border)', borderRadius: '18px', fontSize: '0.8125rem', fontFamily: "'Mali', sans-serif" }}>
+                  No races added yet.
+                </div>
+              ) : (
+                [...races]
+                  .sort((a, b) => a.date.localeCompare(b.date))
+                  .map((race) => {
+                    const countdown = getCountdownText(race.date);
+                    return (
+                      <div
+                        key={race.id}
+                        style={{
+                          padding: '14px 16px',
+                          borderRadius: 18,
+                          background: '#FFFFFF',
+                          border: '2px solid var(--color-border)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: 12,
+                          transition: 'all 0.2s ease',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
+                          <div style={{
+                            width: 38,
+                            height: 38,
+                            borderRadius: 10,
+                            background: countdown?.status === 'today'
+                              ? 'rgba(127, 219, 182, 0.2)'
+                              : countdown?.status === 'past'
+                                ? 'var(--color-muted)'
+                                : 'rgba(255, 143, 163, 0.15)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                            fontSize: '1.25rem'
+                          }}>
+                            {countdown?.status === 'today' ? '🏆' : countdown?.status === 'past' ? '🏅' : '🏁'}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 700, fontFamily: "'Baloo 2', sans-serif", fontSize: '0.95rem', color: 'var(--color-foreground)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{race.name}</span>
+                              {race.distance && (
+                                <span style={{
+                                  fontSize: '0.6875rem',
+                                  fontWeight: 700,
+                                  background: 'rgba(201,167,235,0.15)',
+                                  border: '1px solid rgba(201,167,235,0.4)',
+                                  color: 'var(--color-secondary)',
+                                  padding: '1px 6px',
+                                  borderRadius: '6px',
+                                  fontFamily: "'Baloo 2', sans-serif",
+                                  lineHeight: 1,
+                                  flexShrink: 0
+                                }}>
+                                  {race.distance}
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6, fontFamily: "'Mali', sans-serif" }}>
+                              <span>{race.date}</span>
+                              <span>•</span>
+                              <span style={{
+                                fontWeight: 700,
+                                color: countdown?.status === 'today'
+                                  ? '#059669'
+                                  : countdown?.status === 'past'
+                                    ? 'var(--color-text-muted)'
+                                    : 'var(--color-primary)'
+                              }}>
+                                {countdown?.text}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <button
+                            type="button"
+                            onClick={() => handleStartEdit(race)}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              cursor: 'pointer',
+                              padding: '6px',
+                              borderRadius: '8px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'background-color 0.2s',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = 'rgba(201, 167, 235, 0.15)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = 'transparent';
+                            }}
+                            title="Edit Race"
+                          >
+                            <PencilSimple size={18} color="var(--color-secondary)" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteRace(race.id)}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              cursor: 'pointer',
+                              padding: '6px',
+                              borderRadius: '8px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'background-color 0.2s',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = 'rgba(255, 107, 129, 0.1)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = 'transparent';
+                            }}
+                            title="Delete Race"
+                          >
+                            <Trash size={18} color="var(--color-destructive)" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+              )}
             </div>
           </Section>
 

@@ -8,20 +8,23 @@ INSERT INTO profiles (
   id, name, gender, birth_date, vo2max, vt2_percent,
   weight_kg, height_cm,
   pb_5k, pb_10k, pb_half, pb_marathon,
-  hr_max, hr_rest, pace_zone_mode
+  hr_max, hr_rest, pace_zone_mode,
+  races
 ) VALUES (
   1, 'Morp', 'male', '1990-03-15', 72.0, 85.0,
   62.0, 172.0,
   1080,    -- 18:00 for 5k
   2310,    -- 38:30 for 10k
   5100,    -- 1:25:00 for half
-  11400    -- 3:10:00 for marathon
-  185, 42, 'auto'
+  11400,   -- 3:10:00 for marathon
+  185, 42, 'auto',
+  '[{"id":"seed-1","name":"Pattaya Marathon","date":"2026-07-20","distance":"Full"},{"id":"seed-2","name":"Bangkok Marathon","date":"2026-11-15","distance":"Full"}]'::jsonb
 ) ON CONFLICT (id) DO UPDATE SET
   name = EXCLUDED.name,
   vo2max = EXCLUDED.vo2max,
   hr_max = EXCLUDED.hr_max,
-  hr_rest = EXCLUDED.hr_rest;
+  hr_rest = EXCLUDED.hr_rest,
+  races = EXCLUDED.races;
 
 -- ---- Sample activities (last 3 weeks) ----
 INSERT INTO activities (date, session_type, distance_km, duration_seconds, avg_pace_sec_per_km, avg_hr, max_hr, elevation_gain_m, rpe, notes, route_name) VALUES

@@ -33,7 +33,15 @@ export interface Profile {
   pace_zone_4_max: string | null;
   pace_zone_5_min: string | null;
   pace_zone_5_max: string | null;
+  races: Race[] | null;
   updated_at: string;
+}
+
+export interface Race {
+  id: string;
+  name: string;
+  date: string;
+  distance?: '5k' | '10k' | 'Half' | 'Full' | string;
 }
 
 export interface Activity {

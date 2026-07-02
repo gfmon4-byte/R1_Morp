@@ -1,11 +1,12 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Lightning } from '@phosphor-icons/react';
+import { Lightning, CalendarBlank } from '@phosphor-icons/react';
 import { DashboardCharts } from './DashboardCharts';
-import { formatPace, formatDuration, thaiDate, getSessionColor } from '@/lib/utils';
+import { formatPace, formatDuration, thaiDate, getSessionColor, thaiToday } from '@/lib/utils';
 import type { Activity, Profile } from '@/lib/supabase';
 import type { HRZone } from '@/lib/hrZones';
+import { parseISO, differenceInCalendarDays } from 'date-fns';
 
 interface Props {
   profile: Profile | null;
@@ -19,6 +20,41 @@ const MONTHS = [
 ];
 
 export function DashboardClient({ profile, activities, hrZones }: Props) {
+  // Load races (merging database and local storage fallback)
+  const races = useMemo(() => {
+    const localRacesStr = typeof window !== 'undefined' ? localStorage.getItem('profile_races') : null;
+    let localRaces: any[] = [];
+    if (localRacesStr) {
+      try {
+        localRaces = JSON.parse(localRacesStr);
+      } catch (e) {
+        localRaces = [];
+      }
+    }
+    
+    let dbRaces: any[] = [];
+    if (profile?.races) {
+      dbRaces = Array.isArray(profile.races) ? profile.races : JSON.parse(profile.races as any);
+    }
+    
+    // Choose database races if present, else fallback to localStorage
+    const activeRaces = dbRaces.length > 0 ? dbRaces : localRaces;
+    return activeRaces;
+  }, [profile?.races]);
+
+  const nextRace = useMemo(() => {
+    if (!races || races.length === 0) return null;
+    const todayStr = thaiToday(); // "yyyy-MM-dd"
+    
+    // Filter races that are in the future or today
+    const upcoming = races.filter((r) => r.date >= todayStr);
+    if (upcoming.length === 0) return null;
+    
+    // Sort upcoming races by date (ascending)
+    upcoming.sort((a, b) => a.date.localeCompare(b.date));
+    return upcoming[0];
+  }, [races]);
+
   // Derive available years from data
   const availableYears = useMemo(() => {
     const years = new Set<number>();
@@ -78,6 +114,39 @@ export function DashboardClient({ profile, activities, hrZones }: Props) {
             <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', marginTop: 2 }}>
               {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'Asia/Bangkok' })}
             </p>
+            {/* Minimal Next Race Pill */}
+            {nextRace && (() => {
+              const todayStr = thaiToday();
+              const raceDate = parseISO(nextRace.date);
+              const today = parseISO(todayStr);
+              const diff = differenceInCalendarDays(raceDate, today);
+              const isToday = diff === 0;
+              const statusText = isToday ? 'แข่งวันนี้! 🎉🏆' : `อีก ${diff} วัน 🏁`;
+              return (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  marginTop: 6,
+                  padding: '3px 10px',
+                  borderRadius: 100,
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  fontFamily: "'Mali', sans-serif",
+                  background: isToday ? 'rgba(127, 219, 182, 0.15)' : 'rgba(255, 143, 163, 0.12)',
+                  border: `1px solid ${isToday ? 'var(--color-accent)' : 'var(--color-primary)'}`,
+                  color: isToday ? '#059669' : 'var(--color-primary)',
+                  width: 'fit-content'
+                }}>
+                  <span style={{ fontWeight: 700, fontFamily: "'Baloo 2', sans-serif" }}>
+                    {nextRace.name}
+                    {nextRace.distance && ` (${nextRace.distance})`}
+                  </span>
+                  <span>•</span>
+                  <span>{statusText}</span>
+                </div>
+              );
+            })()}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--color-primary-soft)', border: '1px solid rgba(255,118,216,0.25)', borderRadius: 10, padding: '6px 12px' }}>
             <Lightning size={16} color="var(--color-primary)" weight="fill" />
@@ -87,7 +156,6 @@ export function DashboardClient({ profile, activities, hrZones }: Props) {
           </div>
         </div>
       </header>
-
       <div className="page-content" style={{ paddingTop: 20 }}>
 
         {/* ---- Year / Month Filter ---- */}

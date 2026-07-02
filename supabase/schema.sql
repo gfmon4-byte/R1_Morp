@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   pace_zone_4_max      TEXT,
   pace_zone_5_min      TEXT,
   pace_zone_5_max      TEXT,
+  races                JSONB DEFAULT '[]'::jsonb,
   updated_at           TIMESTAMPTZ DEFAULT NOW()
 );
 
