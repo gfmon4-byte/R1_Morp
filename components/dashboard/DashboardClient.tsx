@@ -106,54 +106,57 @@ export function DashboardClient({ profile, activities, hrZones }: Props) {
     <div>
       {/* Header */}
       <header className="page-header">
-        <div style={{ maxWidth: 640, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <h1 style={{ fontSize: '1.5rem', lineHeight: 1 }}>
-              {profile?.name ? `Hey, ${profile.name}` : 'Dashboard'}
-            </h1>
-            <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', marginTop: 2 }}>
-              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'Asia/Bangkok' })}
-            </p>
-            {/* Minimal Next Race Pill */}
-            {nextRace && (() => {
-              const todayStr = thaiToday();
-              const raceDate = parseISO(nextRace.date);
-              const today = parseISO(todayStr);
-              const diff = differenceInCalendarDays(raceDate, today);
-              const isToday = diff === 0;
-              const statusText = isToday ? 'แข่งวันนี้! 🎉🏆' : `อีก ${diff} วัน 🏁`;
-              return (
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  marginTop: 6,
-                  padding: '3px 10px',
-                  borderRadius: 100,
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  fontFamily: "'Mali', sans-serif",
-                  background: isToday ? 'rgba(127, 219, 182, 0.15)' : 'rgba(255, 143, 163, 0.12)',
-                  border: `1px solid ${isToday ? 'var(--color-accent)' : 'var(--color-primary)'}`,
-                  color: isToday ? '#059669' : 'var(--color-primary)',
-                  width: 'fit-content'
-                }}>
-                  <span style={{ fontWeight: 700, fontFamily: "'Baloo 2', sans-serif" }}>
-                    {nextRace.name}
-                    {nextRace.distance && ` (${nextRace.distance})`}
-                  </span>
-                  <span>•</span>
-                  <span>{statusText}</span>
-                </div>
-              );
-            })()}
+        <div style={{ maxWidth: 640, margin: '0 auto' }}>
+          {/* Top row: greeting + date (inline) | VO₂ badge */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
+              <h1 style={{ fontSize: '1.375rem', lineHeight: 1, margin: 0 }}>
+                {profile?.name ? `Hey, ${profile.name}` : 'Dashboard'}
+              </h1>
+              <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>·</span>
+              <span style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>
+                {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'Asia/Bangkok' })}
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--color-primary-soft)', border: '1px solid rgba(255,118,216,0.25)', borderRadius: 10, padding: '5px 10px', flexShrink: 0 }}>
+              <Lightning size={14} color="var(--color-primary)" weight="fill" />
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-primary)' }}>
+                {profile?.vo2max ? `VO₂: ${profile.vo2max}` : 'Elite'}
+              </span>
+            </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--color-primary-soft)', border: '1px solid rgba(255,118,216,0.25)', borderRadius: 10, padding: '6px 12px' }}>
-            <Lightning size={16} color="var(--color-primary)" weight="fill" />
-            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-primary)' }}>
-              {profile?.vo2max ? `VO₂: ${profile.vo2max}` : 'Elite'}
-            </span>
-          </div>
+          {/* Race pill below */}
+          {nextRace && (() => {
+            const todayStr = thaiToday();
+            const raceDate = parseISO(nextRace.date);
+            const today = parseISO(todayStr);
+            const diff = differenceInCalendarDays(raceDate, today);
+            const isToday = diff === 0;
+            const statusText = isToday ? 'แข่งวันนี้! 🎉🏆' : `อีก ${diff} วัน 🏁`;
+            return (
+              <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                marginTop: 6,
+                padding: '3px 10px',
+                borderRadius: 100,
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                fontFamily: "'Mali', sans-serif",
+                background: isToday ? 'rgba(127, 219, 182, 0.15)' : 'rgba(255, 143, 163, 0.12)',
+                border: `1px solid ${isToday ? 'var(--color-accent)' : 'var(--color-primary)'}`,
+                color: isToday ? '#059669' : 'var(--color-primary)',
+              }}>
+                <span style={{ fontWeight: 700, fontFamily: "'Baloo 2', sans-serif" }}>
+                  {nextRace.name}
+                  {nextRace.distance && ` (${nextRace.distance})`}
+                </span>
+                <span>·</span>
+                <span>{statusText}</span>
+              </div>
+            );
+          })()}
         </div>
       </header>
       <div className="page-content" style={{ paddingTop: 20 }}>
