@@ -34,7 +34,7 @@ export function DashboardClient({ profile, activities, hrZones }: Props) {
   const [selectedYear, setSelectedYear] = useState<number>(
     availableYears.includes(currentYear) ? currentYear : (availableYears[0] ?? currentYear)
   );
-  const [selectedMonth, setSelectedMonth] = useState<number | null>(null); // null = all months
+  const [selectedMonth, setSelectedMonth] = useState<number | null>(currentMonth); // default to current month
 
   // Filtered activities based on year + optional month
   const filtered = useMemo(() => {
