@@ -529,3 +529,45 @@ input[type='number']::-webkit-inner-spin-button {
   }
 }
 
+/* ---- Plan List Items ---- */
+.plan-list-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color 0.15s, transform 0.15s;
+}
+
+.plan-list-btn:hover {
+  border-color: rgba(255, 118, 216, 0.3);
+  transform: translateY(-1px);
+}
+
+.plan-list-btn:active {
+  transform: translateY(0);
+}
+
+/* ---- Stats Grid on Plan Page ---- */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+@media (min-width: 640px) {
+  .stats-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+}
+
+
+
