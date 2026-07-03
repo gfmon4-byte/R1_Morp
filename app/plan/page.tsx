@@ -515,8 +515,15 @@ interface StatCardProps {
 function StatCard({ label, value, unit, color, icon: Icon, subtext }: StatCardProps) {
   return (
     <div className="stat-card" style={{ padding: '10px 14px', borderLeft: `3px solid ${color}`, position: 'relative', overflow: 'hidden' }}>
-      <span className="stat-label" style={{ fontSize: '0.625rem', letterSpacing: '0.04em', color: 'var(--color-text-muted)' }}>{label}</span>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 2, marginTop: 2 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <span className="stat-label" style={{ fontSize: '0.625rem', letterSpacing: '0.04em', color: 'var(--color-text-muted)' }}>{label}</span>
+        {Icon && (
+          <div style={{ background: `${color}1A`, padding: 4, borderRadius: 6, display: 'flex', color: color }}>
+            <Icon size={16} color="currentColor" weight="bold" />
+          </div>
+        )}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 2, marginTop: 4 }}>
         <span className="stat-value" style={{ fontSize: '1.25rem', lineHeight: 1.1, color: 'var(--color-foreground)' }}>{value}</span>
         {unit && <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>{unit}</span>}
       </div>
@@ -524,11 +531,6 @@ function StatCard({ label, value, unit, color, icon: Icon, subtext }: StatCardPr
         <span style={{ fontSize: '0.625rem', color: 'var(--color-text-subtle)', marginTop: 2, display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '85%' }}>
           {subtext}
         </span>
-      )}
-      {Icon && (
-        <div style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', opacity: 0.12, pointerEvents: 'none' }}>
-          <Icon size={22} color={color} weight="fill" />
-        </div>
       )}
     </div>
   );
