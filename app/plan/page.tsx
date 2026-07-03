@@ -140,7 +140,7 @@ export default function PlanPage() {
     <div>
       {/* Header */}
       <header className="page-header">
-        <div style={{ maxWidth: 900, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ maxWidth: 640, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 12 }}>
           <CalendarBlank size={22} color="var(--color-primary)" weight="fill" />
           <h1 style={{ fontSize: '1.5rem', flex: 1 }}>Training Plan</h1>
           <button
@@ -154,7 +154,7 @@ export default function PlanPage() {
         </div>
       </header>
 
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 16px', paddingTop: 16 }}>
+      <div className="page-content" style={{ paddingTop: 16 }}>
         {/* Month navigation */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <button

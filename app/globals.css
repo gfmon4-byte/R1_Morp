@@ -119,6 +119,7 @@ body {
   background-color: var(--color-background);
   color: var(--color-foreground);
   overscroll-behavior-y: none;
+  overflow-x: hidden;
   font-family: 'Mali', system-ui, sans-serif;
   transition: background-color 300ms ease, color 300ms ease;
 }
@@ -140,6 +141,7 @@ h1, h2, h3, h4, h5 {
 /* ---- Page layout ---- */
 .page-container {
   min-height: 100dvh;
+  overflow-x: hidden;
   padding-bottom: calc(var(--nav-height) + var(--safe-bottom) + 8px);
   padding-top: 0;
 }
@@ -154,6 +156,7 @@ h1, h2, h3, h4, h5 {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   padding: 16px 20px 12px;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 16px);
   transition: background-color 300ms ease, border-color 300ms ease;
 }
 
@@ -161,6 +164,8 @@ h1, h2, h3, h4, h5 {
   padding: 16px 16px 0;
   max-width: 640px;
   margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 @media (min-width: 768px) {
