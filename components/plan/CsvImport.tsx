@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { X, UploadSimple, FileText, CheckCircle, Warning } from '@phosphor-icons/react';
+import { X, UploadSimple, CheckCircle, Warning, Trash, ArrowsMerge } from '@phosphor-icons/react';
 import Papa from 'papaparse';
 
 interface CsvRow {
@@ -18,6 +18,8 @@ interface CsvRow {
   notes?: string;
 }
 
+type ImportMode = 'replace' | 'merge';
+
 interface Props {
   onClose: () => void;
   onImported: () => void;
@@ -27,8 +29,15 @@ export function CsvImport({ onClose, onImported }: Props) {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<CsvRow[]>([]);
   const [importing, setImporting] = useState(false);
-  const [result, setResult] = useState<{ imported: number; errors: string[] } | null>(null);
+  const [result, setResult] = useState<{
+    imported: number;
+    overwritten: number;
+    newAdded: number;
+    deleted?: number;
+    errors: string[];
+  } | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [mode, setMode] = useState<ImportMode>('merge');
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -60,18 +69,21 @@ export function CsvImport({ onClose, onImported }: Props) {
     setImporting(true);
     const errors: string[] = [];
     let imported = 0;
+    let deleted = 0;
+    let overwritten = 0;
 
     await new Promise<void>((resolve) => {
       Papa.parse<CsvRow>(file, {
         header: true,
         skipEmptyLines: true,
         complete: async (results) => {
-          const rows = results.data;
-          // Batch into chunks of 50
-          for (let i = 0; i < rows.length; i += 50) {
-            const chunk = rows.slice(i, i + 50).map((row, idx) => {
+          try {
+            const rows = results.data;
+
+            // Build clean rows for upsert
+            const cleanRows = rows.map((row, idx) => {
               if (!row.date) {
-                errors.push(`Row ${i + idx + 2}: missing date`);
+                errors.push(`Row ${idx + 2}: missing date`);
                 return null;
               }
               return {
@@ -88,26 +100,71 @@ export function CsvImport({ onClose, onImported }: Props) {
                 completed: false,
                 updated_at: new Date().toISOString(),
               };
-            }).filter(Boolean);
+            }).filter(Boolean) as Record<string, unknown>[];
 
-            if (chunk.length > 0) {
-              const { error, data } = await supabase
+            // --- REPLACE MODE: delete everything first ---
+            if (mode === 'replace') {
+              const { error: delErr, count } = await supabase
                 .from('training_plan')
-                .upsert(chunk as Record<string, unknown>[], { onConflict: 'date' })
-                .select('id');
-              if (error) errors.push(error.message);
-              else imported += (data?.length ?? chunk.length);
+                .delete()
+                .neq('date', '1900-01-01') // match all rows by date to avoid UUID syntax error
+                .select('id', { count: 'exact' });
+              if (delErr) {
+                errors.push(`Delete failed: ${delErr.message}`);
+              } else {
+                deleted = count ?? 0;
+              }
             }
+
+            if (mode === 'merge' && cleanRows.length > 0) {
+              const dates = cleanRows.map(r => r.date as string);
+              const { data: existing, error: existErr } = await supabase
+                .from('training_plan')
+                .select('date')
+                .in('date', dates);
+              
+              if (existErr) {
+                errors.push(`Query existing failed: ${existErr.message}`);
+              } else if (existing) {
+                overwritten = existing.length;
+              }
+            }
+
+            if (errors.length === 0) {
+              // Batch upsert in chunks of 50
+              for (let i = 0; i < cleanRows.length; i += 50) {
+                const chunk = cleanRows.slice(i, i + 50);
+                if (chunk.length > 0) {
+                  const { error, data } = await supabase
+                    .from('training_plan')
+                    .upsert(chunk, { onConflict: 'date' })
+                    .select('id');
+                  if (error) errors.push(error.message);
+                  else imported += (data?.length ?? chunk.length);
+                }
+              }
+            }
+          } catch (err: any) {
+            errors.push(err.message || String(err));
+          } finally {
+            resolve();
           }
-          resolve();
         },
       });
     });
 
-    setResult({ imported, errors: errors.slice(0, 5) });
+    const newAdded = mode === 'replace' ? imported : Math.max(0, imported - overwritten);
+
+    setResult({ 
+      imported, 
+      overwritten: mode === 'replace' ? 0 : overwritten,
+      newAdded,
+      deleted: mode === 'replace' ? deleted : undefined, 
+      errors: errors.slice(0, 5) 
+    });
     setImporting(false);
     if (errors.length === 0) {
-      setTimeout(onImported, 1500);
+      setTimeout(onImported, 2500); // Give 2.5s for user to read the counts
     }
   };
 
@@ -120,6 +177,80 @@ export function CsvImport({ onClose, onImported }: Props) {
           <button className="btn btn-ghost btn-icon" onClick={onClose} aria-label="Close"><X size={20} /></button>
         </div>
 
+        {/* Mode toggle */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          <button
+            id="import-mode-replace"
+            onClick={() => setMode('replace')}
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 6,
+              padding: '12px 10px',
+              borderRadius: 14,
+              border: `2px solid ${mode === 'replace' ? '#EF4444' : 'var(--color-border)'}`,
+              background: mode === 'replace' ? 'rgba(239,68,68,0.08)' : 'var(--color-bg-elevated)',
+              cursor: 'pointer',
+              transition: 'all 0.15s',
+            }}
+          >
+            <Trash size={20} color={mode === 'replace' ? '#EF4444' : 'var(--color-text-muted)'} weight={mode === 'replace' ? 'fill' : 'regular'} />
+            <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: mode === 'replace' ? '#EF4444' : 'var(--color-text-muted)', fontFamily: "'Baloo 2', sans-serif" }}>
+              Replace
+            </span>
+            <span style={{ fontSize: '0.6875rem', color: mode === 'replace' ? '#EF4444' : 'var(--color-text-subtle)', textAlign: 'center', lineHeight: 1.3 }}>
+              ลบทุกอย่างก่อน แล้ว import ใหม่
+            </span>
+          </button>
+
+          <button
+            id="import-mode-merge"
+            onClick={() => setMode('merge')}
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 6,
+              padding: '12px 10px',
+              borderRadius: 14,
+              border: `2px solid ${mode === 'merge' ? 'var(--color-primary)' : 'var(--color-border)'}`,
+              background: mode === 'merge' ? 'var(--color-primary-soft)' : 'var(--color-bg-elevated)',
+              cursor: 'pointer',
+              transition: 'all 0.15s',
+            }}
+          >
+            <ArrowsMerge size={20} color={mode === 'merge' ? 'var(--color-primary)' : 'var(--color-text-muted)'} weight={mode === 'merge' ? 'fill' : 'regular'} />
+            <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: mode === 'merge' ? 'var(--color-primary)' : 'var(--color-text-muted)', fontFamily: "'Baloo 2', sans-serif" }}>
+              Smart Merge
+            </span>
+            <span style={{ fontSize: '0.6875rem', color: mode === 'merge' ? 'var(--color-primary)' : 'var(--color-text-subtle)', textAlign: 'center', lineHeight: 1.3 }}>
+              วันที่ใน CSV แทนที่, วันอื่นๆ คงเดิม
+            </span>
+          </button>
+        </div>
+
+        {/* Warning for replace mode */}
+        {mode === 'replace' && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 8,
+            padding: '10px 12px',
+            borderRadius: 10,
+            background: 'rgba(239,68,68,0.08)',
+            border: '1px solid rgba(239,68,68,0.25)',
+            marginBottom: 16,
+          }}>
+            <Warning size={16} color="#EF4444" weight="fill" style={{ flexShrink: 0, marginTop: 1 }} />
+            <p style={{ fontSize: '0.8125rem', color: '#EF4444', margin: 0, lineHeight: 1.4 }}>
+              <strong>แผนซ้อมทั้งหมดจะถูกลบออก</strong> ก่อนที่ข้อมูลใน CSV จะถูก import เข้ามา ไม่สามารถกู้คืนได้
+            </p>
+          </div>
+        )}
+
         {/* Drop zone */}
         <div
           onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -129,7 +260,7 @@ export function CsvImport({ onClose, onImported }: Props) {
           style={{
             border: `2px dashed ${dragOver ? 'var(--color-primary)' : 'rgba(255,255,255,0.15)'}`,
             borderRadius: 16,
-            padding: 32,
+            padding: 28,
             textAlign: 'center',
             cursor: 'pointer',
             background: dragOver ? 'var(--color-primary-soft)' : 'var(--color-bg-elevated)',
@@ -145,12 +276,12 @@ export function CsvImport({ onClose, onImported }: Props) {
             onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
             aria-label="Upload CSV file"
           />
-          <UploadSimple size={36} color={dragOver ? 'var(--color-primary)' : '#64748B'} style={{ margin: '0 auto 12px' }} />
+          <UploadSimple size={32} color={dragOver ? 'var(--color-primary)' : '#64748B'} style={{ margin: '0 auto 10px' }} />
           <p style={{ fontWeight: 600, color: 'var(--color-text)', marginBottom: 4 }}>
             {file ? file.name : 'Drop CSV or tap to browse'}
           </p>
-          <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>
-            Expected columns: date, day_of_week, phase, session_type, description, distance_km, pace_target, hr_zone, rpe, notes
+          <p style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', margin: 0 }}>
+            Columns: date, session_type, distance_km, pace_target, hr_zone, phase, description, notes
           </p>
         </div>
 
@@ -197,9 +328,22 @@ export function CsvImport({ onClose, onImported }: Props) {
                 ? <CheckCircle size={16} color="#059669" weight="fill" />
                 : <Warning size={16} color="#EF4444" weight="fill" />}
               <span style={{ fontWeight: 600, color: result.errors.length === 0 ? '#059669' : '#EF4444', fontSize: '0.875rem' }}>
-                {result.imported} rows imported
+                นำเข้าสำเร็จทั้งหมด {result.imported} รายการ
               </span>
             </div>
+            
+            <div style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {result.deleted !== undefined && (
+                <span>• ลบแผนซ้อมเดิมทั้งหมด: <strong>{result.deleted}</strong> รายการ</span>
+              )}
+              {result.newAdded > 0 && (
+                <span>• เพิ่มแผนซ้อมใหม่: <strong>{result.newAdded}</strong> รายการ</span>
+              )}
+              {result.overwritten > 0 && (
+                <span>• วันที่ซ้ำ/อัปเดตข้อมูลทับของเดิม: <strong>{result.overwritten}</strong> รายการ</span>
+              )}
+            </div>
+
             {result.errors.map((e, i) => (
               <p key={i} style={{ fontSize: '0.75rem', color: '#EF4444', marginTop: 4 }}>{e}</p>
             ))}
@@ -207,12 +351,17 @@ export function CsvImport({ onClose, onImported }: Props) {
         )}
 
         <button
-          className="btn btn-primary"
+          className={`btn ${mode === 'replace' ? 'btn-danger' : 'btn-primary'}`}
           style={{ width: '100%' }}
           disabled={!file || importing}
           onClick={handleImport}
+          id="import-confirm-btn"
         >
-          {importing ? 'Importing…' : 'Import Plan'}
+          {importing
+            ? 'Importing…'
+            : mode === 'replace'
+              ? '⚠ Replace & Import'
+              : 'Smart Merge & Import'}
         </button>
       </div>
     </div>
