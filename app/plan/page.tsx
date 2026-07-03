@@ -208,7 +208,7 @@ export default function PlanPage() {
 
         <div>
           {/* Day labels */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 3, marginBottom: 4 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 3, marginBottom: 4 }}>
             {weekDays.map((d) => (
               <div key={d} style={{ textAlign: 'center', fontSize: '0.6875rem', fontWeight: 600, color: 'var(--color-text-subtle)', textTransform: 'uppercase', letterSpacing: '0.04em', padding: '4px 0' }}>
                 {d}
@@ -217,13 +217,13 @@ export default function PlanPage() {
           </div>
           {/* Calendar grid */}
           {loading ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 3 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 3 }}>
               {[...Array(35)].map((_, i) => (
                 <div key={i} className="skeleton" style={{ aspectRatio: '1', borderRadius: 10 }} />
               ))}
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 3 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 3 }}>
               {paddedDays.map((day, i) => {
                 if (!day) return <div key={`pad-${i}`} />;
                 const dateStr = format(day, 'yyyy-MM-dd');

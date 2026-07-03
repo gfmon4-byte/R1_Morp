@@ -87,7 +87,7 @@ export default function HistoryPage() {
             <option value="All">All Session Types</option>
             {SESSION_TYPES.map((t) => <option key={t}>{t}</option>)}
           </select>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <div className="form-grid-2" style={{ gap: 8 }}>
             <div>
               <label className="form-label">From</label>
               <input type="date" className="form-input" value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} aria-label="From date" />

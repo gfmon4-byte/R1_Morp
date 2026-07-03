@@ -343,7 +343,7 @@ export default function ProfilePage() {
 
           {/* Personal Info */}
           <Section title="Personal Info" icon={<User size={16} color="var(--color-primary)" />}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="form-grid-2" style={{ gap: 12 }}>
               <div style={{ gridColumn: '1 / -1' }}>
                 <label className="form-label" htmlFor="p-name">Name</label>
                 <input id="p-name" type="text" className="form-input" {...register('name')} />
@@ -375,7 +375,7 @@ export default function ProfilePage() {
 
           {/* VO2max / VT2 */}
           <Section title="Performance Metrics" icon={<Gauge size={16} color="var(--color-primary)" />}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="form-grid-2" style={{ gap: 12 }}>
               <div>
                 <label className="form-label" htmlFor="p-vo2">VO₂max (ml/kg/min)</label>
                 <input id="p-vo2" type="number" step="0.1" className="form-input" {...register('vo2max')} placeholder="e.g. 72" />
@@ -425,7 +425,7 @@ export default function ProfilePage() {
           {/* Personal Bests */}
           <Section title="Personal Bests" icon={<Trophy size={16} color="var(--color-primary)" />}>
             <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', marginBottom: 12 }}>Format: H:MM:SS or MM:SS</p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="form-grid-2" style={{ gap: 12 }}>
               {[
                 { id: 'pb-5k', field: 'pb_5k' as const, label: '5K' },
                 { id: 'pb-10k', field: 'pb_10k' as const, label: '10K' },
@@ -602,7 +602,7 @@ export default function ProfilePage() {
 
           {/* HR Settings */}
           <Section title="Heart Rate" icon={<Heart size={16} color="#EF4444" />}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+            <div className="form-grid-2" style={{ gap: 12, marginBottom: 16 }}>
               <div>
                 <label className="form-label" htmlFor="p-hrmax">Max HR (bpm)</label>
                 <input id="p-hrmax" type="number" className="form-input" {...register('hr_max')} />
@@ -768,7 +768,7 @@ export default function ProfilePage() {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className="form-grid-2" style={{ gap: 12 }}>
                 <div>
                   <label className="form-label">Race Date</label>
                   <input
