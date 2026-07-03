@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Activity, TrainingPlan } from '@/lib/supabase';
-import { getSessionColor, thaiToday } from '@/lib/utils';
+import { getSessionColor, thaiToday, getContrastColor } from '@/lib/utils';
 import { useTheme } from '@/components/layout/ThemeProvider';
 import { computeHRZones } from '@/lib/hrZones';
 import { AddRunForm } from '@/components/runs/AddRunForm';
@@ -22,11 +22,6 @@ const TZ = 'Asia/Bangkok';
 
 function thaiNow() {
   return toZonedTime(new Date(), TZ);
-}
-
-function getContrastColor(theme: 'light' | 'dark'): string {
-  // Neon (dark mode) colors are vivid/dark-bg → white text; pastel (light) → black text
-  return theme === 'dark' ? '#FFFFFF' : '#000000';
 }
 
 
@@ -293,7 +288,7 @@ export default function PlanPage() {
                         className="calendar-event-chip"
                         style={{
                           background: sessionColor ?? '#6B7280',
-                          color: getContrastColor(theme),
+                          color: getContrastColor(sessionColor ?? '#6B7280'),
                           opacity: plan.completed ? 0.6 : 1,
                         }}
                         title={`${plan.session_type}${plan.distance_km ? ` - ${plan.distance_km}k` : ''}${plan.description ? `: ${plan.description}` : ''}`}
@@ -312,9 +307,13 @@ export default function PlanPage() {
                         className="calendar-event-chip"
                         style={{
                           background: isOver || !hasPlan
-                            ? (theme === 'dark' ? '#1A7A52' : '#A8E6CF')
-                            : (theme === 'dark' ? '#E65100' : '#FFD5A8'),
-                          color: theme === 'dark' ? '#FFFFFF' : '#000000',
+                            ? (theme === 'dark' ? '#39FF14' : '#A8E6CF')
+                            : (theme === 'dark' ? '#EDFF00' : '#FFD5A8'),
+                          color: getContrastColor(
+                            isOver || !hasPlan
+                              ? (theme === 'dark' ? '#39FF14' : '#A8E6CF')
+                              : (theme === 'dark' ? '#EDFF00' : '#FFD5A8')
+                          ),
                         }}
                         title={`Actual: ${actualKm.toFixed(2)} km`}
                       >
@@ -340,17 +339,17 @@ export default function PlanPage() {
               <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
                 {type === 'today' && <div style={{ width: 12, height: 12, borderRadius: 4, border: '2px solid var(--color-primary)' }} />}
                 {type === 'plan-chip' && (
-                  <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 4, background: theme === 'dark' ? '#1565C0' : '#AED9F5', color: theme === 'dark' ? '#FFFFFF' : '#000000', fontWeight: 700, textTransform: 'uppercase' }}>
+                  <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 4, background: theme === 'dark' ? '#00F3FF' : '#AED9F5', color: getContrastColor(theme === 'dark' ? '#00F3FF' : '#AED9F5'), fontWeight: 700, textTransform: 'uppercase' }}>
                     Plan
                   </div>
                 )}
                 {type === 'actual-chip' && (
-                  <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 4, background: theme === 'dark' ? '#1A7A52' : '#A8E6CF', color: theme === 'dark' ? '#FFFFFF' : '#000000', fontWeight: 700, textTransform: 'uppercase' }}>
+                  <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 4, background: theme === 'dark' ? '#39FF14' : '#A8E6CF', color: getContrastColor(theme === 'dark' ? '#39FF14' : '#A8E6CF'), fontWeight: 700, textTransform: 'uppercase' }}>
                     ✓ Run
                   </div>
                 )}
                 {type === 'short-chip' && (
-                  <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 4, background: theme === 'dark' ? '#E65100' : '#FFD5A8', color: theme === 'dark' ? '#FFFFFF' : '#000000', fontWeight: 700, textTransform: 'uppercase' }}>
+                  <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 4, background: theme === 'dark' ? '#EDFF00' : '#FFD5A8', color: getContrastColor(theme === 'dark' ? '#EDFF00' : '#FFD5A8'), fontWeight: 700, textTransform: 'uppercase' }}>
                     Short
                   </div>
                 )}

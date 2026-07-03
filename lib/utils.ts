@@ -72,37 +72,57 @@ export function formatDistance(km: number | null | undefined): string {
 
 /** Session type → display color (pastel: light mode) */
 export const SESSION_COLORS: Record<string, string> = {
-  'Easy Run':     '#A8E6CF',  // pastel green
+  'Easy Run': '#A8E6CF',  // pastel green
   'Recovery Run': '#D4F1B0',  // pastel yellow-green
-  'Long Run':     '#AED9F5',  // pastel blue
-  'Tempo':        '#FFD5A8',  // pastel orange
-  'tempo':        '#FFD5A8',  // pastel orange
-  'Intervals':    '#FFBF86',  // pastel deep orange
-  'Strength A':   '#FFE9A0',  // pastel yellow
-  'Strength B':   '#FFE9A0',  // pastel yellow
-  'Rest':         '#C9D6E3',  // pastel blue-gray
-  'Mobility':     '#B8DFF5',  // pastel sky blue
-  'Race':         '#FFF0A0',  // pastel bright yellow
+  'Long Run': '#AED9F5',  // pastel blue
+  'Tempo': '#FFD5A8',  // pastel orange
+  'Intervals': '#FFBF86',  // pastel deep orange
+  'Strength A': '#FFE9A0',  // pastel yellow
+  'Strength B': '#FFE9A0',  // pastel yellow
+  'Rest': '#D6BCFA',  // pastel purple (rest)
+  'Mobility': '#B8DFF5',  // pastel sky blue
+  'Race': '#FFF0A0',  // pastel bright yellow
 };
 
-/** Session type → display color (deep jewel tones: dark mode, white text readable) */
+/** Session type → display color (neon: dark mode) */
 export const SESSION_COLORS_DARK: Record<string, string> = {
-  'Easy Run':     '#1A7A52',  // deep forest green
-  'Recovery Run': '#2E7D32',  // deep green
-  'Long Run':     '#1565C0',  // deep ocean blue
-  'Tempo':        '#E65100',  // deep amber-orange
-  'tempo':        '#E65100',  // deep amber-orange
-  'Intervals':    '#B71C1C',  // deep crimson
-  'Strength A':   '#F57F17',  // deep amber-yellow
-  'Strength B':   '#F57F17',  // deep amber-yellow
-  'Rest':         '#37474F',  // dark blue-gray
-  'Mobility':     '#0277BD',  // deep sky blue
-  'Race':         '#6A1B9A',  // deep purple
+  'Easy Run': '#39FF14',  // neon green
+  'Recovery Run': '#EDFF00',  // neon yellow/lime
+  'Long Run': '#00F3FF',  // neon cyan/teal
+  'Tempo': '#FF00DE',  // neon pink/magenta
+  'Intervals': '#FF073A',  // neon red
+  'Strength A': '#0066FF',  // neon blue
+  'Strength B': '#0066FF',  // neon blue
+  'Rest': '#C9A7EB',  // pastel purple (rest)
+  'Mobility': '#00F3FF',  // neon cyan/teal
+  'Race': '#EDFF00',  // neon yellow/lime
 };
+
+/** Calculate readable contrast text color (black or white) based on background hex color */
+export function getContrastColor(hexColor: string): string {
+  if (!hexColor) return '#000000';
+  const hex = hexColor.replace('#', '');
+  if (hex.length !== 6) return '#000000';
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  // YIQ formula: contrast threshold is ~150 (out of 255)
+  const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+  return yiq >= 150 ? '#000000' : '#FFFFFF';
+}
 
 export function getSessionColor(type: string, theme: 'light' | 'dark' = 'light'): string {
   const map = theme === 'dark' ? SESSION_COLORS_DARK : SESSION_COLORS;
-  return map[type] ?? (theme === 'dark' ? '#6B7280' : '#9CA3AF');
+
+  // Try exact match first
+  if (map[type]) return map[type];
+
+  // Case-insensitive fallback
+  const targetLower = type.toLowerCase();
+  const matchedKey = Object.keys(map).find(key => key.toLowerCase() === targetLower);
+  if (matchedKey) return map[matchedKey];
+
+  return theme === 'dark' ? '#6B7280' : '#9CA3AF';
 }
 
 export const SESSION_TYPES = [
