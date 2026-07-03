@@ -93,7 +93,7 @@ export const SESSION_COLORS_DARK: Record<string, string> = {
   'Intervals': '#FF073A',  // neon red
   'Strength A': '#0066FF',  // neon blue
   'Strength B': '#0066FF',  // neon blue
-  'Rest': '#C9A7EB',  // pastel purple (rest)
+  'Rest': '#9B56FF',  // vibrant neon purple (rest)
   'Mobility': '#00F3FF',  // neon cyan/teal
   'Race': '#EDFF00',  // neon yellow/lime
 };
