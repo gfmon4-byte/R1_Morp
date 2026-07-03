@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbo",
-    "build": "next build",
+    "dev": "node scripts/update-git-info.js && next dev --turbo",
+    "build": "node scripts/update-git-info.js && next build",
     "start": "next start",
     "lint": "next lint"
   },
