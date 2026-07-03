@@ -104,15 +104,15 @@ export function CsvImport({ onClose, onImported }: Props) {
 
             // --- REPLACE MODE: delete everything first ---
             if (mode === 'replace') {
-              const { error: delErr, count } = await supabase
+              const { error: delErr, data: delData } = await supabase
                 .from('training_plan')
                 .delete()
                 .neq('date', '1900-01-01') // match all rows by date to avoid UUID syntax error
-                .select('id', { count: 'exact' });
+                .select('id');
               if (delErr) {
                 errors.push(`Delete failed: ${delErr.message}`);
               } else {
-                deleted = count ?? 0;
+                deleted = delData?.length ?? 0;
               }
             }
 
