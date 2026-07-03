@@ -106,7 +106,6 @@
 }
 
 html {
-  height: 100%;
   background-color: var(--color-background);
   color: var(--color-foreground);
   -webkit-text-size-adjust: 100%;
@@ -116,12 +115,12 @@ html {
 
 body {
   margin: 0;
-  height: 100%;
-  overflow: hidden;
+  min-height: 100vh;
   background-color: var(--color-background);
   color: var(--color-foreground);
-  overscroll-behavior-y: none;
   overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
   font-family: 'Mali', system-ui, sans-serif;
   transition: background-color 300ms ease, color 300ms ease;
 }
@@ -142,12 +141,11 @@ h1, h2, h3, h4, h5 {
 
 /* ---- Page layout ---- */
 .page-container {
-  height: 100%;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  min-height: 100vh;
   overflow-x: hidden;
   padding-bottom: calc(var(--nav-height) + var(--safe-bottom) + 16px);
   padding-top: 0;
+  box-sizing: border-box;
 }
 
 .page-header {

@@ -60,12 +60,9 @@ export function BottomNav() {
     };
   }, []);
 
-  // Reset scroll to top of .page-container on page navigation
+  // Reset scroll to top of window on page navigation
   useEffect(() => {
-    const container = document.querySelector('.page-container');
-    if (container) {
-      container.scrollTop = 0;
-    }
+    window.scrollTo(0, 0);
   }, [pathname]);
 
   return (
