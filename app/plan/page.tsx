@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { Activity, TrainingPlan } from '@/lib/supabase';
 import { getSessionColor, thaiToday } from '@/lib/utils';
+import { useTheme } from '@/components/layout/ThemeProvider';
 import { computeHRZones } from '@/lib/hrZones';
 import { AddRunForm } from '@/components/runs/AddRunForm';
 import { DayDetailSheet } from '@/components/plan/DayDetailSheet';
@@ -23,13 +24,14 @@ function thaiNow() {
   return toZonedTime(new Date(), TZ);
 }
 
-function getContrastColor(_sessionType: string): string {
-  // All session colors are now pastel (light) — always use dark text
-  return '#4A3B52';
+function getContrastColor(theme: 'light' | 'dark'): string {
+  // Neon (dark mode) colors are vivid/dark-bg → white text; pastel (light) → dark text
+  return theme === 'dark' ? '#FFFFFF' : '#4A3B52';
 }
 
 
 export default function PlanPage() {
+  const { theme } = useTheme();
   const [viewMonth, setViewMonth] = useState(thaiNow());
   const [plans, setPlans] = useState<TrainingPlan[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -235,7 +237,7 @@ export default function PlanPage() {
                 const isToday = dateStr === todayStr;
                 const hasPlan = !!plan;
                 const hasActivity = acts.length > 0;
-                const sessionColor = plan ? getSessionColor(plan.session_type ?? '') : null;
+                const sessionColor = plan ? getSessionColor(plan.session_type ?? '', theme) : null;
 
                 // Comparison calc for cell indicator
                 const plannedKm = plan?.distance_km ?? 0;
@@ -256,8 +258,8 @@ export default function PlanPage() {
                       borderRadius: 12,
                       border: isToday ? '2px solid var(--color-primary)' : '2px solid rgba(255,143,163,0.15)',
                       background: hasPlan && sessionColor
-                        ? `${sessionColor}18`
-                        : isToday ? 'rgba(255,143,163,0.12)' : '#FFFFFF',
+                        ? theme === 'dark' ? `${sessionColor}30` : `${sessionColor}18`
+                        : isToday ? 'rgba(255,143,163,0.12)' : 'var(--color-bg-surface)',
                       cursor: 'pointer',
                       display: 'flex',
                       flexDirection: 'column',
@@ -291,7 +293,7 @@ export default function PlanPage() {
                         className="calendar-event-chip"
                         style={{
                           background: sessionColor ?? '#6B7280',
-                          color: getContrastColor(plan.session_type ?? ''),
+                          color: getContrastColor(theme),
                           opacity: plan.completed ? 0.6 : 1,
                         }}
                         title={`${plan.session_type}${plan.distance_km ? ` - ${plan.distance_km}k` : ''}${plan.description ? `: ${plan.description}` : ''}`}
@@ -309,8 +311,10 @@ export default function PlanPage() {
                       <div
                         className="calendar-event-chip"
                         style={{
-                          background: isOver || !hasPlan ? '#A8E6CF' : '#FFD5A8',
-                          color: '#4A3B52',
+                          background: isOver || !hasPlan
+                            ? (theme === 'dark' ? '#00FF9F' : '#A8E6CF')
+                            : (theme === 'dark' ? '#FF8C00' : '#FFD5A8'),
+                          color: theme === 'dark' ? '#0A0A0A' : '#4A3B52',
                         }}
                         title={`Actual: ${actualKm.toFixed(2)} km`}
                       >
@@ -336,17 +340,17 @@ export default function PlanPage() {
               <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
                 {type === 'today' && <div style={{ width: 12, height: 12, borderRadius: 4, border: '2px solid var(--color-primary)' }} />}
                 {type === 'plan-chip' && (
-                  <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 4, background: '#AED9F5', color: '#4A3B52', fontWeight: 700, textTransform: 'uppercase' }}>
+                  <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 4, background: theme === 'dark' ? '#00CFFF' : '#AED9F5', color: theme === 'dark' ? '#0A0A0A' : '#4A3B52', fontWeight: 700, textTransform: 'uppercase' }}>
                     Plan
                   </div>
                 )}
                 {type === 'actual-chip' && (
-                  <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 4, background: '#A8E6CF', color: '#4A3B52', fontWeight: 700, textTransform: 'uppercase' }}>
+                  <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 4, background: theme === 'dark' ? '#00FF9F' : '#A8E6CF', color: theme === 'dark' ? '#0A0A0A' : '#4A3B52', fontWeight: 700, textTransform: 'uppercase' }}>
                     ✓ Run
                   </div>
                 )}
                 {type === 'short-chip' && (
-                  <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 4, background: '#FFD5A8', color: '#4A3B52', fontWeight: 700, textTransform: 'uppercase' }}>
+                  <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 4, background: theme === 'dark' ? '#FF8C00' : '#FFD5A8', color: theme === 'dark' ? '#0A0A0A' : '#4A3B52', fontWeight: 700, textTransform: 'uppercase' }}>
                     Short
                   </div>
                 )}
@@ -402,7 +406,7 @@ export default function PlanPage() {
               const plan = planByDate[dateStr];
               const acts = activitiesByDate[dateStr] ?? [];
               if (!plan && acts.length === 0) return null;
-              const color = plan ? getSessionColor(plan.session_type ?? '') : '#059669';
+              const color = plan ? getSessionColor(plan.session_type ?? '', theme) : (theme === 'dark' ? '#00FF9F' : '#059669');
               const plannedKm = plan?.distance_km ?? 0;
               const actualKm = acts.reduce((s, a) => s + (a.distance_km ?? 0), 0);
               const distDelta = (plannedKm > 0 && actualKm > 0) ? actualKm - plannedKm : null;

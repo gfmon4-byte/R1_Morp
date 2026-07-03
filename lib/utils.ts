@@ -70,7 +70,7 @@ export function formatDistance(km: number | null | undefined): string {
   return km.toFixed(2);
 }
 
-/** Session type → display color class (pastel: yellow / green / blue / orange) */
+/** Session type → display color (pastel: light mode) */
 export const SESSION_COLORS: Record<string, string> = {
   'Easy Run':     '#A8E6CF',  // pastel green
   'Recovery Run': '#D4F1B0',  // pastel yellow-green
@@ -85,8 +85,24 @@ export const SESSION_COLORS: Record<string, string> = {
   'Race':         '#FFF0A0',  // pastel bright yellow
 };
 
-export function getSessionColor(type: string): string {
-  return SESSION_COLORS[type] ?? '#9CA3AF';
+/** Session type → display color (neon: dark mode) */
+export const SESSION_COLORS_DARK: Record<string, string> = {
+  'Easy Run':     '#00FF9F',  // neon green
+  'Recovery Run': '#AAFF57',  // neon yellow-green
+  'Long Run':     '#00CFFF',  // neon cyan-blue
+  'Tempo':        '#FF8C00',  // neon orange
+  'tempo':        '#FF8C00',  // neon orange
+  'Intervals':    '#FF4500',  // neon red-orange
+  'Strength A':   '#FFE600',  // neon yellow
+  'Strength B':   '#FFE600',  // neon yellow
+  'Rest':         '#7B9EBE',  // muted steel blue
+  'Mobility':     '#38BFFF',  // neon sky blue
+  'Race':         '#FFD700',  // neon gold
+};
+
+export function getSessionColor(type: string, theme: 'light' | 'dark' = 'light'): string {
+  const map = theme === 'dark' ? SESSION_COLORS_DARK : SESSION_COLORS;
+  return map[type] ?? (theme === 'dark' ? '#6B7280' : '#9CA3AF');
 }
 
 export const SESSION_TYPES = [
