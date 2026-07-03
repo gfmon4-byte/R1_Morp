@@ -101,7 +101,10 @@ export const SESSION_COLORS_DARK: Record<string, string> = {
 /** Calculate readable contrast text color (black or white) based on background hex color */
 export function getContrastColor(hexColor: string): string {
   if (!hexColor) return '#000000';
-  const hex = hexColor.replace('#', '');
+  let hex = hexColor.replace('#', '');
+  if (hex.length === 8) {
+    hex = hex.substring(0, 6);
+  }
   if (hex.length !== 6) return '#000000';
   const r = parseInt(hex.substring(0, 2), 16);
   const g = parseInt(hex.substring(2, 4), 16);
