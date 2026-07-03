@@ -25,8 +25,8 @@ function thaiNow() {
 }
 
 function getContrastColor(theme: 'light' | 'dark'): string {
-  // Neon (dark mode) colors are vivid/dark-bg → white text; pastel (light) → dark text
-  return theme === 'dark' ? '#FFFFFF' : '#4A3B52';
+  // Neon (dark mode) colors are vivid/dark-bg → white text; pastel (light) → black text
+  return theme === 'dark' ? '#FFFFFF' : '#000000';
 }
 
 
@@ -312,9 +312,9 @@ export default function PlanPage() {
                         className="calendar-event-chip"
                         style={{
                           background: isOver || !hasPlan
-                            ? (theme === 'dark' ? '#00FF9F' : '#A8E6CF')
-                            : (theme === 'dark' ? '#FF8C00' : '#FFD5A8'),
-                          color: theme === 'dark' ? '#0A0A0A' : '#4A3B52',
+                            ? (theme === 'dark' ? '#1A7A52' : '#A8E6CF')
+                            : (theme === 'dark' ? '#E65100' : '#FFD5A8'),
+                          color: theme === 'dark' ? '#FFFFFF' : '#000000',
                         }}
                         title={`Actual: ${actualKm.toFixed(2)} km`}
                       >
@@ -340,17 +340,17 @@ export default function PlanPage() {
               <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
                 {type === 'today' && <div style={{ width: 12, height: 12, borderRadius: 4, border: '2px solid var(--color-primary)' }} />}
                 {type === 'plan-chip' && (
-                  <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 4, background: theme === 'dark' ? '#00CFFF' : '#AED9F5', color: theme === 'dark' ? '#0A0A0A' : '#4A3B52', fontWeight: 700, textTransform: 'uppercase' }}>
+                  <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 4, background: theme === 'dark' ? '#1565C0' : '#AED9F5', color: theme === 'dark' ? '#FFFFFF' : '#000000', fontWeight: 700, textTransform: 'uppercase' }}>
                     Plan
                   </div>
                 )}
                 {type === 'actual-chip' && (
-                  <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 4, background: theme === 'dark' ? '#00FF9F' : '#A8E6CF', color: theme === 'dark' ? '#0A0A0A' : '#4A3B52', fontWeight: 700, textTransform: 'uppercase' }}>
+                  <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 4, background: theme === 'dark' ? '#1A7A52' : '#A8E6CF', color: theme === 'dark' ? '#FFFFFF' : '#000000', fontWeight: 700, textTransform: 'uppercase' }}>
                     ✓ Run
                   </div>
                 )}
                 {type === 'short-chip' && (
-                  <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 4, background: theme === 'dark' ? '#FF8C00' : '#FFD5A8', color: theme === 'dark' ? '#0A0A0A' : '#4A3B52', fontWeight: 700, textTransform: 'uppercase' }}>
+                  <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 4, background: theme === 'dark' ? '#E65100' : '#FFD5A8', color: theme === 'dark' ? '#FFFFFF' : '#000000', fontWeight: 700, textTransform: 'uppercase' }}>
                     Short
                   </div>
                 )}

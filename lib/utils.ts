@@ -85,19 +85,19 @@ export const SESSION_COLORS: Record<string, string> = {
   'Race':         '#FFF0A0',  // pastel bright yellow
 };
 
-/** Session type → display color (neon: dark mode) */
+/** Session type → display color (deep jewel tones: dark mode, white text readable) */
 export const SESSION_COLORS_DARK: Record<string, string> = {
-  'Easy Run':     '#00FF9F',  // neon green
-  'Recovery Run': '#AAFF57',  // neon yellow-green
-  'Long Run':     '#00CFFF',  // neon cyan-blue
-  'Tempo':        '#FF8C00',  // neon orange
-  'tempo':        '#FF8C00',  // neon orange
-  'Intervals':    '#FF4500',  // neon red-orange
-  'Strength A':   '#FFE600',  // neon yellow
-  'Strength B':   '#FFE600',  // neon yellow
-  'Rest':         '#7B9EBE',  // muted steel blue
-  'Mobility':     '#38BFFF',  // neon sky blue
-  'Race':         '#FFD700',  // neon gold
+  'Easy Run':     '#1A7A52',  // deep forest green
+  'Recovery Run': '#2E7D32',  // deep green
+  'Long Run':     '#1565C0',  // deep ocean blue
+  'Tempo':        '#E65100',  // deep amber-orange
+  'tempo':        '#E65100',  // deep amber-orange
+  'Intervals':    '#B71C1C',  // deep crimson
+  'Strength A':   '#F57F17',  // deep amber-yellow
+  'Strength B':   '#F57F17',  // deep amber-yellow
+  'Rest':         '#37474F',  // dark blue-gray
+  'Mobility':     '#0277BD',  // deep sky blue
+  'Race':         '#6A1B9A',  // deep purple
 };
 
 export function getSessionColor(type: string, theme: 'light' | 'dark' = 'light'): string {

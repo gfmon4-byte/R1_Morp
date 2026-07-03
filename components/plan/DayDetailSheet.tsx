@@ -230,7 +230,7 @@ export function DayDetailSheet({ date, plan, activities, hrZones, onClose, onLog
               Plan vs Actual
             </p>
             <div style={{
-              background: '#FFFFFF',
+              background: 'var(--color-bg-card)',
               borderRadius: 16,
               overflow: 'hidden',
               border: '2px solid var(--color-border)',
