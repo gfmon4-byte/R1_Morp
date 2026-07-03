@@ -11,6 +11,7 @@ import { computeAutoPaceZones, computeManualPaceZones } from '@/lib/paceZones';
 import { secondsToHMMSS, mmssToSeconds, thaiToday } from '@/lib/utils';
 import { User, Lightning, FloppyDisk, Heart, Gauge, Trophy, ArrowsClockwise, CalendarBlank, Trash, PencilSimple, Plus, X } from '@phosphor-icons/react';
 import { parseISO, differenceInCalendarDays } from 'date-fns';
+import { useTheme } from '@/components/layout/ThemeProvider';
 
 const pbToMMSS = (sec: number | null | undefined): string => {
   if (!sec) return '';
@@ -47,6 +48,7 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export default function ProfilePage() {
+  const { theme } = useTheme();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -476,7 +478,7 @@ export default function ProfilePage() {
                         style={{
                           padding: '14px 16px',
                           borderRadius: 18,
-                          background: '#FFFFFF',
+                          background: 'var(--color-bg-card)',
                           border: '2px solid var(--color-border)',
                           display: 'flex',
                           alignItems: 'center',
@@ -532,7 +534,9 @@ export default function ProfilePage() {
                                   ? '#059669'
                                   : countdown?.status === 'past'
                                     ? 'var(--color-text-muted)'
-                                    : 'var(--color-primary)'
+                                    : theme === 'dark'
+                                      ? '#FFFFFF'
+                                      : 'var(--color-primary)'
                               }}>
                                 {countdown?.text}
                               </span>

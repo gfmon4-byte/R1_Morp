@@ -392,7 +392,7 @@ export default function PlanPage() {
             <div style={{
               textAlign: 'center',
               padding: '32px 16px',
-              background: '#FFFFFF',
+              background: 'var(--color-bg-card)',
               borderRadius: 20,
               border: '2px dashed rgba(255,143,163,0.25)',
               color: 'var(--color-text-subtle)',
