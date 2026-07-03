@@ -23,12 +23,9 @@ function thaiNow() {
   return toZonedTime(new Date(), TZ);
 }
 
-function getContrastColor(sessionType: string): string {
-  // Recovery Run and Race use lighter chips — use dark text for contrast
-  if (sessionType === 'Recovery Run' || sessionType === 'Race') {
-    return '#4A3B52';
-  }
-  return '#FFFFFF';
+function getContrastColor(_sessionType: string): string {
+  // All session colors are now pastel (light) — always use dark text
+  return '#4A3B52';
 }
 
 
@@ -312,7 +309,7 @@ export default function PlanPage() {
                       <div
                         className="calendar-event-chip"
                         style={{
-                          background: isOver || !hasPlan ? '#7FDBB6' : 'rgba(201,167,235,0.6)',
+                          background: isOver || !hasPlan ? '#A8E6CF' : '#FFD5A8',
                           color: '#4A3B52',
                         }}
                         title={`Actual: ${actualKm.toFixed(2)} km`}
@@ -339,17 +336,17 @@ export default function PlanPage() {
               <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
                 {type === 'today' && <div style={{ width: 12, height: 12, borderRadius: 4, border: '2px solid var(--color-primary)' }} />}
                 {type === 'plan-chip' && (
-                  <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 4, background: '#8ECDF0', color: '#4A3B52', fontWeight: 700, textTransform: 'uppercase' }}>
+                  <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 4, background: '#AED9F5', color: '#4A3B52', fontWeight: 700, textTransform: 'uppercase' }}>
                     Plan
                   </div>
                 )}
                 {type === 'actual-chip' && (
-                  <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 4, background: '#7FDBB6', color: '#4A3B52', fontWeight: 700, textTransform: 'uppercase' }}>
+                  <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 4, background: '#A8E6CF', color: '#4A3B52', fontWeight: 700, textTransform: 'uppercase' }}>
                     ✓ Run
                   </div>
                 )}
                 {type === 'short-chip' && (
-                  <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 4, background: 'rgba(201,167,235,0.6)', color: '#4A3B52', fontWeight: 700, textTransform: 'uppercase' }}>
+                  <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 4, background: '#FFD5A8', color: '#4A3B52', fontWeight: 700, textTransform: 'uppercase' }}>
                     Short
                   </div>
                 )}

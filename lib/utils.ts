@@ -70,19 +70,19 @@ export function formatDistance(km: number | null | undefined): string {
   return km.toFixed(2);
 }
 
-/** Session type → display color class */
+/** Session type → display color class (pastel: yellow / green / blue / orange) */
 export const SESSION_COLORS: Record<string, string> = {
-  'Easy Run':     '#34D399',
-  'Recovery Run': '#6EE7B7',
-  'Long Run':     '#60A5FA',
-  'Tempo':        '#F97316',
-  'tempo':        '#F97316',
-  'Intervals':    '#EF4444',
-  'Strength A':   '#A78BFA',
-  'Strength B':   '#A78BFA',
-  'Rest':         '#6B7280',
-  'Mobility':     '#94A3B8',
-  'Race':         '#FBBF24',
+  'Easy Run':     '#A8E6CF',  // pastel green
+  'Recovery Run': '#D4F1B0',  // pastel yellow-green
+  'Long Run':     '#AED9F5',  // pastel blue
+  'Tempo':        '#FFD5A8',  // pastel orange
+  'tempo':        '#FFD5A8',  // pastel orange
+  'Intervals':    '#FFBF86',  // pastel deep orange
+  'Strength A':   '#FFE9A0',  // pastel yellow
+  'Strength B':   '#FFE9A0',  // pastel yellow
+  'Rest':         '#C9D6E3',  // pastel blue-gray
+  'Mobility':     '#B8DFF5',  // pastel sky blue
+  'Race':         '#FFF0A0',  // pastel bright yellow
 };
 
 export function getSessionColor(type: string): string {
