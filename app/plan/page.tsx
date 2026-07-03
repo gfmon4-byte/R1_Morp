@@ -241,7 +241,11 @@ export default function PlanPage() {
                 const maxKm = Math.max(plannedKm, actualKm, 0.1);
                 const planBarW = Math.round((plannedKm / maxKm) * 100);
                 const actualBarW = Math.round((actualKm / maxKm) * 100);
-                const isOver = hasActivity && plannedKm > 0 && actualKm >= plannedKm - 0.3;
+                const isShort = hasPlan && actualKm < plannedKm - 0.1;
+                const isOver = hasPlan && actualKm > plannedKm + 0.3;
+                let statusIcon = '✓';
+                if (isShort) statusIcon = '↓';
+                else if (isOver) statusIcon = '↑';
 
                 return (
                   <button
@@ -252,9 +256,9 @@ export default function PlanPage() {
                     style={{
                       borderRadius: 12,
                       border: isToday ? '2px solid var(--color-primary)' : '2px solid rgba(255,143,163,0.15)',
-                      background: hasPlan && sessionColor
-                        ? theme === 'dark' ? `${sessionColor}30` : `${sessionColor}18`
-                        : isToday ? 'rgba(255,143,163,0.12)' : 'var(--color-bg-surface)',
+                      background: isToday
+                        ? (theme === 'dark' ? 'rgba(255,45,120,0.2)' : 'rgba(255,143,163,0.12)')
+                        : (theme === 'dark' ? '#000000' : 'var(--color-bg-surface)'),
                       cursor: 'pointer',
                       display: 'flex',
                       flexDirection: 'column',
@@ -306,19 +310,23 @@ export default function PlanPage() {
                       <div
                         className="calendar-event-chip"
                         style={{
-                          background: isOver || !hasPlan
-                            ? (theme === 'dark' ? '#39FF14' : '#A8E6CF')
-                            : (theme === 'dark' ? '#EDFF00' : '#FFD5A8'),
+                          background: isShort 
+                            ? (theme === 'dark' ? '#FF9800' : '#FB923C') // Orange
+                            : isOver 
+                              ? (theme === 'dark' ? '#FF4D4D' : '#F87171') // Red
+                              : (theme === 'dark' ? '#00FF85' : '#4ADE80'), // Green
                           color: getContrastColor(
-                            isOver || !hasPlan
-                              ? (theme === 'dark' ? '#39FF14' : '#A8E6CF')
-                              : (theme === 'dark' ? '#EDFF00' : '#FFD5A8')
+                            isShort 
+                              ? (theme === 'dark' ? '#FF9800' : '#FB923C')
+                              : isOver 
+                                ? (theme === 'dark' ? '#FF4D4D' : '#F87171')
+                                : (theme === 'dark' ? '#00FF85' : '#4ADE80')
                           ),
                         }}
                         title={`Actual: ${actualKm.toFixed(2)} km`}
                       >
                         <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                          ✓ {actualKm.toFixed(1)}k
+                          {statusIcon} {actualKm.toFixed(1)}k
                         </span>
                       </div>
                     )}
@@ -335,6 +343,7 @@ export default function PlanPage() {
               { label: 'Planned Session', type: 'plan-chip' },
               { label: 'Actual Run', type: 'actual-chip' },
               { label: 'Short of Target', type: 'short-chip' },
+              { label: 'Over Target', type: 'over-chip' },
             ].map(({ label, type }) => (
               <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
                 {type === 'today' && <div style={{ width: 12, height: 12, borderRadius: 4, border: '2px solid var(--color-primary)' }} />}
@@ -344,13 +353,18 @@ export default function PlanPage() {
                   </div>
                 )}
                 {type === 'actual-chip' && (
-                  <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 4, background: theme === 'dark' ? '#39FF14' : '#A8E6CF', color: getContrastColor(theme === 'dark' ? '#39FF14' : '#A8E6CF'), fontWeight: 700, textTransform: 'uppercase' }}>
+                  <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 4, background: theme === 'dark' ? '#00FF85' : '#4ADE80', color: getContrastColor(theme === 'dark' ? '#00FF85' : '#4ADE80'), fontWeight: 700, textTransform: 'uppercase' }}>
                     ✓ Run
                   </div>
                 )}
                 {type === 'short-chip' && (
-                  <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 4, background: theme === 'dark' ? '#EDFF00' : '#FFD5A8', color: getContrastColor(theme === 'dark' ? '#EDFF00' : '#FFD5A8'), fontWeight: 700, textTransform: 'uppercase' }}>
-                    Short
+                  <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 4, background: theme === 'dark' ? '#FF9800' : '#FB923C', color: getContrastColor(theme === 'dark' ? '#FF9800' : '#FB923C'), fontWeight: 700, textTransform: 'uppercase' }}>
+                    ↓ Short
+                  </div>
+                )}
+                {type === 'over-chip' && (
+                  <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 4, background: theme === 'dark' ? '#FF4D4D' : '#F87171', color: getContrastColor(theme === 'dark' ? '#FF4D4D' : '#F87171'), fontWeight: 700, textTransform: 'uppercase' }}>
+                    ↑ Over
                   </div>
                 )}
                 <span>{label}</span>
