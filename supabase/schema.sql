@@ -32,6 +32,13 @@ CREATE TABLE IF NOT EXISTS profiles (
   pace_zone_5_min      TEXT,
   pace_zone_5_max      TEXT,
   races                JSONB DEFAULT '[]'::jsonb,
+  inbody_weight        NUMERIC(5,2),
+  inbody_smm           NUMERIC(5,2),
+  inbody_bfm           NUMERIC(5,2),
+  inbody_tbw           NUMERIC(5,2),
+  inbody_protein       NUMERIC(5,2),
+  inbody_mineral       NUMERIC(5,2),
+  inbody_date          DATE,
   updated_at           TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -78,7 +85,21 @@ CREATE TABLE IF NOT EXISTS training_plan (
 
 CREATE INDEX IF NOT EXISTS training_plan_date_idx ON training_plan (date);
 
+-- ---- inbody_history (body composition logs over time) ----
+CREATE TABLE IF NOT EXISTS inbody_history (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  date         DATE NOT NULL UNIQUE,
+  weight       NUMERIC(5,2),
+  smm          NUMERIC(5,2),
+  bfm          NUMERIC(5,2),
+  tbw          NUMERIC(5,2),
+  protein      NUMERIC(5,2),
+  mineral      NUMERIC(5,2),
+  created_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- ---- Disable RLS (single-user app) ----
 ALTER TABLE profiles DISABLE ROW LEVEL SECURITY;
 ALTER TABLE activities DISABLE ROW LEVEL SECURITY;
 ALTER TABLE training_plan DISABLE ROW LEVEL SECURITY;
+ALTER TABLE inbody_history DISABLE ROW LEVEL SECURITY;

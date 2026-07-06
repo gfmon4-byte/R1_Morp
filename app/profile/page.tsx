@@ -5,12 +5,13 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { supabase } from '@/lib/supabase';
-import type { Profile } from '@/lib/supabase';
+import type { Profile, InBodyHistory } from '@/lib/supabase';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { computeHRZones } from '@/lib/hrZones';
 import { computeAutoPaceZones, computeManualPaceZones } from '@/lib/paceZones';
 import { secondsToHMMSS, mmssToSeconds, thaiToday } from '@/lib/utils';
-import { User, Lightning, FloppyDisk, Heart, Gauge, Trophy, ArrowsClockwise, CalendarBlank, Trash, PencilSimple, Plus, X } from '@phosphor-icons/react';
-import { parseISO, differenceInCalendarDays } from 'date-fns';
+import { User, Lightning, FloppyDisk, Heart, Gauge, Trophy, ArrowsClockwise, CalendarBlank, Trash, PencilSimple, Plus, X, Camera, CheckCircle, Warning } from '@phosphor-icons/react';
+import { format, parseISO, differenceInCalendarDays } from 'date-fns';
 import { useTheme } from '@/components/layout/ThemeProvider';
 import { gitInfo } from '@/lib/git-info';
 
@@ -44,6 +45,13 @@ const schema = z.object({
   pace_zone_4_max: z.string().optional().nullable(),
   pace_zone_5_min: z.string().optional().nullable(),
   pace_zone_5_max: z.string().optional().nullable(),
+  inbody_weight: z.coerce.number().min(30).max(200).optional().nullable(),
+  inbody_smm: z.coerce.number().min(10).max(100).optional().nullable(),
+  inbody_bfm: z.coerce.number().min(2).max(100).optional().nullable(),
+  inbody_tbw: z.coerce.number().min(10).max(100).optional().nullable(),
+  inbody_protein: z.coerce.number().min(2).max(50).optional().nullable(),
+  inbody_mineral: z.coerce.number().min(0.5).max(20).optional().nullable(),
+  inbody_date: z.string().optional().nullable(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -63,6 +71,85 @@ export default function ProfilePage() {
   const [newRaceError, setNewRaceError] = useState<string | null>(null);
   const [editingRaceId, setEditingRaceId] = useState<string | null>(null);
   const [isRaceModalOpen, setIsRaceModalOpen] = useState(false);
+
+  // OCR states for InBody
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrError, setOcrError] = useState<string | null>(null);
+  const [ocrSuccess, setOcrSuccess] = useState(false);
+  const [inbodyHistory, setInbodyHistory] = useState<InBodyHistory[]>([]);
+
+  const handleOcrUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setOcrLoading(true);
+    setOcrError(null);
+    setOcrSuccess(false);
+
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64String = reader.result as string;
+
+        try {
+          const response = await fetch('/api/ocr-inbody', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              image: base64String,
+            }),
+          });
+
+          const result = await response.json();
+
+          if (!response.ok) {
+            throw new Error(result.error || 'Failed to scan image');
+          }
+
+          // Merge results into form
+          if (result.date) setValue('inbody_date', result.date, { shouldDirty: true });
+          if (result.weight !== null && result.weight !== undefined) {
+            setValue('inbody_weight', result.weight, { shouldDirty: true });
+            setValue('weight_kg', result.weight, { shouldDirty: true }); // Sync weight to standard profile weight
+          }
+          if (result.smm !== null && result.smm !== undefined) {
+            setValue('inbody_smm', result.smm, { shouldDirty: true });
+          }
+          if (result.bfm !== null && result.bfm !== undefined) {
+            setValue('inbody_bfm', result.bfm, { shouldDirty: true });
+          }
+          if (result.tbw !== null && result.tbw !== undefined) {
+            setValue('inbody_tbw', result.tbw, { shouldDirty: true });
+          }
+          if (result.protein !== null && result.protein !== undefined) {
+            setValue('inbody_protein', result.protein, { shouldDirty: true });
+          }
+          if (result.mineral !== null && result.mineral !== undefined) {
+            setValue('inbody_mineral', result.mineral, { shouldDirty: true });
+          }
+
+          setOcrSuccess(true);
+          setTimeout(() => setOcrSuccess(false), 5000);
+        } catch (err: any) {
+          setOcrError(err.message || 'An error occurred during scanning');
+        } finally {
+          setOcrLoading(false);
+        }
+      };
+
+      reader.onerror = () => {
+        setOcrError('Failed to read image file');
+        setOcrLoading(false);
+      };
+
+      reader.readAsDataURL(file);
+    } catch (err: any) {
+      setOcrError('An error occurred. Please try again.');
+      setOcrLoading(false);
+    }
+  };
 
   const handleAddRace = () => {
     setNewRaceError(null);
@@ -141,6 +228,18 @@ export default function ProfilePage() {
     supabase.from('profiles').select('*').eq('id', 1).single().then(({ data }) => {
       if (data) {
         setProfile(data as Profile);
+
+        // Load fallback InBody from localStorage if it exists
+        const localInbody = typeof window !== 'undefined' ? localStorage.getItem('profile_inbody') : null;
+        let parsedInbody: any = {};
+        if (localInbody) {
+          try {
+            parsedInbody = JSON.parse(localInbody);
+          } catch (e) {
+            parsedInbody = {};
+          }
+        }
+
         reset({
           name: data.name,
           gender: data.gender,
@@ -166,6 +265,13 @@ export default function ProfilePage() {
           pace_zone_4_max: data.pace_zone_4_max,
           pace_zone_5_min: data.pace_zone_5_min,
           pace_zone_5_max: data.pace_zone_5_max,
+          inbody_weight: data.inbody_weight ?? parsedInbody.inbody_weight,
+          inbody_smm: data.inbody_smm ?? parsedInbody.inbody_smm,
+          inbody_bfm: data.inbody_bfm ?? parsedInbody.inbody_bfm,
+          inbody_tbw: data.inbody_tbw ?? parsedInbody.inbody_tbw,
+          inbody_protein: data.inbody_protein ?? parsedInbody.inbody_protein,
+          inbody_mineral: data.inbody_mineral ?? parsedInbody.inbody_mineral,
+          inbody_date: data.inbody_date ?? parsedInbody.inbody_date,
         });
 
         const localRaces = typeof window !== 'undefined' ? localStorage.getItem('profile_races') : null;
@@ -180,6 +286,22 @@ export default function ProfilePage() {
           }
         }
         setRaces(loadedRaces);
+
+        // Load InBody History from Supabase, fallback to localStorage
+        supabase.from('inbody_history').select('*').order('date', { ascending: true }).then(({ data: historyData, error: historyErr }) => {
+          const localHistory = typeof window !== 'undefined' ? localStorage.getItem('profile_inbody_history') : null;
+          let loadedHistory: InBodyHistory[] = [];
+          if (historyData && !historyErr) {
+            loadedHistory = historyData as InBodyHistory[];
+          } else if (localHistory) {
+            try {
+              loadedHistory = JSON.parse(localHistory);
+            } catch (e) {
+              loadedHistory = [];
+            }
+          }
+          setInbodyHistory(loadedHistory);
+        });
       }
       setLoading(false);
     });
@@ -204,6 +326,11 @@ export default function ProfilePage() {
   const watchPaceMode = watch('pace_zone_mode');
   const watchPb10k = watch('pb_10k');
   const watchPbHalf = watch('pb_half');
+
+  // InBody watched fields
+  const watchInbodyWeight = watch('inbody_weight');
+  const watchInbodySmm = watch('inbody_smm');
+  const watchInbodyBfm = watch('inbody_bfm');
 
   const hrZones = computeHRZones(watchHrMax, watchHrRest);
 
@@ -283,6 +410,13 @@ export default function ProfilePage() {
       pace_zone_4_max: data.pace_zone_4_max || null,
       pace_zone_5_min: data.pace_zone_5_min || null,
       pace_zone_5_max: data.pace_zone_5_max || null,
+      inbody_weight: data.inbody_weight || null,
+      inbody_smm: data.inbody_smm || null,
+      inbody_bfm: data.inbody_bfm || null,
+      inbody_tbw: data.inbody_tbw || null,
+      inbody_protein: data.inbody_protein || null,
+      inbody_mineral: data.inbody_mineral || null,
+      inbody_date: data.inbody_date || null,
       updated_at: new Date().toISOString(),
     };
 
@@ -293,18 +427,113 @@ export default function ProfilePage() {
 
     let { error: err } = await supabase.from('profiles').upsert(payloadWithRaces, { onConflict: 'id' });
     
-    // Fallback if races column does not exist in database yet
+    // Fallback if races or InBody columns do not exist in database yet
     if (err && (err.message.includes('column') || err.code === '42703')) {
-      console.warn('Races column does not exist in DB yet. Saving locally to localStorage...', err);
-      const { error: fallbackErr } = await supabase.from('profiles').upsert(payload, { onConflict: 'id' });
+      console.warn('InBody or races columns do not exist in DB yet. Saving locally to localStorage...', err);
+      
+      const standardPayload = {
+        id: 1,
+        name: data.name,
+        gender: data.gender || null,
+        birth_date: data.birth_date || null,
+        vo2max: data.vo2max || null,
+        vt2_percent: data.vt2_percent || null,
+        weight_kg: data.weight_kg || null,
+        height_cm: data.height_cm || null,
+        pb_5k: data.pb_5k ? mmssToSeconds(data.pb_5k) : null,
+        pb_10k: data.pb_10k ? mmssToSeconds(data.pb_10k) : null,
+        pb_half: data.pb_half ? mmssToSeconds(data.pb_half) : null,
+        pb_marathon: data.pb_marathon ? mmssToSeconds(data.pb_marathon) : null,
+        hr_max: data.hr_max,
+        hr_rest: data.hr_rest,
+        pace_zone_mode: data.pace_zone_mode,
+        pace_zone_1_min: data.pace_zone_1_min || null,
+        pace_zone_1_max: data.pace_zone_1_max || null,
+        pace_zone_2_min: data.pace_zone_2_min || null,
+        pace_zone_2_max: data.pace_zone_2_max || null,
+        pace_zone_3_min: data.pace_zone_3_min || null,
+        pace_zone_3_max: data.pace_zone_3_max || null,
+        pace_zone_4_min: data.pace_zone_4_min || null,
+        pace_zone_4_max: data.pace_zone_4_max || null,
+        pace_zone_5_min: data.pace_zone_5_min || null,
+        pace_zone_5_max: data.pace_zone_5_max || null,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error: fallbackErr } = await supabase.from('profiles').upsert(standardPayload, { onConflict: 'id' });
       err = fallbackErr;
       
       if (typeof window !== 'undefined') {
         localStorage.setItem('profile_races', JSON.stringify(races));
+        localStorage.setItem('profile_inbody', JSON.stringify({
+          inbody_weight: data.inbody_weight,
+          inbody_smm: data.inbody_smm,
+          inbody_bfm: data.inbody_bfm,
+          inbody_tbw: data.inbody_tbw,
+          inbody_protein: data.inbody_protein,
+          inbody_mineral: data.inbody_mineral,
+          inbody_date: data.inbody_date,
+        }));
       }
     } else {
       if (!err && typeof window !== 'undefined') {
         localStorage.setItem('profile_races', JSON.stringify(races));
+        localStorage.setItem('profile_inbody', JSON.stringify({
+          inbody_weight: data.inbody_weight,
+          inbody_smm: data.inbody_smm,
+          inbody_bfm: data.inbody_bfm,
+          inbody_tbw: data.inbody_tbw,
+          inbody_protein: data.inbody_protein,
+          inbody_mineral: data.inbody_mineral,
+          inbody_date: data.inbody_date,
+        }));
+      }
+    }
+
+    // Save to InBody History if date is specified
+    if (data.inbody_date) {
+      const historyEntry = {
+        date: data.inbody_date,
+        weight: data.inbody_weight || null,
+        smm: data.inbody_smm || null,
+        bfm: data.inbody_bfm || null,
+        tbw: data.inbody_tbw || null,
+        protein: data.inbody_protein || null,
+        mineral: data.inbody_mineral || null,
+      };
+
+      // 1. Try DB save
+      const { error: historySaveErr } = await supabase.from('inbody_history').upsert(historyEntry, { onConflict: 'date' });
+      
+      // 2. Local fallback
+      if (typeof window !== 'undefined') {
+        const localHistory = localStorage.getItem('profile_inbody_history');
+        let currentHistory: any[] = [];
+        if (localHistory) {
+          try {
+            currentHistory = JSON.parse(localHistory);
+          } catch (e) {
+            currentHistory = [];
+          }
+        }
+        // Remove existing entry on same date if any, then insert new one
+        currentHistory = currentHistory.filter((item: any) => item.date !== data.inbody_date);
+        currentHistory.push({
+          id: Math.random().toString(36).substring(2, 9),
+          ...historyEntry,
+          created_at: new Date().toISOString()
+        });
+        currentHistory.sort((a, b) => a.date.localeCompare(b.date));
+        localStorage.setItem('profile_inbody_history', JSON.stringify(currentHistory));
+        setInbodyHistory(currentHistory);
+      } else {
+        // If DB succeeded, update state
+        if (!historySaveErr) {
+          const { data: newHistory } = await supabase.from('inbody_history').select('*').order('date', { ascending: true });
+          if (newHistory) {
+            setInbodyHistory(newHistory as InBodyHistory[]);
+          }
+        }
       }
     }
 
@@ -372,6 +601,281 @@ export default function ProfilePage() {
                 <input id="p-height" type="number" className="form-input" {...register('height_cm')} />
               </div>
             </div>
+          </Section>
+
+          {/* InBody Composition OCR Section */}
+          <Section title="InBody Composition (OCR)" icon={<Lightning size={16} color="var(--color-primary)" />}>
+            {/* OCR File Upload Area */}
+            <div 
+              style={{
+                padding: '16px',
+                border: '2px dashed var(--color-border)',
+                borderRadius: '20px',
+                background: 'rgba(255, 143, 163, 0.05)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+                marginBottom: '20px',
+                transition: 'all 200ms ease',
+                position: 'relative'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-primary)' }}>
+                  <Lightning size={16} weight="fill" />
+                  <span style={{ fontFamily: 'Baloo 2', fontWeight: 700, fontSize: '0.9375rem' }}>Auto-fill with InBody OCR</span>
+                </div>
+              </div>
+
+              <label 
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '16px 8px',
+                  borderRadius: '14px',
+                  background: 'var(--color-bg-surface)',
+                  border: '1px solid var(--color-border)',
+                  cursor: ocrLoading ? 'not-allowed' : 'pointer',
+                  textAlign: 'center',
+                  transition: 'all 200ms ease',
+                  boxShadow: 'var(--shadow-sm)'
+                }}
+                onMouseEnter={(e) => !ocrLoading && (e.currentTarget.style.borderColor = 'var(--color-primary)')}
+                onMouseLeave={(e) => !ocrLoading && (e.currentTarget.style.borderColor = 'var(--color-border)')}
+              >
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  style={{ display: 'none' }} 
+                  onChange={handleOcrUpload}
+                  disabled={ocrLoading}
+                />
+                
+                {ocrLoading ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                    <div className="skeleton" style={{ width: '40px', height: '40px', borderRadius: '50%' }} />
+                    <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text)' }}>
+                      กำลังสแกนรูปภาพ InBody... 📊🏃‍♂️
+                    </span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                      ระบบกำลังดึงข้อมูลส่วนประกอบของร่างกาย
+                    </span>
+                  </div>
+                ) : ocrSuccess ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', color: 'var(--color-accent)' }}>
+                    <CheckCircle size={32} weight="fill" />
+                    <span style={{ fontSize: '0.875rem', fontWeight: 700 }}>
+                      ดึงข้อมูลสำเร็จแล้ว! 🎉
+                    </span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                      ข้อมูลถูกเติมลงในฟอร์มด้านล่างเรียบร้อยแล้ว
+                    </span>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                    <Camera size={28} color="var(--color-primary)" />
+                    <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-text)' }}>
+                      อัปโหลดรูปภาพ InBody (OCR)
+                    </span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                      ลากวางหรือแตะเพื่อเลือกรูปภาพ InBody
+                    </span>
+                  </div>
+                )}
+              </label>
+
+              {ocrError && (
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'flex-start', 
+                  gap: '8px', 
+                  padding: '10px 12px', 
+                  background: 'rgba(255,107,129,0.1)', 
+                  border: '1px solid rgba(255,107,129,0.2)', 
+                  borderRadius: '12px',
+                  color: 'var(--color-destructive)',
+                  fontSize: '0.8125rem'
+                }}>
+                  <Warning size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <div>
+                    <div style={{ fontWeight: 'bold' }}>ไม่สามารถสแกนรูปภาพได้</div>
+                    <div>{ocrError}</div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* InBody Inputs */}
+            <div className="form-grid-2" style={{ gap: 12, marginBottom: '20px' }}>
+              <div>
+                <label className="form-label" htmlFor="ib-date">Test Date</label>
+                <input id="ib-date" type="date" className="form-input" {...register('inbody_date')} />
+              </div>
+              <div>
+                <label className="form-label" htmlFor="ib-weight">Weight (kg)</label>
+                <input id="ib-weight" type="number" step="0.1" className="form-input" {...register('inbody_weight')} />
+              </div>
+              <div>
+                <label className="form-label" htmlFor="ib-smm">Skeletal Muscle Mass (kg)</label>
+                <input id="ib-smm" type="number" step="0.1" className="form-input" {...register('inbody_smm')} />
+              </div>
+              <div>
+                <label className="form-label" htmlFor="ib-bfm">Body Fat Mass (kg)</label>
+                <input id="ib-bfm" type="number" step="0.1" className="form-input" {...register('inbody_bfm')} />
+              </div>
+              <div>
+                <label className="form-label" htmlFor="ib-tbw">Total Body Water (L)</label>
+                <input id="ib-tbw" type="number" step="0.1" className="form-input" {...register('inbody_tbw')} />
+              </div>
+              <div>
+                <label className="form-label" htmlFor="ib-protein">Protein (kg)</label>
+                <input id="ib-protein" type="number" step="0.1" className="form-input" {...register('inbody_protein')} />
+              </div>
+              <div style={{ gridColumn: 'span 2' }}>
+                <label className="form-label" htmlFor="ib-mineral">Mineral (kg)</label>
+                <input id="ib-mineral" type="number" step="0.01" className="form-input" {...register('inbody_mineral')} />
+              </div>
+            </div>
+
+            {/* Visual Muscle-Fat Analysis */}
+            {watchInbodyWeight && watchInbodySmm && watchInbodyBfm ? (
+              <div style={{
+                background: 'var(--color-bg-elevated)',
+                borderRadius: '16px',
+                padding: '16px',
+                border: '1px solid var(--color-border)'
+              }}>
+                <p style={{ fontSize: '0.875rem', fontWeight: 700, marginBottom: '12px', color: 'var(--color-foreground)' }}>
+                  Muscle-Fat Analysis
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {/* Weight bar */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '4px' }}>
+                      <span style={{ fontWeight: 600 }}>Weight: {watchInbodyWeight} kg</span>
+                      <span style={{ color: 'var(--color-text-muted)' }}>Norm: 51.0 - 69.0 kg</span>
+                    </div>
+                    <div style={{ height: '8px', background: 'var(--color-border-muted)', borderRadius: '4px', overflow: 'hidden' }}>
+                      <div style={{
+                        height: '100%',
+                        width: `${Math.min((Number(watchInbodyWeight) / 75) * 100, 100)}%`,
+                        background: 'var(--color-secondary)',
+                        borderRadius: '4px'
+                      }} />
+                    </div>
+                  </div>
+
+                  {/* SMM bar */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '4px' }}>
+                      <span style={{ fontWeight: 600 }}>SMM: {watchInbodySmm} kg</span>
+                      <span style={{ color: 'var(--color-text-muted)' }}>Norm: 22.9 - 27.9 kg</span>
+                    </div>
+                    <div style={{ height: '8px', background: 'var(--color-border-muted)', borderRadius: '4px', overflow: 'hidden' }}>
+                      <div style={{
+                        height: '100%',
+                        width: `${Math.min((Number(watchInbodySmm) / 32) * 100, 100)}%`,
+                        background: Number(watchInbodySmm) < 22.9 ? 'var(--color-destructive)' : 'var(--color-accent)',
+                        borderRadius: '4px'
+                      }} />
+                    </div>
+                  </div>
+
+                  {/* BFM bar */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '4px' }}>
+                      <span style={{ fontWeight: 600 }}>Body Fat Mass: {watchInbodyBfm} kg</span>
+                      <span style={{ color: 'var(--color-text-muted)' }}>Norm: 12.0 - 19.2 kg</span>
+                    </div>
+                    <div style={{ height: '8px', background: 'var(--color-border-muted)', borderRadius: '4px', overflow: 'hidden' }}>
+                      <div style={{
+                        height: '100%',
+                        width: `${Math.min((Number(watchInbodyBfm) / 25) * 100, 100)}%`,
+                        background: Number(watchInbodyBfm) > 19.2 ? 'var(--color-primary)' : 'var(--color-secondary)',
+                        borderRadius: '4px'
+                      }} />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Balance type estimation */}
+                <div style={{ 
+                  marginTop: '12px', 
+                  fontSize: '0.75rem', 
+                  fontFamily: 'Mali, sans-serif',
+                  color: 'var(--color-text-muted)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}>
+                  <span>Muscle-Fat Type:</span>
+                  <span style={{ 
+                    fontWeight: 700, 
+                    color: Number(watchInbodySmm) > Number(watchInbodyBfm) ? 'var(--color-accent)' : 'var(--color-primary)' 
+                  }}>
+                    {Number(watchInbodySmm) < 22.9 && Number(watchInbodyBfm) > 15 
+                      ? 'C-Shape (Muscle builder target)' 
+                      : Number(watchInbodySmm) > Number(watchInbodyBfm) 
+                        ? 'D-Shape (Strong / Athletic)' 
+                        : 'I-Shape (Balanced)'}
+                  </span>
+                </div>
+              </div>
+            ) : null}
+
+            {/* Historical Trend Chart */}
+            {inbodyHistory.length > 0 && (
+              <div style={{
+                marginTop: '20px',
+                background: 'var(--color-bg-elevated)',
+                borderRadius: '16px',
+                padding: '16px',
+                border: '1px solid var(--color-border)'
+              }}>
+                <p style={{ fontSize: '0.875rem', fontWeight: 700, marginBottom: '12px', color: 'var(--color-foreground)', fontFamily: "'Baloo 2', sans-serif" }}>
+                  InBody Composition Trends
+                </p>
+                <div style={{ width: '100%', height: 200 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={inbodyHistory.map((item) => {
+                        let dateLabel = item.date;
+                        try {
+                          dateLabel = format(parseISO(item.date), 'dd/MM/yyyy');
+                        } catch (e) {}
+                        return {
+                          date: dateLabel,
+                          Weight: item.weight,
+                          SMM: item.smm,
+                          BFM: item.bfm,
+                        };
+                      })}
+                      margin={{ top: 5, right: 5, left: -25, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-muted)" />
+                      <XAxis dataKey="date" tick={{ fill: 'var(--color-text-muted)', fontSize: 10 }} />
+                      <YAxis tick={{ fill: 'var(--color-text-muted)', fontSize: 10 }} />
+                      <Tooltip
+                        contentStyle={{
+                          background: 'var(--color-bg-surface)',
+                          border: '2px solid var(--color-border)',
+                          borderRadius: '12px',
+                          color: 'var(--color-text)',
+                          fontSize: '0.75rem',
+                          fontFamily: 'Mali, sans-serif'
+                        }}
+                      />
+                      <Legend verticalAlign="top" height={36} wrapperStyle={{ fontSize: '0.75rem', fontFamily: 'Mali, sans-serif' }} />
+                      <Line type="monotone" name="Weight (kg)" dataKey="Weight" stroke="#C9A7EB" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                      <Line type="monotone" name="SMM (kg)" dataKey="SMM" stroke="#7FDBB6" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                      <Line type="monotone" name="Body Fat (kg)" dataKey="BFM" stroke="#FF8FA3" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
           </Section>
 
           {/* VO2max / VT2 */}

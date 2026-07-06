@@ -34,6 +34,13 @@ export interface Profile {
   pace_zone_5_min: string | null;
   pace_zone_5_max: string | null;
   races: Race[] | null;
+  inbody_weight: number | null;
+  inbody_smm: number | null;
+  inbody_bfm: number | null;
+  inbody_tbw: number | null;
+  inbody_protein: number | null;
+  inbody_mineral: number | null;
+  inbody_date: string | null;
   updated_at: string;
 }
 
@@ -78,4 +85,16 @@ export interface TrainingPlan {
   linked_activity_id: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface InBodyHistory {
+  id: string;
+  date: string;
+  weight: number | null;
+  smm: number | null;
+  bfm: number | null;
+  tbw: number | null;
+  protein: number | null;
+  mineral: number | null;
+  created_at: string;
 }
