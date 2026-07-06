@@ -87,7 +87,7 @@ export default function HistoryPage() {
             <option value="All">All Session Types</option>
             {SESSION_TYPES.map((t) => <option key={t}>{t}</option>)}
           </select>
-          <div className="form-grid-2" style={{ gap: 8 }}>
+          <div className="form-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <div>
               <label className="form-label">From</label>
               <input type="date" className="form-input" value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} aria-label="From date" />
@@ -192,21 +192,28 @@ function ActivityCard({
         {/* Main content */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-            <span style={{ fontWeight: 600, fontSize: '0.9375rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {activity.session_type}
-            </span>
-            <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+              <span style={{ fontWeight: 600, fontSize: '0.9375rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {activity.session_type}
+              </span>
               {zoneInfo && (
-                <span className="badge" style={{ background: `${zoneInfo.color}20`, color: zoneInfo.color, border: `1px solid ${zoneInfo.color}40` }}>
+                <span className="badge" style={{ background: `${zoneInfo.color}20`, color: zoneInfo.color, border: `1px solid ${zoneInfo.color}40`, fontSize: '0.625rem', padding: '1px 6px', flexShrink: 0 }}>
                   {zoneInfo.label}
                 </span>
               )}
             </div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', flexShrink: 0 }}>
+              {thaiDate(activity.date)}
+            </span>
           </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: 2 }}>
-            {thaiDate(activity.date)}
-            {activity.route_name && <> · <MapPin size={11} style={{ verticalAlign: -1 }} /> {activity.route_name}</>}
-          </div>
+          {activity.route_name && (
+            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <MapPin size={11} style={{ flexShrink: 0 }} />
+              <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {activity.route_name}
+              </span>
+            </div>
+          )}
 
           {/* Stats row */}
           <div style={{ display: 'flex', gap: 14, marginTop: 10, flexWrap: 'wrap' }}>

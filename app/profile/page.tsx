@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -77,6 +77,54 @@ export default function ProfilePage() {
   const [ocrError, setOcrError] = useState<string | null>(null);
   const [ocrSuccess, setOcrSuccess] = useState(false);
   const [inbodyHistory, setInbodyHistory] = useState<InBodyHistory[]>([]);
+  const [isInbodyHistoryModalOpen, setIsInbodyHistoryModalOpen] = useState(false);
+
+  const handleDeleteHistory = async (id: string, date: string) => {
+    const confirmDelete = confirm(`คุณต้องการลบข้อมูล InBody ของวันที่ ${date} ใช่หรือไม่?`);
+    if (!confirmDelete) return;
+
+    // 1. Delete from DB
+    const { error: dbErr } = await supabase.from('inbody_history').delete().eq('date', date);
+
+    // 2. Delete from LocalStorage fallback
+    if (typeof window !== 'undefined') {
+      const localHistory = localStorage.getItem('profile_inbody_history');
+      if (localHistory) {
+        try {
+          let currentHistory = JSON.parse(localHistory);
+          currentHistory = currentHistory.filter((item: any) => item.date !== date);
+          localStorage.setItem('profile_inbody_history', JSON.stringify(currentHistory));
+          setInbodyHistory(currentHistory);
+        } catch (e) {}
+      }
+    }
+
+    if (!dbErr) {
+      const { data: newHistory } = await supabase.from('inbody_history').select('*').order('date', { ascending: true });
+      if (newHistory) {
+        setInbodyHistory(newHistory as InBodyHistory[]);
+      }
+    }
+  };
+
+  const handleEditHistory = (item: InBodyHistory) => {
+    setValue('inbody_date', item.date, { shouldDirty: true });
+    setValue('inbody_weight', item.weight, { shouldDirty: true });
+    setValue('inbody_smm', item.smm, { shouldDirty: true });
+    setValue('inbody_bfm', item.bfm, { shouldDirty: true });
+    setValue('inbody_tbw', item.tbw, { shouldDirty: true });
+    setValue('inbody_protein', item.protein, { shouldDirty: true });
+    setValue('inbody_mineral', item.mineral, { shouldDirty: true });
+    if (item.weight) setValue('weight_kg', item.weight, { shouldDirty: true }); // Sync profile weight
+    
+    setIsInbodyHistoryModalOpen(false);
+
+    // Scroll to form fields
+    const formElement = document.getElementById('ib-date');
+    if (formElement) {
+      formElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
 
   const handleOcrUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -307,9 +355,9 @@ export default function ProfilePage() {
     });
   }, [reset]);
 
-  // Prevent body scroll when race modal is open
+  // Prevent body scroll when race modal or InBody history modal is open
   useEffect(() => {
-    if (isRaceModalOpen) {
+    if (isRaceModalOpen || isInbodyHistoryModalOpen) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
@@ -317,7 +365,7 @@ export default function ProfilePage() {
     return () => {
       document.body.style.overflow = '';
     };
-  }, [isRaceModalOpen]);
+  }, [isRaceModalOpen, isInbodyHistoryModalOpen]);
 
   const watchHrMax = Number(watch('hr_max') || 185);
   const watchHrRest = Number(watch('hr_rest') || 42);
@@ -331,6 +379,35 @@ export default function ProfilePage() {
   const watchInbodyWeight = watch('inbody_weight');
   const watchInbodySmm = watch('inbody_smm');
   const watchInbodyBfm = watch('inbody_bfm');
+
+  // Personal Info watches and computed values
+  const watchBirthDate = watch('birth_date');
+  const watchWeightKg = watch('weight_kg');
+  const watchHeightCm = watch('height_cm');
+
+  const computedAge = useMemo(() => {
+    if (!watchBirthDate) return null;
+    try {
+      const today = new Date();
+      const birth = parseISO(watchBirthDate);
+      let age = today.getFullYear() - birth.getFullYear();
+      const monthDiff = today.getMonth() - birth.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+        age--;
+      }
+      return age;
+    } catch (e) {
+      return null;
+    }
+  }, [watchBirthDate]);
+
+  const computedBmi = useMemo(() => {
+    if (!watchWeightKg || !watchHeightCm) return null;
+    const heightM = Number(watchHeightCm) / 100;
+    if (heightM <= 0) return null;
+    const bmi = Number(watchWeightKg) / (heightM * heightM);
+    return parseFloat(bmi.toFixed(1));
+  }, [watchWeightKg, watchHeightCm]);
 
   const hrZones = computeHRZones(watchHrMax, watchHrRest);
 
@@ -573,7 +650,7 @@ export default function ProfilePage() {
 
           {/* Personal Info */}
           <Section title="Personal Info" icon={<User size={16} color="var(--color-primary)" />}>
-            <div className="form-grid-2" style={{ gap: 12 }}>
+            <div className="form-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div style={{ gridColumn: '1 / -1' }}>
                 <label className="form-label" htmlFor="p-name">Name</label>
                 <input id="p-name" type="text" className="form-input" {...register('name')} />
@@ -593,18 +670,56 @@ export default function ProfilePage() {
                 <input id="p-dob" type="date" className="form-input" {...register('birth_date')} />
               </div>
               <div>
-                <label className="form-label" htmlFor="p-weight">Weight (kg)</label>
-                <input id="p-weight" type="number" step="0.1" className="form-input" {...register('weight_kg')} />
+                <label className="form-label">Age (years)</label>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  value={computedAge !== null ? `${computedAge} ปี` : '—'} 
+                  disabled 
+                  style={{ background: 'var(--color-bg-elevated)', cursor: 'not-allowed' }}
+                />
               </div>
               <div>
                 <label className="form-label" htmlFor="p-height">Height (cm)</label>
                 <input id="p-height" type="number" className="form-input" {...register('height_cm')} />
+              </div>
+              <div>
+                <label className="form-label" htmlFor="p-weight">Weight (kg)</label>
+                <input id="p-weight" type="number" step="0.1" className="form-input" {...register('weight_kg')} />
+              </div>
+              <div>
+                <label className="form-label">BMI</label>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  value={computedBmi !== null ? `${computedBmi} (${computedBmi < 18.5 ? 'น้ำหนักน้อย' : computedBmi < 25.0 ? 'ปกติ' : computedBmi < 30.0 ? 'น้ำหนักเกิน' : 'อ้วน'})` : '—'} 
+                  disabled 
+                  style={{ 
+                    background: 'var(--color-bg-elevated)', 
+                    cursor: 'not-allowed', 
+                    fontWeight: 700, 
+                    color: computedBmi !== null 
+                      ? (computedBmi >= 18.5 && computedBmi < 25.0 ? '#059669' : '#EF4444') 
+                      : 'inherit' 
+                  }}
+                />
               </div>
             </div>
           </Section>
 
           {/* InBody Composition OCR Section */}
           <Section title="InBody Composition (OCR)" icon={<Lightning size={16} color="var(--color-primary)" />}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                style={{ padding: '0 14px', height: '36px', minHeight: '36px', fontSize: '0.8125rem', display: 'flex', alignItems: 'center', gap: 6 }}
+                onClick={() => setIsInbodyHistoryModalOpen(true)}
+              >
+                <CalendarBlank size={14} /> ดูประวัติ InBody ({inbodyHistory.length})
+              </button>
+            </div>
+
             {/* OCR File Upload Area */}
             <div 
               style={{
@@ -708,7 +823,7 @@ export default function ProfilePage() {
             </div>
 
             {/* InBody Inputs */}
-            <div className="form-grid-2" style={{ gap: 12, marginBottom: '20px' }}>
+            <div className="form-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: '20px' }}>
               <div>
                 <label className="form-label" htmlFor="ib-date">Test Date</label>
                 <input id="ib-date" type="date" className="form-input" {...register('inbody_date')} />
@@ -880,7 +995,7 @@ export default function ProfilePage() {
 
           {/* VO2max / VT2 */}
           <Section title="Performance Metrics" icon={<Gauge size={16} color="var(--color-primary)" />}>
-            <div className="form-grid-2" style={{ gap: 12 }}>
+            <div className="form-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div>
                 <label className="form-label" htmlFor="p-vo2">VO₂max (ml/kg/min)</label>
                 <input id="p-vo2" type="number" step="0.1" className="form-input" {...register('vo2max')} placeholder="e.g. 72" />
@@ -930,7 +1045,7 @@ export default function ProfilePage() {
           {/* Personal Bests */}
           <Section title="Personal Bests" icon={<Trophy size={16} color="var(--color-primary)" />}>
             <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', marginBottom: 12 }}>Format: H:MM:SS or MM:SS</p>
-            <div className="form-grid-2" style={{ gap: 12 }}>
+            <div className="form-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               {[
                 { id: 'pb-5k', field: 'pb_5k' as const, label: '5K' },
                 { id: 'pb-10k', field: 'pb_10k' as const, label: '10K' },
@@ -1107,7 +1222,7 @@ export default function ProfilePage() {
 
           {/* HR Settings */}
           <Section title="Heart Rate" icon={<Heart size={16} color="#EF4444" />}>
-            <div className="form-grid-2" style={{ gap: 12, marginBottom: 16 }}>
+            <div className="form-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
               <div>
                 <label className="form-label" htmlFor="p-hrmax">Max HR (bpm)</label>
                 <input id="p-hrmax" type="number" className="form-input" {...register('hr_max')} />
@@ -1331,6 +1446,124 @@ export default function ProfilePage() {
                   Cancel
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* InBody History List Modal Sheet */}
+      {isInbodyHistoryModalOpen && (
+        <div className="sheet-backdrop" onClick={(e) => e.target === e.currentTarget && setIsInbodyHistoryModalOpen(false)}>
+          <div className="sheet animate-slide-up" role="dialog" aria-modal aria-label="InBody History List">
+            <div className="sheet-handle" />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 700, fontFamily: "'Baloo 2', sans-serif" }}>
+                ประวัติผลตรวจ InBody ({inbodyHistory.length})
+              </h2>
+              <button
+                type="button"
+                className="btn btn-ghost btn-icon"
+                onClick={() => setIsInbodyHistoryModalOpen(false)}
+                aria-label="Close"
+                style={{ width: 36, height: 36, minWidth: 36, minHeight: 36 }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: '60vh', overflowY: 'auto', paddingRight: '4px' }}>
+              {inbodyHistory.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '24px', color: 'var(--color-text-muted)', border: '2px dashed var(--color-border)', borderRadius: '18px', fontSize: '0.8125rem', fontFamily: "'Mali', sans-serif" }}>
+                  ยังไม่มีข้อมูลประวัติ InBody
+                </div>
+              ) : (
+                [...inbodyHistory]
+                  .sort((a, b) => b.date.localeCompare(a.date)) // Newest first
+                  .map((item) => {
+                    let formattedDate = item.date;
+                    try {
+                      formattedDate = format(parseISO(item.date), 'dd/MM/yyyy');
+                    } catch (e) {}
+
+                    return (
+                      <div
+                        key={item.id || item.date}
+                        style={{
+                          padding: '14px 16px',
+                          borderRadius: 18,
+                          background: 'var(--color-bg-card)',
+                          border: '2px solid var(--color-border)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: 12,
+                          transition: 'all 0.2s ease',
+                        }}
+                      >
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 700, fontFamily: "'Baloo 2', sans-serif", fontSize: '0.95rem', color: 'var(--color-foreground)' }}>
+                            วันที่ตรวจ: {formattedDate}
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: '8px 12px', fontFamily: "'Mali', sans-serif" }}>
+                            <span>น้ำหนัก: <strong>{item.weight || '-'} kg</strong></span>
+                            <span>มวลกล้ามเนื้อ: <strong>{item.smm || '-'} kg</strong></span>
+                            <span>มวลไขมัน: <strong>{item.bfm || '-'} kg</strong></span>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                          <button
+                            type="button"
+                            onClick={() => handleEditHistory(item)}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              cursor: 'pointer',
+                              padding: '6px',
+                              borderRadius: '8px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'background-color 0.2s',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = 'rgba(201, 167, 235, 0.15)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = 'transparent';
+                            }}
+                            title="Edit Record"
+                          >
+                            <PencilSimple size={18} color="var(--color-secondary)" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteHistory(item.id, item.date)}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              cursor: 'pointer',
+                              padding: '6px',
+                              borderRadius: '8px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'background-color 0.2s',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = 'rgba(255, 107, 129, 0.1)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = 'transparent';
+                            }}
+                            title="Delete Record"
+                          >
+                            <Trash size={18} color="var(--color-destructive)" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+              )}
             </div>
           </div>
         </div>
