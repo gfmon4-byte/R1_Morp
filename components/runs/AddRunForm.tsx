@@ -9,7 +9,7 @@ import type { Activity } from '@/lib/supabase';
 import { SESSION_TYPES, thaiToday } from '@/lib/utils';
 import { getHRZoneForBpm } from '@/lib/hrZones';
 import type { HRZone } from '@/lib/hrZones';
-import { X } from '@phosphor-icons/react';
+import { X, Camera, Lightning, CheckCircle, Warning } from '@phosphor-icons/react';
 
 const schema = z.object({
   date: z.string().min(1, 'Date required'),
@@ -45,12 +45,17 @@ export function AddRunForm({ activity, onClose, onSaved, hrZones, defaultDate }:
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // OCR specific states
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrError, setOcrError] = useState<string | null>(null);
+  const [ocrSuccess, setOcrSuccess] = useState(false);
+
   const durationSec = activity?.duration_seconds ?? 0;
   const dh = Math.floor(durationSec / 3600);
   const dm = Math.floor((durationSec % 3600) / 60);
   const ds = durationSec % 60;
 
-  const { register, handleSubmit, watch, formState: { errors, isDirty } } = useForm<FormValues>({
+  const { register, handleSubmit, watch, setValue, formState: { errors, isDirty } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: activity ? {
       date: activity.date,
@@ -80,6 +85,107 @@ export function AddRunForm({ activity, onClose, onSaved, hrZones, defaultDate }:
       elevation_gain_m: 0,
     },
   });
+
+  // API key is handled on the backend via process.env.GEMINI_API_KEY
+
+  const handleOcrUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setOcrLoading(true);
+    setOcrError(null);
+    setOcrSuccess(false);
+
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64String = reader.result as string;
+
+        try {
+          const response = await fetch('/api/ocr', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              image: base64String,
+            }),
+          });
+
+          const result = await response.json();
+
+          if (!response.ok) {
+            throw new Error(result.error || 'Failed to scan image');
+          }
+
+          // Merge results into form
+          if (result.date) setValue('date', result.date, { shouldDirty: true });
+          if (result.session_type) setValue('session_type', result.session_type, { shouldDirty: true });
+          if (result.distance_km !== null && result.distance_km !== undefined) {
+            setValue('distance_km', result.distance_km, { shouldDirty: true });
+          }
+          if (result.duration_hh !== null && result.duration_hh !== undefined) {
+            setValue('duration_hh', result.duration_hh, { shouldDirty: true });
+          }
+          if (result.duration_mm !== null && result.duration_mm !== undefined) {
+            setValue('duration_mm', result.duration_mm, { shouldDirty: true });
+          }
+          if (result.duration_ss !== null && result.duration_ss !== undefined) {
+            setValue('duration_ss', result.duration_ss, { shouldDirty: true });
+          }
+          if (result.avg_hr !== null && result.avg_hr !== undefined) {
+            setValue('avg_hr', result.avg_hr, { shouldDirty: true });
+          }
+          if (result.max_hr !== null && result.max_hr !== undefined) {
+            setValue('max_hr', result.max_hr, { shouldDirty: true });
+          }
+          if (result.elevation_gain_m !== null && result.elevation_gain_m !== undefined) {
+            setValue('elevation_gain_m', result.elevation_gain_m, { shouldDirty: true });
+          }
+          if (result.rpe !== null && result.rpe !== undefined) {
+            setValue('rpe', result.rpe, { shouldDirty: true });
+          }
+          if (result.route_name) {
+            setValue('route_name', result.route_name, { shouldDirty: true });
+          }
+
+          // Zone times
+          if (result.z1_minutes !== null && result.z1_minutes !== undefined) {
+            setValue('z1_minutes', Math.round(result.z1_minutes * 100) / 100, { shouldDirty: true });
+          }
+          if (result.z2_minutes !== null && result.z2_minutes !== undefined) {
+            setValue('z2_minutes', Math.round(result.z2_minutes * 100) / 100, { shouldDirty: true });
+          }
+          if (result.z3_minutes !== null && result.z3_minutes !== undefined) {
+            setValue('z3_minutes', Math.round(result.z3_minutes * 100) / 100, { shouldDirty: true });
+          }
+          if (result.z4_minutes !== null && result.z4_minutes !== undefined) {
+            setValue('z4_minutes', Math.round(result.z4_minutes * 100) / 100, { shouldDirty: true });
+          }
+          if (result.z5_minutes !== null && result.z5_minutes !== undefined) {
+            setValue('z5_minutes', Math.round(result.z5_minutes * 100) / 100, { shouldDirty: true });
+          }
+
+          setOcrSuccess(true);
+          setTimeout(() => setOcrSuccess(false), 5000);
+        } catch (err: any) {
+          setOcrError(err.message || 'An error occurred during scanning');
+        } finally {
+          setOcrLoading(false);
+        }
+      };
+
+      reader.onerror = () => {
+        setOcrError('Failed to read image file');
+        setOcrLoading(false);
+      };
+
+      reader.readAsDataURL(file);
+    } catch (err: any) {
+      setOcrError('An error occurred. Please try again.');
+      setOcrLoading(false);
+    }
+  };
 
   const handleClose = () => {
     if (isDirty) {
@@ -171,6 +277,107 @@ export function AddRunForm({ activity, onClose, onSaved, hrZones, defaultDate }:
 
         <form onSubmit={handleSubmit(onSubmit)} noValidate>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {/* OCR File Upload Card */}
+            <div 
+              style={{
+                padding: '16px',
+                border: '2px dashed var(--color-border)',
+                borderRadius: '20px',
+                background: 'rgba(255, 143, 163, 0.05)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+                transition: 'all 200ms ease',
+                position: 'relative'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-primary)' }}>
+                  <Lightning size={16} weight="fill" />
+                  <span style={{ fontFamily: 'Baloo 2', fontWeight: 700, fontSize: '0.9375rem' }}>Auto-fill with AI (OCR)</span>
+                </div>
+              </div>
+
+              {/* Upload Action area */}
+              <label 
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '16px 8px',
+                  borderRadius: '14px',
+                  background: 'var(--color-bg-surface)',
+                  border: '1px solid var(--color-border)',
+                  cursor: ocrLoading ? 'not-allowed' : 'pointer',
+                  textAlign: 'center',
+                  transition: 'all 200ms ease',
+                  boxShadow: 'var(--shadow-sm)'
+                }}
+                onMouseEnter={(e) => !ocrLoading && (e.currentTarget.style.borderColor = 'var(--color-primary)')}
+                onMouseLeave={(e) => !ocrLoading && (e.currentTarget.style.borderColor = 'var(--color-border)')}
+              >
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  style={{ display: 'none' }} 
+                  onChange={handleOcrUpload}
+                  disabled={ocrLoading}
+                />
+                
+                {ocrLoading ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                    <div className="skeleton" style={{ width: '40px', height: '40px', borderRadius: '50%' }} />
+                    <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text)' }}>
+                      กำลังสแกนรูปภาพด้วย AI... 🏃‍♂️💨
+                    </span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                      ระบบกำลังดึงข้อมูลระยะทาง ความเร็ว และโซนหัวใจ
+                    </span>
+                  </div>
+                ) : ocrSuccess ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', color: 'var(--color-accent)' }}>
+                    <CheckCircle size={32} weight="fill" />
+                    <span style={{ fontSize: '0.875rem', fontWeight: 700 }}>
+                      ดึงข้อมูลสำเร็จแล้ว! 🎉
+                    </span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                      ข้อมูลถูกเติมลงในฟอร์มด้านล่างเรียบร้อยแล้ว
+                    </span>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                    <Camera size={28} color="var(--color-primary)" />
+                    <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-text)' }}>
+                      อัปโหลดรูปภาพเพื่อดึงข้อมูล (OCR)
+                    </span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                      ลากวางหรือแตะเพื่อเลือกรูปภาพรายละเอียดการวิ่ง/โซนหัวใจ
+                    </span>
+                  </div>
+                )}
+              </label>
+
+              {ocrError && (
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'flex-start', 
+                  gap: '8px', 
+                  padding: '10px 12px', 
+                  background: 'rgba(255,107,129,0.1)', 
+                  border: '1px solid rgba(255,107,129,0.2)', 
+                  borderRadius: '12px',
+                  color: 'var(--color-destructive)',
+                  fontSize: '0.8125rem'
+                }}>
+                  <Warning size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <div>
+                    <div style={{ fontWeight: 'bold' }}>ไม่สามารถสแกนรูปภาพได้</div>
+                    <div>{ocrError}</div>
+                  </div>
+                </div>
+              )}
+            </div>
             {/* Date + Session type */}
             <div className="form-grid-2">
               <div>
