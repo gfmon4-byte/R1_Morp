@@ -1,0 +1,44 @@
+{
+  "name": "RunMorp — Happy Running",
+  "short_name": "RunMorp",
+  "description": "แอปติดตามการวิ่งสุดน่ารัก บันทึกรัน จัดการแผนซ้อม และดูสถิติการวิ่งของคุณ",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#FFF8F4",
+  "theme_color": "#FF8FA3",
+  "lang": "th",
+  "categories": ["health", "fitness", "sports"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "ดูสถิติวิ่ง",
+      "url": "/dashboard",
+      "icons": [{ "src": "/icons/icon-192.jpg", "sizes": "192x192" }]
+    },
+    {
+      "name": "บันทึกรัน",
+      "short_name": "History",
+      "description": "ดูประวัติการวิ่ง",
+      "url": "/history",
+      "icons": [{ "src": "/icons/icon-192.jpg", "sizes": "192x192" }]
+    }
+  ]
+}

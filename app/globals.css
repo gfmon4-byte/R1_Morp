@@ -56,6 +56,7 @@
 
   /* Nav */
   --nav-height: 68px;
+  --sidebar-width: 240px;
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 
   font-family: 'Mali', system-ui, sans-serif;
@@ -139,13 +140,53 @@ h1, h2, h3, h4, h5 {
 ::-webkit-scrollbar-track  { background: var(--color-muted); border-radius: 2px; }
 ::-webkit-scrollbar-thumb  { background: rgba(255,143,163,0.35); border-radius: 2px; }
 
+/* ---- Responsive App Shell ---- */
+
+/* Mobile: sidebar hidden, bottom nav visible */
+.sidebar-wrapper {
+  display: none;
+}
+
+.bottom-nav-wrapper {
+  display: block;
+}
+
+.app-shell {
+  /* Mobile: no offset */
+  margin-left: 0;
+  min-height: 100vh;
+}
+
+/* Desktop: sidebar visible, bottom nav hidden */
+@media (min-width: 1024px) {
+  .sidebar-wrapper {
+    display: block;
+  }
+
+  .bottom-nav-wrapper {
+    display: none;
+  }
+
+  .app-shell {
+    margin-left: var(--sidebar-width);
+  }
+}
+
 /* ---- Page layout ---- */
 .page-container {
   min-height: 100vh;
   overflow-x: hidden;
+  /* Mobile: space for bottom nav */
   padding-bottom: calc(var(--nav-height) + var(--safe-bottom) + 16px);
   padding-top: 0;
   box-sizing: border-box;
+}
+
+/* Desktop: no bottom nav padding needed */
+@media (min-width: 1024px) {
+  .page-container {
+    padding-bottom: 40px;
+  }
 }
 
 .page-header {
@@ -174,6 +215,13 @@ h1, h2, h3, h4, h5 {
   .page-content {
     padding: 24px 24px 0;
     max-width: 900px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .page-content {
+    padding: 32px 40px 0;
+    max-width: 1100px;
   }
 }
 
