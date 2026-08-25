@@ -199,7 +199,26 @@ export default function ProfilePage() {
     }
   };
 
-  const handleAddRace = () => {
+  const persistRaces = async (newRaces: Array<{ id: string; name: string; date: string; distance?: string }>) => {
+    setRaces(newRaces);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('profile_races', JSON.stringify(newRaces));
+    }
+    try {
+      const { error: raceErr } = await supabase
+        .from('profiles')
+        .update({ races: newRaces, updated_at: new Date().toISOString() })
+        .eq('id', 1);
+
+      if (raceErr) {
+        console.warn('Failed to update races in Supabase, saved to localStorage fallback:', raceErr);
+      }
+    } catch (err) {
+      console.warn('Error updating races in Supabase:', err);
+    }
+  };
+
+  const handleAddRace = async () => {
     setNewRaceError(null);
     if (!newRaceName.trim()) {
       setNewRaceError('กรุณากรอกชื่องานวิ่ง');
@@ -210,14 +229,13 @@ export default function ProfilePage() {
       return;
     }
 
+    let updatedRaces: Array<{ id: string; name: string; date: string; distance?: string }>;
     if (editingRaceId) {
       // Update existing race
-      setRaces((prev) =>
-        prev.map((r) =>
-          r.id === editingRaceId
-            ? { ...r, name: newRaceName.trim(), date: newRaceDate, distance: newRaceDistance }
-            : r
-        )
+      updatedRaces = races.map((r) =>
+        r.id === editingRaceId
+          ? { ...r, name: newRaceName.trim(), date: newRaceDate, distance: newRaceDistance }
+          : r
       );
       setEditingRaceId(null);
     } else {
@@ -228,8 +246,10 @@ export default function ProfilePage() {
         date: newRaceDate,
         distance: newRaceDistance,
       };
-      setRaces((prev) => [...prev, newRace]);
+      updatedRaces = [...races, newRace];
     }
+
+    await persistRaces(updatedRaces);
 
     setNewRaceName('');
     setNewRaceDate('');
@@ -260,11 +280,12 @@ export default function ProfilePage() {
     setIsRaceModalOpen(false);
   };
 
-  const handleDeleteRace = (id: string) => {
+  const handleDeleteRace = async (id: string) => {
     if (editingRaceId === id) {
       handleCancelEdit();
     }
-    setRaces((prev) => prev.filter((r) => r.id !== id));
+    const updatedRaces = races.filter((r) => r.id !== id);
+    await persistRaces(updatedRaces);
   };
 
   const { register, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm<FormValues>({
@@ -324,14 +345,37 @@ export default function ProfilePage() {
 
         const localRaces = typeof window !== 'undefined' ? localStorage.getItem('profile_races') : null;
         let loadedRaces: any[] = [];
+        let parsedDbRaces: any[] = [];
         if (data.races) {
-          loadedRaces = Array.isArray(data.races) ? data.races : JSON.parse(data.races);
-        } else if (localRaces) {
           try {
-            loadedRaces = JSON.parse(localRaces);
+            parsedDbRaces = Array.isArray(data.races) ? data.races : JSON.parse(data.races as any);
           } catch (e) {
-            loadedRaces = [];
+            parsedDbRaces = [];
           }
+        }
+        let parsedLocalRaces: any[] = [];
+        if (localRaces) {
+          try {
+            parsedLocalRaces = JSON.parse(localRaces);
+          } catch (e) {
+            parsedLocalRaces = [];
+          }
+        }
+
+        if (parsedDbRaces.length > 0) {
+          loadedRaces = parsedDbRaces;
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('profile_races', JSON.stringify(parsedDbRaces));
+          }
+        } else if (parsedLocalRaces.length > 0) {
+          loadedRaces = parsedLocalRaces;
+          supabase
+            .from('profiles')
+            .update({ races: parsedLocalRaces, updated_at: new Date().toISOString() })
+            .eq('id', 1)
+            .then(() => {});
+        } else {
+          loadedRaces = [];
         }
         setRaces(loadedRaces);
 
