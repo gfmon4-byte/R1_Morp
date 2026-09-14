@@ -474,7 +474,8 @@ input[type="date"].form-input::-webkit-date-and-time-value {
 }
 
 /* ---- Bottom sheet / modal backdrop ---- */
-.sheet-backdrop {
+.sheet-backdrop,
+.modal-backdrop {
   position: fixed;
   top: 0;
   left: 0;
@@ -490,12 +491,14 @@ input[type="date"].form-input::-webkit-date-and-time-value {
 }
 
 @media (min-width: 640px) {
-  .sheet-backdrop {
+  .sheet-backdrop,
+  .modal-backdrop {
     align-items: center;
   }
 }
 
-.sheet {
+.sheet,
+.modal-content {
   background: var(--color-bg-surface);
   border-radius: 28px 28px 0 0;
   border: 3px solid var(--color-muted);

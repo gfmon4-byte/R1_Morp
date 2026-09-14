@@ -1,10 +1,17 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
 import type { Activity, TrainingPlan } from '@/lib/supabase';
 import type { HRZone } from '@/lib/hrZones';
-import { formatPace, formatDuration, thaiDate, getSessionColor } from '@/lib/utils';
-import { X, CheckCircle, Circle, Lightning, MapPin, Heart, TrendUp, ArrowUp, ArrowDown, Minus, ClipboardText, CheckFat, ChartBar } from '@phosphor-icons/react';
+import { formatPace, formatDuration, thaiDate, getSessionColor, SESSION_TYPES } from '@/lib/utils';
+import { useTheme } from '@/components/layout/ThemeProvider';
+import {
+  X, CheckCircle, Circle, Lightning, MapPin,
+  Heart, TrendUp, ArrowUp, ArrowDown, Minus,
+  ClipboardText, CheckFat, ChartBar, PencilSimple,
+  Trash, Plus, FloppyDisk,
+} from '@phosphor-icons/react';
 
 interface Props {
   date: string;
@@ -14,6 +21,7 @@ interface Props {
   onClose: () => void;
   onLogRun: () => void;
   onToggleComplete: () => void;
+  onPlanUpdated?: () => void;
 }
 
 // Parse "M:SS" or "MM:SS/km" → sec/km; takes lower bound if range "6:45-7:10/km"
@@ -42,10 +50,100 @@ function DeltaChip({ value, unit, lowerIsBetter = false }: { value: number; unit
   );
 }
 
-export function DayDetailSheet({ date, plan, activities, hrZones, onClose, onLogRun, onToggleComplete }: Props) {
-  const color = plan ? getSessionColor(plan.session_type ?? '') : '#059669';
+export function DayDetailSheet({ date, plan, activities, hrZones, onClose, onLogRun, onToggleComplete, onPlanUpdated }: Props) {
+  const { theme } = useTheme();
+  const color = plan ? getSessionColor(plan.session_type ?? '', theme) : (theme === 'dark' ? '#00E676' : '#059669');
   const hasLogged = activities.length > 0;
   const isPlanned = !!plan;
+
+  // Edit plan state
+  const [isEditingPlan, setIsEditingPlan] = useState(false);
+  const [sessionType, setSessionType] = useState(plan?.session_type ?? 'Easy Run');
+  const [distanceKm, setDistanceKm] = useState(plan?.distance_km !== null && plan?.distance_km !== undefined ? plan.distance_km.toString() : '');
+  const [paceTarget, setPaceTarget] = useState(plan?.pace_target ?? '');
+  const [hrZone, setHrZone] = useState(plan?.hr_zone ?? '');
+  const [rpe, setRpe] = useState(plan?.rpe ?? '');
+  const [description, setDescription] = useState(plan?.description ?? '');
+  const [notes, setNotes] = useState(plan?.notes ?? '');
+  const [phase, setPhase] = useState(plan?.phase ?? '');
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    setIsEditingPlan(false);
+    setSessionType(plan?.session_type ?? 'Easy Run');
+    setDistanceKm(plan?.distance_km !== null && plan?.distance_km !== undefined ? plan.distance_km.toString() : '');
+    setPaceTarget(plan?.pace_target ?? '');
+    setHrZone(plan?.hr_zone ?? '');
+    setRpe(plan?.rpe ?? '');
+    setDescription(plan?.description ?? '');
+    setNotes(plan?.notes ?? '');
+    setPhase(plan?.phase ?? '');
+  }, [plan, date]);
+
+  const handleSavePlan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const parsedDist = distanceKm.trim() ? parseFloat(distanceKm) : null;
+      const payload = {
+        date,
+        session_type: sessionType.trim() || 'Easy Run',
+        distance_km: parsedDist,
+        pace_target: paceTarget.trim() || null,
+        hr_zone: hrZone.trim() || null,
+        rpe: rpe.trim() || null,
+        description: description.trim() || null,
+        notes: notes.trim() || null,
+        phase: phase.trim() || null,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (plan?.id) {
+        const { error } = await supabase
+          .from('training_plan')
+          .update(payload)
+          .eq('id', plan.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('training_plan')
+          .insert({
+            ...payload,
+            completed: false,
+          });
+        if (error) throw error;
+      }
+
+      setIsEditingPlan(false);
+      onPlanUpdated?.();
+    } catch (err) {
+      console.error('Save plan error:', err);
+      alert('เกิดข้อผิดพลาดในการบันทึกแผนวิ่ง');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeletePlan = async () => {
+    if (!plan?.id) return;
+    if (!confirm('คุณต้องการลบแผนวิ่งของวันนี้หรือไม่?')) return;
+    setDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('training_plan')
+        .delete()
+        .eq('id', plan.id);
+      if (error) throw error;
+      setIsEditingPlan(false);
+      onPlanUpdated?.();
+    } catch (err) {
+      console.error('Delete plan error:', err);
+      alert('เกิดข้อผิดพลาดในการลบแผนวิ่ง');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   // Aggregate actual totals across all activities on this day
   const totalDistanceKm = activities.reduce((s, a) => s + (a.distance_km ?? 0), 0);
@@ -66,14 +164,21 @@ export function DayDetailSheet({ date, plan, activities, hrZones, onClose, onLog
   // Plan targets for comparison
   const plannedDistKm = plan?.distance_km ?? null;
   const plannedPaceSec = parsePaceToSec(plan?.pace_target);
-  const plannedRPE = plan?.rpe && plan.rpe !== '-' ? parseFloat(plan.rpe) : null;
+  const plannedRPE = plan?.rpe ? Number(plan.rpe) : null;
 
-  // Deltas: actual - planned
-  const distDelta = (plannedDistKm && plannedDistKm > 0 && totalDistanceKm > 0) ? totalDistanceKm - plannedDistKm : null;
-  const paceDelta = (plannedPaceSec && avgPaceSec) ? avgPaceSec - plannedPaceSec : null; // negative = faster
-  const rpeDelta = (plannedRPE !== null && avgRPE !== null) ? avgRPE - plannedRPE : null;
+  // Deltas (actual - plan)
+  const distDelta = (plannedDistKm !== null && totalDistanceKm > 0)
+    ? totalDistanceKm - plannedDistKm
+    : null;
+  const paceDelta = (plannedPaceSec !== null && avgPaceSec !== null)
+    ? Math.round(avgPaceSec - plannedPaceSec)
+    : null;
+  const rpeDelta = (plannedRPE !== null && avgRPE !== null)
+    ? avgRPE - plannedRPE
+    : null;
 
-  const showComparison = isPlanned && hasLogged;
+  // Don't show comparison if no plan AND no logged activities
+  const showComparison = isPlanned || hasLogged;
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -81,9 +186,22 @@ export function DayDetailSheet({ date, plan, activities, hrZones, onClose, onLog
   }, []);
 
   return (
-    <div className="sheet-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="sheet animate-slide-up" role="dialog" aria-modal aria-label="Day detail">
-        <div className="sheet-handle" />
+    <div
+      className="sheet-backdrop"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div
+        className="sheet animate-slide-up"
+        role="dialog"
+        aria-modal
+        aria-label="Day detail"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          maxWidth: 640,
+        }}
+      >
+        {/* Sheet handle */}
+        <div className="sheet-handle" style={{ margin: '0 auto 16px' }} />
 
         {/* Date header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
@@ -99,12 +217,190 @@ export function DayDetailSheet({ date, plan, activities, hrZones, onClose, onLog
         </div>
 
         {/* Planned session */}
-        {isPlanned && (
-          <section style={{ marginBottom: 20 }}>
-            <p className="section-title" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <section style={{ marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <p className="section-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
               <ClipboardText size={14} color="var(--color-secondary)" weight="bold" />
               Planned
             </p>
+            {isPlanned && !isEditingPlan && (
+              <button
+                type="button"
+                onClick={() => setIsEditingPlan(true)}
+                className="btn btn-ghost btn-sm"
+                style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', padding: '3px 8px' }}
+              >
+                <PencilSimple size={14} />
+                แก้ไขแผน
+              </button>
+            )}
+          </div>
+
+          {isEditingPlan ? (
+            <form onSubmit={handleSavePlan} className="card animate-fade-in" style={{
+              padding: '16px',
+              borderRadius: 16,
+              border: '2px solid var(--color-primary)',
+              background: 'var(--color-bg-card)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                <span style={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--color-foreground)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <PencilSimple size={16} color="var(--color-primary)" weight="bold" />
+                  {isPlanned ? 'แก้ไขแผนวิ่ง' : 'เพิ่มแผนวิ่งใหม่'}
+                </span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontFamily: "'Baloo 2', sans-serif" }}>
+                  {thaiDate(date)}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {/* Session Type & Distance */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 10 }}>
+                  <div>
+                    <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: 4 }}>ประเภทการวิ่ง</label>
+                    <select
+                      className="form-select"
+                      value={sessionType}
+                      onChange={(e) => setSessionType(e.target.value)}
+                      style={{ width: '100%' }}
+                    >
+                      {SESSION_TYPES.map(t => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: 4 }}>ระยะทาง (km)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      className="form-input"
+                      value={distanceKm}
+                      onChange={(e) => setDistanceKm(e.target.value)}
+                      placeholder="0.00"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                </div>
+
+                {/* Pace & HR Zone */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div>
+                    <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: 4 }}>Target Pace</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={paceTarget}
+                      onChange={(e) => setPaceTarget(e.target.value)}
+                      placeholder="เช่น 5:30/km"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: 4 }}>HR Zone</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={hrZone}
+                      onChange={(e) => setHrZone(e.target.value)}
+                      placeholder="เช่น Z2, Z3"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                </div>
+
+                {/* RPE & Phase */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div>
+                    <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: 4 }}>RPE (1-10)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="10"
+                      className="form-input"
+                      value={rpe}
+                      onChange={(e) => setRpe(e.target.value)}
+                      placeholder="ความเหนื่อย 1-10"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div>
+                    <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: 4 }}>Phase</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={phase}
+                      onChange={(e) => setPhase(e.target.value)}
+                      placeholder="เช่น Base, Build"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: 4 }}>รายละเอียดการฝึกซ้อม</label>
+                  <textarea
+                    className="form-input"
+                    rows={2}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="เช่น 8 x 400m พัก 90 วินาที"
+                    style={{ width: '100%', resize: 'vertical' }}
+                  />
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: 4 }}>บันทึกเพิ่มเติม (Notes)</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="หมายเหตุเพิ่มเติม"
+                    style={{ width: '100%' }}
+                  />
+                </div>
+
+                {/* Actions */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 8 }}>
+                  {plan?.id ? (
+                    <button
+                      type="button"
+                      onClick={handleDeletePlan}
+                      disabled={deleting || saving}
+                      className="btn btn-ghost btn-sm"
+                      style={{ color: '#EF4444', display: 'flex', alignItems: 'center', gap: 4 }}
+                    >
+                      <Trash size={15} />
+                      {deleting ? 'กำลังลบ...' : 'ลบแผน'}
+                    </button>
+                  ) : <div />}
+
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingPlan(false)}
+                      disabled={saving || deleting}
+                      className="btn btn-ghost btn-sm"
+                    >
+                      ยกเลิก
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={saving || deleting}
+                      className="btn btn-primary btn-sm"
+                      style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+                    >
+                      <FloppyDisk size={15} />
+                      {saving ? 'กำลังบันทึก...' : 'บันทึก'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </form>
+          ) : isPlanned ? (
             <div
               className="card"
               style={{ borderLeft: `3px solid ${color}`, background: `${color}10` }}
@@ -159,8 +455,30 @@ export function DayDetailSheet({ date, plan, activities, hrZones, onClose, onLog
                 </p>
               )}
             </div>
-          </section>
-        )}
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsEditingPlan(true)}
+              className="btn btn-ghost"
+              style={{
+                width: '100%',
+                border: '2px dashed var(--color-border)',
+                borderRadius: 14,
+                padding: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                color: 'var(--color-primary)',
+                fontWeight: 600,
+                fontSize: '0.875rem',
+              }}
+            >
+              <Plus size={16} weight="bold" />
+              เพิ่มแผนวิ่งสำหรับวันนี้
+            </button>
+          )}
+        </section>
 
         {/* Actual activities */}
         <section style={{ marginBottom: 20 }}>
@@ -171,7 +489,7 @@ export function DayDetailSheet({ date, plan, activities, hrZones, onClose, onLog
           {hasLogged ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {activities.map((a) => {
-                const actColor = getSessionColor(a.session_type);
+                const actColor = getSessionColor(a.session_type, theme);
                 return (
                   <div key={a.id} className="card" style={{ borderLeft: `3px solid ${actColor}` }}>
                     <div style={{ fontWeight: 600, fontSize: '0.9375rem' }}>{a.session_type}</div>

@@ -293,7 +293,11 @@ export default function PlanPage() {
                         style={{
                           background: sessionColor ?? '#6B7280',
                           color: getContrastColor(sessionColor ?? '#6B7280'),
-                          opacity: plan.completed ? 0.6 : 1,
+                          opacity: plan.completed ? 0.65 : 1,
+                          fontWeight: 700,
+                          boxShadow: theme === 'dark'
+                            ? '0 1px 4px rgba(0,0,0,0.5)'
+                            : '0 1px 3px rgba(0,0,0,0.12)',
                         }}
                         title={`${plan.session_type}${plan.distance_km ? ` - ${plan.distance_km}k` : ''}${plan.description ? `: ${plan.description}` : ''}`}
                       >
@@ -337,39 +341,73 @@ export default function PlanPage() {
           )}
 
           {/* Legend */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 14, paddingBottom: 4 }}>
-            {[
-              { label: 'Today', type: 'today' },
-              { label: 'Planned Session', type: 'plan-chip' },
-              { label: 'Actual Run', type: 'actual-chip' },
-              { label: 'Short of Target', type: 'short-chip' },
-              { label: 'Over Target', type: 'over-chip' },
-            ].map(({ label, type }) => (
-              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                {type === 'today' && <div style={{ width: 12, height: 12, borderRadius: 4, border: '2px solid var(--color-primary)' }} />}
-                {type === 'plan-chip' && (
-                  <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 4, background: theme === 'dark' ? '#00F3FF' : '#AED9F5', color: getContrastColor(theme === 'dark' ? '#00F3FF' : '#AED9F5'), fontWeight: 700, textTransform: 'uppercase' }}>
-                    Plan
+          <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8, paddingBottom: 4 }}>
+            {/* Workout Types Legend */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+              <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--color-text-subtle)', textTransform: 'uppercase', letterSpacing: '0.04em', marginRight: 2 }}>
+                Workout Types:
+              </span>
+              {[
+                { typeKey: 'Intervals', label: 'Interval' },
+                { typeKey: 'Tempo', label: 'Tempo' },
+                { typeKey: 'Easy Run', label: 'Easy' },
+                { typeKey: 'Long Run', label: 'Long Run' },
+                { typeKey: 'Recovery Run', label: 'Recovery' },
+                { typeKey: 'Strength', label: 'Strength' },
+                { typeKey: 'Rest', label: 'Rest' },
+              ].map(({ typeKey, label }) => {
+                const c = getSessionColor(typeKey, theme);
+                return (
+                  <div
+                    key={typeKey}
+                    style={{
+                      padding: '2px 7px',
+                      fontSize: '0.6875rem',
+                      borderRadius: 5,
+                      background: c,
+                      color: getContrastColor(c),
+                      fontWeight: 700,
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    {label}
                   </div>
-                )}
-                {type === 'actual-chip' && (
-                  <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 4, background: theme === 'dark' ? '#00FF85' : '#4ADE80', color: getContrastColor(theme === 'dark' ? '#00FF85' : '#4ADE80'), fontWeight: 700, textTransform: 'uppercase' }}>
-                    ✓ Run
-                  </div>
-                )}
-                {type === 'short-chip' && (
-                  <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 4, background: theme === 'dark' ? '#FF9800' : '#FB923C', color: getContrastColor(theme === 'dark' ? '#FF9800' : '#FB923C'), fontWeight: 700, textTransform: 'uppercase' }}>
-                    ↓ Short
-                  </div>
-                )}
-                {type === 'over-chip' && (
-                  <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 4, background: theme === 'dark' ? '#FF4D4D' : '#F87171', color: getContrastColor(theme === 'dark' ? '#FF4D4D' : '#F87171'), fontWeight: 700, textTransform: 'uppercase' }}>
-                    ↑ Over
-                  </div>
-                )}
-                <span>{label}</span>
-              </div>
-            ))}
+                );
+              })}
+            </div>
+
+            {/* Run Comparison Status Legend */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+              <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--color-text-subtle)', textTransform: 'uppercase', letterSpacing: '0.04em', marginRight: 2 }}>
+                Status:
+              </span>
+              {[
+                { label: 'Today', type: 'today' },
+                { label: 'Actual Run', type: 'actual-chip' },
+                { label: 'Short of Target', type: 'short-chip' },
+                { label: 'Over Target', type: 'over-chip' },
+              ].map(({ label, type }) => (
+                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                  {type === 'today' && <div style={{ width: 12, height: 12, borderRadius: 4, border: '2px solid var(--color-primary)' }} />}
+                  {type === 'actual-chip' && (
+                    <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 4, background: theme === 'dark' ? '#00FF85' : '#4ADE80', color: getContrastColor(theme === 'dark' ? '#00FF85' : '#4ADE80'), fontWeight: 700, textTransform: 'uppercase' }}>
+                      ✓ Run
+                    </div>
+                  )}
+                  {type === 'short-chip' && (
+                    <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 4, background: theme === 'dark' ? '#FF9800' : '#FB923C', color: getContrastColor(theme === 'dark' ? '#FF9800' : '#FB923C'), fontWeight: 700, textTransform: 'uppercase' }}>
+                      ↓ Short
+                    </div>
+                  )}
+                  {type === 'over-chip' && (
+                    <div style={{ padding: '1px 5px', fontSize: '0.55rem', borderRadius: 4, background: theme === 'dark' ? '#FF4D4D' : '#F87171', color: getContrastColor(theme === 'dark' ? '#FF4D4D' : '#F87171'), fontWeight: 700, textTransform: 'uppercase' }}>
+                      ↑ Over
+                    </div>
+                  )}
+                  <span>{label}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -489,6 +527,7 @@ export default function PlanPage() {
           onClose={() => setSelectedDate(null)}
           onLogRun={() => handleLogRun(selectedDate)}
           onToggleComplete={() => planByDate[selectedDate] && handleToggleComplete(planByDate[selectedDate])}
+          onPlanUpdated={fetchData}
           hrZones={hrZones}
         />
       )}
