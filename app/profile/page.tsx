@@ -999,18 +999,20 @@ export default function ProfilePage() {
                 <div style={{ width: '100%', height: 200 }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart
-                      data={inbodyHistory.map((item) => {
-                        let dateLabel = item.date;
-                        try {
-                          dateLabel = format(parseISO(item.date), 'dd/MM/yyyy');
-                        } catch (e) {}
-                        return {
-                          date: dateLabel,
-                          Weight: item.weight,
-                          SMM: item.smm,
-                          BFM: item.bfm,
-                        };
-                      })}
+                      data={[...inbodyHistory]
+                        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+                        .map((item) => {
+                          let dateLabel = item.date;
+                          try {
+                            dateLabel = format(parseISO(item.date), 'dd/MM/yyyy');
+                          } catch (e) {}
+                          return {
+                            date: dateLabel,
+                            Weight: item.weight,
+                            SMM: item.smm,
+                            BFM: item.bfm,
+                          };
+                        })}
                       margin={{ top: 5, right: 5, left: -25, bottom: 5 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-muted)" />

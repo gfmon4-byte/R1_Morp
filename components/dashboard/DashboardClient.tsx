@@ -253,7 +253,7 @@ export function DashboardClient({ profile, activities, hrZones }: Props) {
         </div>
 
         {/* Charts */}
-        <DashboardCharts activities={filtered} hrZones={hrZones} />
+        <DashboardCharts activities={filtered} allActivities={activities} hrZones={hrZones} />
 
         {/* Recent Activities */}
         <div style={{ marginTop: 24 }}>
