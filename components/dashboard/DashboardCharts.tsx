@@ -511,19 +511,19 @@ export function DashboardCharts({ activities, allActivities, hrZones }: Props) {
               </div>
 
               {/* Zone Cards List */}
-              <div style={{ flex: 1, minWidth: 220, display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <div style={{ flex: 1, minWidth: 220, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {zoneStats.zones.map((z) => (
                   <div
                     key={z.zone}
                     style={{
-                      padding: '7px 10px',
-                      borderRadius: 10,
-                      background: 'rgba(255,255,255,0.03)',
-                      border: '1px solid rgba(255,255,255,0.05)',
-                      borderLeft: `3.5px solid ${z.color}`,
+                      padding: '8px 12px',
+                      borderRadius: 12,
+                      background: 'var(--color-bg-elevated)',
+                      border: '1px solid var(--color-border-muted)',
+                      borderLeft: `4px solid ${z.color}`,
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: 5,
+                      gap: 6,
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
@@ -532,8 +532,8 @@ export function DashboardCharts({ activities, allActivities, hrZones }: Props) {
                           style={{
                             fontSize: '0.6875rem',
                             fontWeight: 800,
-                            padding: '1px 5px',
-                            borderRadius: 5,
+                            padding: '2px 6px',
+                            borderRadius: 6,
                             background: `${z.color}22`,
                             color: z.color,
                             fontFamily: "'Baloo 2', sans-serif",
@@ -541,7 +541,7 @@ export function DashboardCharts({ activities, allActivities, hrZones }: Props) {
                         >
                           {z.name}
                         </span>
-                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text)' }}>
+                        <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text)' }}>
                           {z.description}
                         </span>
                         <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>
@@ -552,7 +552,7 @@ export function DashboardCharts({ activities, allActivities, hrZones }: Props) {
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexShrink: 0 }}>
                         <span
                           style={{
-                            fontSize: '0.75rem',
+                            fontSize: '0.8125rem',
                             fontWeight: 700,
                             fontFamily: "'Baloo 2', sans-serif",
                             color: z.seconds > 0 ? 'var(--color-text)' : 'var(--color-text-muted)',
@@ -563,9 +563,9 @@ export function DashboardCharts({ activities, allActivities, hrZones }: Props) {
                         <span
                           style={{
                             fontSize: '0.6875rem',
-                            fontWeight: 600,
+                            fontWeight: 700,
                             color: z.seconds > 0 ? z.color : 'var(--color-text-muted)',
-                            minWidth: 32,
+                            minWidth: 34,
                             textAlign: 'right',
                           }}
                         >
@@ -578,9 +578,9 @@ export function DashboardCharts({ activities, allActivities, hrZones }: Props) {
                     <div
                       style={{
                         width: '100%',
-                        height: 3.5,
+                        height: 5,
                         borderRadius: 999,
-                        background: 'rgba(255,255,255,0.06)',
+                        background: 'var(--color-border-muted)',
                         overflow: 'hidden',
                       }}
                     >
