@@ -127,7 +127,7 @@ export function WorkoutDetailSection({ activities, hrZones }: Props) {
           setSelectedDate(newest);
           try {
             setCalendarMonth(parseISO(newest));
-          } catch {}
+          } catch { }
           fetchWorkoutDetails(newest, true);
         }
 
@@ -275,7 +275,7 @@ export function WorkoutDetailSection({ activities, hrZones }: Props) {
     setSelectedDate(latestDateWithActivity);
     try {
       setCalendarMonth(parseISO(latestDateWithActivity));
-    } catch {}
+    } catch { }
   };
 
   const summary = workoutData?.summary || {};
@@ -543,20 +543,20 @@ export function WorkoutDetailSection({ activities, hrZones }: Props) {
                     border: isSelected
                       ? '2px solid var(--color-primary)'
                       : isToday
-                      ? '1px solid var(--color-accent)'
-                      : hasRun
-                      ? '1px solid rgba(255,143,163,0.3)'
-                      : '1px solid transparent',
+                        ? '1px solid var(--color-accent)'
+                        : hasRun
+                          ? '1px solid rgba(255,143,163,0.3)'
+                          : '1px solid transparent',
                     background: isSelected
                       ? 'var(--color-primary)'
                       : hasRun
-                      ? 'rgba(255,143,163,0.08)'
-                      : 'transparent',
+                        ? 'rgba(255,143,163,0.08)'
+                        : 'transparent',
                     color: isSelected
                       ? '#FFFFFF'
                       : isToday
-                      ? 'var(--color-primary)'
-                      : 'var(--color-foreground)',
+                        ? 'var(--color-primary)'
+                        : 'var(--color-foreground)',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
@@ -641,7 +641,7 @@ export function WorkoutDetailSection({ activities, hrZones }: Props) {
                     setSelectedDate(dt);
                     try {
                       setCalendarMonth(parseISO(dt));
-                    } catch {}
+                    } catch { }
                   }}
                   style={{
                     padding: '3px 8px',
@@ -1163,18 +1163,31 @@ export function WorkoutDetailSection({ activities, hrZones }: Props) {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        marginBottom: 12,
-                        padding: '8px 12px',
+                        marginBottom: 10,
+                        padding: '10px 12px',
                         borderRadius: 10,
-                        background: 'rgba(255,143,163,0.1)',
+                        background: 'rgba(255,143,163,0.08)',
+                        gap: 8,
+                        flexWrap: 'wrap',
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-primary)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-primary)', fontFamily: "'Baloo 2', sans-serif" }}>
                           บันทึกทั้งหมด {laps.length} Laps
                         </span>
                         {fastestLapIndex && (
-                          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#059669' }}>
+                          <span
+                            style={{
+                              fontSize: '0.6875rem',
+                              fontWeight: 700,
+                              color: '#059669',
+                              background: 'rgba(16, 185, 129, 0.12)',
+                              border: '1px solid rgba(16, 185, 129, 0.25)',
+                              padding: '2px 8px',
+                              borderRadius: 100,
+                              fontFamily: "'Baloo 2', sans-serif",
+                            }}
+                          >
                             ⚡ Fastest: Lap {fastestLapIndex}
                           </span>
                         )}
@@ -1183,17 +1196,19 @@ export function WorkoutDetailSection({ activities, hrZones }: Props) {
                       <button
                         onClick={handleCopyCsv}
                         style={{
-                          display: 'flex',
+                          display: 'inline-flex',
                           alignItems: 'center',
-                          gap: 4,
-                          padding: '3px 10px',
-                          borderRadius: 6,
+                          gap: 5,
+                          padding: '5px 12px',
+                          borderRadius: 8,
                           fontSize: '0.6875rem',
                           fontWeight: 600,
                           color: copiedCsv ? '#059669' : 'var(--color-primary)',
                           background: 'var(--color-bg-surface)',
                           border: '1px solid rgba(255,143,163,0.3)',
                           cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
                         }}
                       >
                         {copiedCsv ? <Check size={12} weight="bold" /> : <Copy size={12} />}
@@ -1201,57 +1216,255 @@ export function WorkoutDetailSection({ activities, hrZones }: Props) {
                       </button>
                     </div>
 
-                    {/* Laps Table Container */}
-                    <div style={{ overflowX: 'auto' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8125rem' }}>
-                        <thead>
-                          <tr
-                            style={{
-                              borderBottom: '2px solid var(--color-border-muted)',
-                              textAlign: 'left',
-                              color: 'var(--color-text-muted)',
-                              fontFamily: "'Baloo 2', sans-serif",
-                            }}
-                          >
-                            <th style={{ padding: '8px 6px' }}>Lap</th>
-                            <th style={{ padding: '8px 6px' }}>Dist</th>
-                            <th style={{ padding: '8px 6px' }}>Time</th>
-                            <th style={{ padding: '8px 6px' }}>Pace</th>
-                            <th style={{ padding: '8px 6px' }}>Avg HR</th>
-                            <th style={{ padding: '8px 6px' }}>Cadence</th>
-                            <th style={{ padding: '8px 6px' }}>GCT</th>
-                            <th style={{ padding: '8px 6px' }}>Stride</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {laps.map((l: any, i: number) => {
-                            const isFastest = l.lap_index === fastestLapIndex;
-                            const distKm = l.distance_km != null ? Number(l.distance_km).toFixed(2) : (l.distance_meters ? (l.distance_meters / 1000).toFixed(2) : '--');
-                            return (
-                              <tr
-                                key={l.lap_index ?? i}
+                    {/* Laps Table Container (Mobile First) */}
+                    <div
+                      style={{
+                        position: 'relative',
+                        borderRadius: 12,
+                        border: '1px solid var(--color-border-muted)',
+                        background: 'var(--color-bg-surface)',
+                        overflow: 'hidden',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+                      }}
+                    >
+                      <div
+                        style={{
+                          overflowX: 'auto',
+                          WebkitOverflowScrolling: 'touch',
+                        }}
+                      >
+                        <table style={{ width: '100%', minWidth: 800, borderCollapse: 'collapse', fontSize: '0.8125rem' }}>
+                          <thead>
+                            <tr
+                              style={{
+                                borderBottom: '2px solid var(--color-border-muted)',
+                                color: 'var(--color-text-muted)',
+                                fontFamily: "'Baloo 2', sans-serif",
+                                background: 'rgba(255,143,163,0.04)',
+                              }}
+                            >
+                              <th
                                 style={{
-                                  borderBottom: '1px solid var(--color-border-muted)',
-                                  background: isFastest ? 'rgba(127,219,182,0.1)' : 'transparent',
+                                  padding: '10px 12px',
+                                  textAlign: 'left',
+                                  position: 'sticky',
+                                  left: 0,
+                                  zIndex: 3,
+                                  background: 'var(--color-bg-surface)',
+                                  boxShadow: '2px 0 4px rgba(0,0,0,0.03)',
+                                  width: 75,
+                                  minWidth: 75,
                                 }}
                               >
-                                <td style={{ padding: '8px 6px', fontWeight: 700, fontFamily: "'Baloo 2', sans-serif" }}>
-                                  {isFastest ? `⚡ Lap ${l.lap_index ?? i + 1}` : `Lap ${l.lap_index ?? i + 1}`}
-                                </td>
-                                <td style={{ padding: '8px 6px' }}>{distKm} km</td>
-                                <td style={{ padding: '8px 6px' }}>{l.duration_formatted || formatDuration(l.duration_seconds || 0)}</td>
-                                <td style={{ padding: '8px 6px', fontWeight: 600, color: 'var(--color-primary)' }}>
-                                  {l.avg_pace || '--'}
-                                </td>
-                                <td style={{ padding: '8px 6px' }}>{l.avg_hr ? `${Math.round(l.avg_hr)} bpm` : '--'}</td>
-                                <td style={{ padding: '8px 6px' }}>{l.avg_cadence ? `${Math.round(l.avg_cadence)} spm` : '--'}</td>
-                                <td style={{ padding: '8px 6px' }}>{l.avg_ground_contact_time_ms ? `${Math.round(l.avg_ground_contact_time_ms)}ms` : '--'}</td>
-                                <td style={{ padding: '8px 6px' }}>{l.avg_stride_length_m ? `${Number(l.avg_stride_length_m).toFixed(2)}m` : '--'}</td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
+                                Lap
+                              </th>
+                              <th style={{ padding: '10px 10px', textAlign: 'right', minWidth: 75 }}>Distance</th>
+                              <th style={{ padding: '10px 10px', textAlign: 'right', minWidth: 68 }}>Time</th>
+                              <th style={{ padding: '10px 10px', textAlign: 'right', minWidth: 72 }}>Pace</th>
+                              <th style={{ padding: '10px 10px', textAlign: 'center', minWidth: 92 }}>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                  <Heart size={12} weight="fill" style={{ color: '#EF4444' }} />
+                                  Avg HR
+                                </span>
+                              </th>
+                              <th style={{ padding: '10px 10px', textAlign: 'right', minWidth: 76 }}>Cadence</th>
+                              <th style={{ padding: '10px 10px', textAlign: 'right', minWidth: 70 }}>Stride</th>
+                              <th style={{ padding: '10px 10px', textAlign: 'right', minWidth: 70 }}>GCT</th>
+                              <th style={{ padding: '10px 10px', textAlign: 'right', minWidth: 88 }}>Elev</th>
+                              <th style={{ padding: '10px 10px', textAlign: 'right', minWidth: 76 }}>Calories</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {laps.map((l: any, i: number) => {
+                              const isFastest = l.lap_index === fastestLapIndex;
+                              const distKm = l.distance_km != null ? Number(l.distance_km).toFixed(2) : (l.distance_meters ? (l.distance_meters / 1000).toFixed(2) : '--');
+                              const rowBg = isFastest
+                                ? 'rgba(16, 185, 129, 0.08)'
+                                : i % 2 === 1
+                                  ? 'rgba(255, 143, 163, 0.02)'
+                                  : 'transparent';
+                              const stickyCellBg = isFastest
+                                ? '#F0FDF4'
+                                : 'var(--color-bg-surface)';
+
+                              return (
+                                <tr
+                                  key={l.lap_index ?? i}
+                                  style={{
+                                    borderBottom: '1px solid var(--color-border-muted)',
+                                    background: rowBg,
+                                    transition: 'background 0.15s ease',
+                                  }}
+                                >
+                                  {/* 1. Lap */}
+                                  <td
+                                    style={{
+                                      padding: '10px 12px',
+                                      fontWeight: 700,
+                                      fontFamily: "'Baloo 2', sans-serif",
+                                      position: 'sticky',
+                                      left: 0,
+                                      zIndex: 1,
+                                      background: stickyCellBg,
+                                      boxShadow: '2px 0 4px rgba(0,0,0,0.03)',
+                                      whiteSpace: 'nowrap',
+                                      color: isFastest ? '#059669' : 'var(--color-foreground)',
+                                    }}
+                                  >
+                                    {isFastest ? `⚡ Lap ${l.lap_index ?? i + 1}` : `Lap ${l.lap_index ?? i + 1}`}
+                                  </td>
+
+                                  {/* 2. Distance */}
+                                  <td style={{ padding: '10px 10px', textAlign: 'right', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                                    {distKm} <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>km</span>
+                                  </td>
+
+                                  {/* 3. Time */}
+                                  <td style={{ padding: '10px 10px', textAlign: 'right', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                                    {l.duration_formatted || formatDuration(l.duration_seconds || 0)}
+                                  </td>
+
+                                  {/* 4. Pace */}
+                                  <td style={{ padding: '10px 10px', textAlign: 'right', fontWeight: 700, color: 'var(--color-primary)', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                                    {l.avg_pace || '--'}
+                                  </td>
+
+                                  {/* 5. Avg HR */}
+                                  <td style={{ padding: '10px 10px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                    {l.avg_hr ? (
+                                      (() => {
+                                        const zInfo = getZoneForBpm(l.avg_hr, hrZonesData, hrZones);
+                                        return (
+                                          <div
+                                            style={{
+                                              display: 'inline-flex',
+                                              alignItems: 'center',
+                                              justifyContent: 'center',
+                                              gap: 5,
+                                            }}
+                                            title={
+                                              zInfo
+                                                ? `Zone ${zInfo.zoneNumber}: ${zInfo.name} - ${Math.round(l.avg_hr)} bpm`
+                                                : `${Math.round(l.avg_hr)} bpm`
+                                            }
+                                          >
+                                            {/* Colored dot icon indicating HR Zone */}
+                                            <span
+                                              style={{
+                                                width: 8,
+                                                height: 8,
+                                                borderRadius: '50%',
+                                                backgroundColor: zInfo?.color || '#94A3B8',
+                                                display: 'inline-block',
+                                                flexShrink: 0,
+                                                boxShadow: zInfo ? `0 0 0 2px ${zInfo.color}33, 0 0 5px ${zInfo.color}90` : 'none',
+                                              }}
+                                            />
+                                            <span style={{ fontWeight: 700, fontFamily: "'Baloo 2', sans-serif", fontSize: '0.8125rem', fontVariantNumeric: 'tabular-nums' }}>
+                                              {Math.round(l.avg_hr)}
+                                            </span>
+                                            <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>
+                                              bpm
+                                            </span>
+                                          </div>
+                                        );
+                                      })()
+                                    ) : (
+                                      <span style={{ color: 'var(--color-text-muted)' }}>--</span>
+                                    )}
+                                  </td>
+
+                                  {/* 6. Cadence */}
+                                  <td style={{ padding: '10px 10px', textAlign: 'right', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                                    {l.avg_cadence ? (
+                                      <>
+                                        {Math.round(l.avg_cadence)}{' '}
+                                        <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>spm</span>
+                                      </>
+                                    ) : (
+                                      '--'
+                                    )}
+                                  </td>
+
+                                  {/* 7. Stride */}
+                                  <td style={{ padding: '10px 10px', textAlign: 'right', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                                    {l.avg_stride_length_m ? (
+                                      <>
+                                        {Number(l.avg_stride_length_m).toFixed(2)}{' '}
+                                        <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>m</span>
+                                      </>
+                                    ) : (
+                                      '--'
+                                    )}
+                                  </td>
+
+                                  {/* 8. GCT */}
+                                  <td style={{ padding: '10px 10px', textAlign: 'right', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                                    {l.avg_ground_contact_time_ms ? (
+                                      <>
+                                        {Math.round(l.avg_ground_contact_time_ms)}{' '}
+                                        <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>ms</span>
+                                      </>
+                                    ) : (
+                                      '--'
+                                    )}
+                                  </td>
+
+                                  {/* 9. Elev Gain/Loss (Net sum single number) */}
+                                  <td style={{ padding: '10px 10px', textAlign: 'right', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                                    {(() => {
+                                      if (l.elevation_gain_m == null && l.elevation_loss_m == null) return '--';
+                                      const gain = Math.round(Number(l.elevation_gain_m) || 0);
+                                      const loss = Math.round(Number(l.elevation_loss_m) || 0);
+                                      const net = gain - loss;
+                                      const color = net > 0 ? '#059669' : net < 0 ? '#EF4444' : 'var(--color-text-muted)';
+                                      const sign = net > 0 ? '+' : '';
+                                      return (
+                                        <span
+                                          style={{ color, fontWeight: 600 }}
+                                          title={`Gain: +${gain}m, Loss: -${loss}m`}
+                                        >
+                                          {sign}{net}{' '}
+                                          <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>
+                                            m
+                                          </span>
+                                        </span>
+                                      );
+                                    })()}
+                                  </td>
+
+                                  {/* 10. Calories */}
+                                  <td style={{ padding: '10px 10px', textAlign: 'right', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                                    {l.calories != null ? (
+                                      <>
+                                        {Math.round(l.calories)}{' '}
+                                        <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>kcal</span>
+                                      </>
+                                    ) : (
+                                      '--'
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Mobile swipe hint */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '6px 4px 0',
+                        fontSize: '0.6875rem',
+                        color: 'var(--color-text-muted)',
+                      }}
+                    >
+                      <span>← เลื่อนตารางแนวนอนเพื่อดูข้อมูล Dynamics & Elevation →</span>
+                      <span>{laps.length} Laps</span>
                     </div>
                   </div>
                 )}
@@ -1286,14 +1499,7 @@ export function WorkoutDetailSection({ activities, hrZones }: Props) {
                       {hrZonesData.map((z: any) => {
                         const pct = Number(z.percentage) || 0;
                         if (pct <= 0) return null;
-                        const zColors: Record<number, string> = {
-                          1: 'var(--zone-1)',
-                          2: 'var(--zone-2)',
-                          3: 'var(--zone-3)',
-                          4: 'var(--zone-4)',
-                          5: 'var(--zone-5)',
-                        };
-                        const color = zColors[z.zone_number] || 'var(--color-primary)';
+                        const color = GARMIN_HR_ZONE_CONFIG[z.zone_number]?.color || '#94A3B8';
                         return (
                           <div
                             key={z.zone_number}
@@ -1311,14 +1517,7 @@ export function WorkoutDetailSection({ activities, hrZones }: Props) {
                     {/* Zone List Breakdown */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {hrZonesData.map((z: any) => {
-                        const zColors: Record<number, string> = {
-                          1: 'var(--zone-1)',
-                          2: 'var(--zone-2)',
-                          3: 'var(--zone-3)',
-                          4: 'var(--zone-4)',
-                          5: 'var(--zone-5)',
-                        };
-                        const color = zColors[z.zone_number] || 'var(--color-primary)';
+                        const color = GARMIN_HR_ZONE_CONFIG[z.zone_number]?.color || '#94A3B8';
                         const pct = Number(z.percentage) || 0;
                         return (
                           <div
@@ -1335,7 +1534,18 @@ export function WorkoutDetailSection({ activities, hrZones }: Props) {
                             }}
                           >
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <span
+                                  style={{
+                                    width: 8,
+                                    height: 8,
+                                    borderRadius: '50%',
+                                    backgroundColor: color,
+                                    display: 'inline-block',
+                                    boxShadow: `0 0 5px ${color}80`,
+                                    flexShrink: 0,
+                                  }}
+                                />
                                 <span
                                   style={{
                                     fontWeight: 700,
@@ -1486,6 +1696,112 @@ function MetricCard({
       )}
     </div>
   );
+}
+
+export interface HRZoneInfo {
+  zoneNumber: number;
+  color: string;
+  bg: string;
+  border: string;
+  label: string;
+  name: string;
+}
+
+export const GARMIN_HR_ZONE_CONFIG: Record<
+  number,
+  { color: string; bg: string; border: string; name: string }
+> = {
+  1: {
+    color: '#94A3B8', // Zone 1 Slate / Warm Up
+    bg: 'rgba(148, 163, 184, 0.15)',
+    border: 'rgba(148, 163, 184, 0.35)',
+    name: 'Warm Up',
+  },
+  2: {
+    color: '#38BDF8', // Zone 2 Sky Blue / Easy
+    bg: 'rgba(56, 189, 248, 0.15)',
+    border: 'rgba(56, 189, 248, 0.35)',
+    name: 'Easy',
+  },
+  3: {
+    color: '#10B981', // Zone 3 Emerald Green / Aerobic
+    bg: 'rgba(16, 185, 129, 0.15)',
+    border: 'rgba(16, 185, 129, 0.35)',
+    name: 'Aerobic',
+  },
+  4: {
+    color: '#F59E0B', // Zone 4 Amber Orange / Threshold
+    bg: 'rgba(245, 158, 11, 0.15)',
+    border: 'rgba(245, 158, 11, 0.35)',
+    name: 'Threshold',
+  },
+  5: {
+    color: '#EF4444', // Zone 5 Rose Red / Maximum
+    bg: 'rgba(239, 68, 68, 0.15)',
+    border: 'rgba(239, 68, 68, 0.35)',
+    name: 'Maximum',
+  },
+};
+
+function getZoneForBpm(
+  bpm: number | null | undefined,
+  garminHrZones?: any[],
+  profileHrZones?: HRZone[]
+): HRZoneInfo | null {
+  if (!bpm || bpm <= 0) return null;
+
+  // 1. Check Garmin activity HR zones if available (exact boundaries for this workout)
+  if (garminHrZones && garminHrZones.length > 0) {
+    const valid = garminHrZones.filter((z) => (z.min_bpm != null || z.zoneLowBoundary != null));
+    if (valid.length > 0) {
+      const sorted = [...valid].sort(
+        (a, b) => (b.min_bpm ?? b.zoneLowBoundary ?? 0) - (a.min_bpm ?? a.zoneLowBoundary ?? 0)
+      );
+      for (const z of sorted) {
+        const threshold = z.min_bpm ?? z.zoneLowBoundary;
+        if (threshold != null && bpm >= threshold) {
+          const zNum = z.zone_number ?? z.zoneNumber ?? 1;
+          const conf = GARMIN_HR_ZONE_CONFIG[zNum] || GARMIN_HR_ZONE_CONFIG[1];
+          return {
+            zoneNumber: zNum,
+            color: conf.color,
+            bg: conf.bg,
+            border: conf.border,
+            label: `Z${zNum}`,
+            name: conf.name,
+          };
+        }
+      }
+    }
+  }
+
+  // 2. Check Profile HR zones
+  if (profileHrZones && profileHrZones.length > 0) {
+    const sorted = [...profileHrZones].sort((a, b) => b.minBpm - a.minBpm);
+    for (const z of sorted) {
+      if (bpm >= z.minBpm) {
+        const conf = GARMIN_HR_ZONE_CONFIG[z.zone] || GARMIN_HR_ZONE_CONFIG[1];
+        return {
+          zoneNumber: z.zone,
+          color: conf.color,
+          bg: conf.bg,
+          border: conf.border,
+          label: z.label || `Z${z.zone}`,
+          name: z.description || conf.name,
+        };
+      }
+    }
+  }
+
+  const conf = GARMIN_HR_ZONE_CONFIG[1];
+  return {
+    zoneNumber: 1,
+    color: conf.color,
+    bg: conf.bg,
+    border: conf.border,
+    label: 'Z1',
+    name: conf.name,
+  };
 }
 
 function DetailRow({ label, val, sub }: { label: string; val: string; sub?: string }) {

@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { Lightning, CalendarBlank } from '@phosphor-icons/react';
 import { DashboardCharts } from './DashboardCharts';
 import { WorkoutDetailSection } from './WorkoutDetailSection';
-import { formatPace, formatDuration, thaiDate, getSessionColor, thaiToday } from '@/lib/utils';
+import { formatPace, thaiToday } from '@/lib/utils';
 import type { Activity, Profile } from '@/lib/supabase';
 import type { HRZone } from '@/lib/hrZones';
 import { parseISO, differenceInCalendarDays } from 'date-fns';
@@ -100,8 +100,6 @@ export function DashboardClient({ profile, activities, hrZones }: Props) {
         .filter((a) => a.date && new Date(a.date) >= weekStart)
         .reduce((sum, a) => sum + (a.distance_km || 0), 0);
   const periodLabel = selectedMonth !== null ? 'Month Total' : 'This Week';
-
-  const recentActivities = filtered.slice(0, 6);
 
   return (
     <div>
@@ -259,22 +257,6 @@ export function DashboardClient({ profile, activities, hrZones }: Props) {
         {/* Charts */}
         <DashboardCharts activities={filtered} allActivities={activities} hrZones={hrZones} />
 
-        {/* Recent Activities */}
-        <div style={{ marginTop: 24 }}>
-          <p className="section-title">Recent Activities</p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {recentActivities.length === 0 ? (
-              <div className="card" style={{ textAlign: 'center', padding: 32, color: 'var(--color-text-muted)' }}>
-                No activities for this period.
-              </div>
-            ) : (
-              recentActivities.map((activity) => (
-                <RecentActivityRow key={activity.id} activity={activity} />
-              ))
-            )}
-          </div>
-        </div>
-
         <div style={{ height: 16 }} />
       </div>
     </div>
@@ -299,42 +281,6 @@ function StatCard({ label, value, unit, color }: { label: string; value: string;
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
         <span className="stat-value">{value}</span>
         {unit && <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>{unit}</span>}
-      </div>
-    </div>
-  );
-}
-
-function RecentActivityRow({ activity }: { activity: Activity }) {
-  const color = getSessionColor(activity.session_type);
-  return (
-    <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px' }}>
-      <div
-        style={{
-          width: 36, height: 36, borderRadius: 10,
-          background: `${color}20`, border: `1px solid ${color}40`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          flexShrink: 0,
-        }}
-      >
-        <span style={{ fontSize: '0.625rem', fontWeight: 700, color, fontFamily: "'Baloo 2', sans-serif", letterSpacing: '0.03em' }}>
-          {activity.session_type.split(' ').map((w: string) => w[0]).join('').slice(0, 3).toUpperCase()}
-        </span>
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 600, fontSize: '0.9375rem', color: 'var(--color-foreground)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {activity.session_type}
-        </div>
-        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: 1 }}>
-          {thaiDate(activity.date)} {activity.route_name ? `· ${activity.route_name}` : ''}
-        </div>
-      </div>
-      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-        <div style={{ fontFamily: "'Baloo 2', sans-serif", fontWeight: 700, fontSize: '1.125rem', color: 'var(--color-foreground)' }}>
-          {activity.distance_km > 0 ? `${activity.distance_km.toFixed(1)} km` : formatDuration(activity.duration_seconds)}
-        </div>
-        <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-          {activity.avg_pace_sec_per_km ? formatPace(activity.avg_pace_sec_per_km) : formatDuration(activity.duration_seconds)}
-        </div>
       </div>
     </div>
   );
