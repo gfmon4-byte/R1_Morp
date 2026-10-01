@@ -67,6 +67,17 @@ export interface Activity {
   route_name: string | null;
   garmin_activity_id?: string | null;
   title?: string | null;
+  activity_type?: string | null;
+  calories?: number | null;
+  avg_cadence?: number | null;
+  max_cadence?: number | null;
+  avg_stride_length?: number | null;
+  avg_vertical_oscillation?: number | null;
+  avg_vertical_ratio?: number | null;
+  avg_ground_contact_time?: number | null;
+  steps?: number | null;
+  body_battery_drain?: number | null;
+  run_type?: string | null;
   created_at: string;
   updated_at: string;
 }

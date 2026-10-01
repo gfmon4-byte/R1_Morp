@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { Lightning, CalendarBlank } from '@phosphor-icons/react';
 import { DashboardCharts } from './DashboardCharts';
+import { WorkoutDetailSection } from './WorkoutDetailSection';
 import { formatPace, formatDuration, thaiDate, getSessionColor, thaiToday } from '@/lib/utils';
 import type { Activity, Profile } from '@/lib/supabase';
 import type { HRZone } from '@/lib/hrZones';
@@ -251,6 +252,9 @@ export function DashboardClient({ profile, activities, hrZones }: Props) {
           <StatCard label="Avg Pace" value={avgPace > 0 ? formatPace(avgPace) : '—'} unit="" color="#FBBF24" />
           <StatCard label={periodLabel} value={`${periodKm.toFixed(1)}`} unit="km" color="#60A5FA" />
         </div>
+
+        {/* Workout Details & Interactive Calendar (Overview, Splits/Lap, HR Zones) */}
+        <WorkoutDetailSection activities={activities} hrZones={hrZones} />
 
         {/* Charts */}
         <DashboardCharts activities={filtered} allActivities={activities} hrZones={hrZones} />

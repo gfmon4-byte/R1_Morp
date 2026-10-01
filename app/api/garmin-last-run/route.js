@@ -490,7 +490,7 @@ async function getAvailableSessionsList() {
     );
 
     const allActsRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/activities?select=id,date,distance,title&order=date.desc&limit=150`,
+      `${SUPABASE_URL}/rest/v1/activities?select=id,date,distance_km,title,session_type&order=date.desc&limit=150`,
       {
         headers: {
           apikey: SUPABASE_KEY,
@@ -511,18 +511,18 @@ async function getAvailableSessionsList() {
 
     for (const dt of savedDateSet) {
       if (!byDate[dt]) {
-        byDate[dt] = [{ distance: 0, title: 'Running Session' }];
+        byDate[dt] = [{ distance_km: 0, title: 'Running Session' }];
       }
     }
 
     const availableSessions = Object.keys(byDate)
       .sort()
       .reverse()
-      .slice(0, 40)
+      .slice(0, 60)
       .map((dt) => {
         const dayItems = byDate[dt];
         const count = dayItems.length;
-        const totKm = Math.round(dayItems.reduce((acc, x) => acc + (parseFloat(x.distance) || 0), 0) * 100) / 100;
+        const totKm = Math.round(dayItems.reduce((acc, x) => acc + (parseFloat(x.distance_km || x.distance) || 0), 0) * 100) / 100;
         const isSaved = savedDateSet.has(dt);
         const label = `${dt}: ${totKm > 0 ? `${totKm} km` : 'Session'} (${count} ${count > 1 ? 'runs' : 'run'}) ${isSaved ? '[In DB]' : '[Garmin]'}`;
         return {
@@ -865,6 +865,117 @@ async function persistToSupabase(data) {
     }
   } catch (e) {
     console.error('Error persisting activity details to Supabase activity_details:', e);
+  }
+}
+
+/**
+ * Fallback to construct session data from Supabase `activities` table
+ */
+async function getSessionFromActivitiesTable(targetDate) {
+  if (!SUPABASE_URL || !SUPABASE_KEY || !targetDate) return null;
+
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/activities?date=eq.${targetDate}&order=created_at.asc`,
+      {
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+        },
+      }
+    );
+    if (!res.ok) return null;
+    const rows = await res.json();
+    if (!rows || rows.length === 0) return null;
+    const row = rows[0];
+
+    const durSec = row.duration_seconds || 0;
+    const distKm = Number(row.distance_km) || 0;
+    const paceSec = row.avg_pace_sec_per_km;
+    const avgPace = paceSec
+      ? `${Math.floor(paceSec / 60)}:${String(Math.round(paceSec % 60)).padStart(2, '0')}`
+      : '--';
+    const avgSpd = paceSec && paceSec > 0 ? Math.round((3600 / paceSec) * 10) / 10 : null;
+
+    const breakdown = row.hr_zone_breakdown || {};
+    const totalZoneSecs =
+      Object.values(breakdown).reduce((acc, v) => acc + (Number(v) || 0), 0) || durSec || 1;
+    const zoneNames = {
+      Z1: 'Warm Up (Zone 1)',
+      Z2: 'Easy / Fat Burn (Zone 2)',
+      Z3: 'Aerobic (Zone 3)',
+      Z4: 'Threshold (Zone 4)',
+      Z5: 'Maximum (Zone 5)',
+    };
+    const hr_zones = ['Z1', 'Z2', 'Z3', 'Z4', 'Z5'].map((zKey, idx) => {
+      const secs = Number(breakdown[zKey]) || 0;
+      const pct = Math.round((secs / totalZoneSecs) * 1000) / 10;
+      return {
+        zone_number: idx + 1,
+        zone_name: zoneNames[zKey] || `Zone ${idx + 1}`,
+        seconds_in_zone: secs,
+        duration_formatted: fmtDuration(secs),
+        percentage: pct,
+        min_bpm: null,
+      };
+    });
+
+    const availableSessions = await getAvailableSessionsList();
+
+    return {
+      status: 'success',
+      is_multi_session: false,
+      session_date: row.date,
+      session_activities_count: 1,
+      activity_id: row.garmin_activity_id || row.id,
+      activity_name: row.title || row.route_name || row.session_type || 'Running Workout',
+      activity_type: (row.activity_type || row.session_type || 'running').toLowerCase(),
+      start_time_local: `${row.date}T06:00:00.0`,
+      start_time_gmt: `${row.date}T00:00:00.0`,
+      location_name: row.route_name || 'Thailand',
+      garmin_connect_url: row.garmin_activity_id
+        ? `https://connect.garmin.com/modern/activity/${row.garmin_activity_id}`
+        : null,
+      summary: {
+        distance_km: distKm,
+        distance_meters: Math.round(distKm * 1000),
+        duration_seconds: durSec,
+        duration_formatted: fmtDuration(durSec),
+        moving_duration_seconds: durSec,
+        moving_duration_formatted: fmtDuration(durSec),
+        elapsed_duration_seconds: durSec,
+        elapsed_duration_formatted: fmtDuration(durSec),
+        avg_pace: avgPace,
+        best_pace: '--',
+        avg_speed_kph: avgSpd,
+        max_speed_kph: null,
+        avg_hr: row.avg_hr,
+        max_hr: row.max_hr,
+        min_hr: null,
+        calories: row.calories,
+        steps: row.steps,
+        avg_cadence: row.avg_cadence,
+        max_cadence: row.max_cadence,
+        avg_stride_length_m: row.avg_stride_length,
+        avg_ground_contact_time_ms: row.avg_ground_contact_time,
+        avg_vertical_oscillation_cm: row.avg_vertical_oscillation,
+        avg_vertical_ratio_percent: row.avg_vertical_ratio,
+        elevation_gain_m: row.elevation_gain_m || 0,
+        elevation_loss_m: 0,
+        body_battery_drain: row.body_battery_drain,
+        training_effect_label: row.session_type || 'Run',
+        aerobic_training_effect: null,
+        anaerobic_training_effect: null,
+      },
+      parts: [],
+      laps: [],
+      hr_zones,
+      available_sessions: availableSessions,
+      source: 'supabase_activities',
+    };
+  } catch (e) {
+    console.error('Error in getSessionFromActivitiesTable:', e);
+    return null;
   }
 }
 
@@ -1228,10 +1339,16 @@ export async function GET(request) {
   } catch (err) {
     console.error('Error fetching Garmin Details in Node.js:', err);
 
-    // Fallback: check if we have any session in Supabase if live Garmin call failed
+    // Fallback 1: check if we have any session in Supabase activity_details
     const fallbackDb = await getSessionFromSupabase(targetDate);
     if (fallbackDb) {
       return Response.json(fallbackDb);
+    }
+
+    // Fallback 2: check if we have this date in Supabase activities table
+    const fallbackActs = await getSessionFromActivitiesTable(targetDate);
+    if (fallbackActs) {
+      return Response.json(fallbackActs);
     }
 
     return Response.json(
@@ -1257,6 +1374,17 @@ export async function POST(request) {
     return Response.json(garminData);
   } catch (err) {
     console.error('Error in POST garmin-last-run:', err);
+
+    const fallbackDb = await getSessionFromSupabase(targetDate);
+    if (fallbackDb) {
+      return Response.json(fallbackDb);
+    }
+
+    const fallbackActs = await getSessionFromActivitiesTable(targetDate);
+    if (fallbackActs) {
+      return Response.json(fallbackActs);
+    }
+
     return Response.json(
       {
         status: 'error',
