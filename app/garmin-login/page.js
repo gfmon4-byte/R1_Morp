@@ -158,7 +158,7 @@ export default function GarminLoginPage() {
       const res = await fetch('/api/garmin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), password }),
+        body: JSON.stringify({ action: 'login', email: email.trim(), password }),
       });
 
       let data = {};
@@ -169,8 +169,8 @@ export default function GarminLoginPage() {
         throw new Error(`Server returned HTTP ${res.status}`);
       }
 
-      if (data.needs_mfa) {
-        setSessionId(data.session_id);
+      if (data.needs_mfa || data.needsMfa) {
+        setSessionId(data.session_id || data.mfaState);
         setMfaPromptMsg(data.message || 'MFA code sent to your email / authenticator app');
         setMfaCode('');
       } else if (data.success) {
@@ -207,8 +207,11 @@ export default function GarminLoginPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          action: 'mfa',
           session_id: sessionId,
+          mfaState: sessionId,
           otp_code: mfaCode.trim(),
+          code: mfaCode.trim(),
         }),
       });
 

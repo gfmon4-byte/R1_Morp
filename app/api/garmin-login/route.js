@@ -128,7 +128,9 @@ export async function POST(request) {
         return Response.json({
           success: true,
           needsMfa: true,
+          needs_mfa: true,
           mfaState: res.data.mfa_state,
+          session_id: res.data.mfa_state,
           message: res.data.message || 'Garmin 2FA verification required.',
         });
       }
@@ -137,6 +139,7 @@ export async function POST(request) {
         return Response.json({
           success: true,
           needsMfa: false,
+          needs_mfa: false,
           message: res.data.message || 'Logged in successfully! Tokens stored to database.',
           displayName: res.data.display_name,
           expiresAt: res.data.expires_at,
@@ -150,8 +153,9 @@ export async function POST(request) {
     }
 
     // ── 2. Action: Verify 6-digit MFA Code ───────────────────────────────────
-    if (action === 'mfa') {
-      const { mfaState, code } = body;
+    if (action === 'mfa' || body.otp_code) {
+      const mfaState = body.mfaState || body.session_id;
+      const code = body.code || body.otp_code;
       if (!code || !mfaState) {
         return Response.json(
           { success: false, error: 'MFA state and 6-digit verification code are required' },
@@ -159,7 +163,7 @@ export async function POST(request) {
         );
       }
 
-      const res = await runPythonAuth({ action: 'mfa', mfa_state: mfaState, code: code.trim() });
+      const res = await runPythonAuth({ action: 'mfa', mfa_state: mfaState, code: String(code).trim() });
       if (res.data?.status === 'success') {
         return Response.json({
           success: true,
