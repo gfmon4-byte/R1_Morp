@@ -667,25 +667,22 @@ export async function POST(request) {
     const supabase = getServerSupabase();
 
     if (supabase) {
-      // 1. Fetch current profile to ensure we never overwrite weight/OCR body composition
+      // 1. Fetch current profile from profiles table (R1_Morp)
       const { data: existingProfiles } = await supabase
-        .from('user_profile')
+        .from('profiles')
         .select('*')
-        .eq('id', '1')
+        .eq('id', 1)
         .limit(1);
 
       const existing = (existingProfiles && existingProfiles[0]) || {};
-
       const vo2ToSave = data.vo2max != null ? data.vo2max : existing.vo2max;
 
-      // Prepare updates - STRICTLY EXCLUDE weight_kg, muscle_kg, body_fat_pct, etc.
+      // Prepare updates - strictly preserve weight, inbody and custom settings
       const updates = {
-        id: '1',
-        age: data.age !== null && data.age !== undefined ? data.age : existing.age,
-        gender: data.gender || existing.gender || 'M',
-        height_cm: data.height_cm || existing.height_cm,
+        id: 1,
         vo2max: vo2ToSave,
-        resting_hr: data.resting_hr || existing.resting_hr,
+        hr_rest: data.resting_hr || existing.hr_rest || existing.resting_hr,
+        fitness_age: data.fitness_age || existing.fitness_age,
         fitness_age_data: {
           ...(data.fitness_age_components || existing.fitness_age_data || {}),
           fr970: {
@@ -697,41 +694,28 @@ export async function POST(request) {
             synced_at: data.synced_at,
           },
         },
-        lactate_threshold_pace: data.running_ftp?.lt_pace || existing.lactate_threshold_pace,
         garmin_device: data.device ?? existing.garmin_device,
         garmin_prs: data.prs ?? existing.garmin_prs,
         garmin_gear: data.shoes ?? existing.garmin_gear,
         garmin_daily_steps: data.daily_steps ?? existing.garmin_daily_steps,
         garmin_body_battery: data.body_battery ?? existing.garmin_body_battery,
-        garmin_sleep: data.sleep ?? existing.garmin_sleep,
-        garmin_metrics_history: data.metrics_history ?? existing.garmin_metrics_history,
         last_garmin_sync: data.synced_at || new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
 
       let { error: upsertErr } = await supabase
-        .from('user_profile')
-        .upsert(updates);
-
-      if (upsertErr && (upsertErr.message?.includes('integer') || upsertErr.code === '22P02')) {
-        // If DB user_profile.vo2max column is still INTEGER type, round it for user_profile table
-        updates.vo2max = vo2ToSave != null ? Math.round(vo2ToSave) : null;
-        const retryRes = await supabase.from('user_profile').upsert(updates);
-        upsertErr = retryRes.error;
-      }
+        .from('profiles')
+        .upsert(updates, { onConflict: 'id' });
 
       if (upsertErr) {
-        console.warn('Supabase upsert with full columns failed, falling back to basic columns:', upsertErr.message);
+        console.warn('Supabase upsert to profiles failed, trying basic columns:', upsertErr.message);
         const basicUpdates = {
-          id: '1',
-          age: data.age !== null && data.age !== undefined ? data.age : existing.age,
-          gender: data.gender || existing.gender || 'M',
-          height_cm: data.height_cm || existing.height_cm,
+          id: 1,
           vo2max: data.vo2max || existing.vo2max,
-          resting_hr: data.resting_hr || existing.resting_hr,
+          hr_rest: data.resting_hr || existing.hr_rest,
           updated_at: new Date().toISOString(),
         };
-        const { error: fallbackErr } = await supabase.from('user_profile').upsert(basicUpdates);
+        const { error: fallbackErr } = await supabase.from('profiles').upsert(basicUpdates, { onConflict: 'id' });
         if (fallbackErr) console.error('Supabase fallback upsert error:', fallbackErr.message);
       }
 

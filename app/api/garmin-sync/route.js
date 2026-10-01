@@ -82,22 +82,34 @@ function activityToDbRow(act) {
     TYPE_MAP[typeKey] ||
     typeKey.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   const distM = act.distance || 0;
+  const distKm = distM ? Math.round((distM / 1000) * 100) / 100 : 0;
   const bb = act.bodyBatteryDrainedDuringActivity || act.differenceBodyBattery;
+  const secsPerKm = act.averageSpeed && act.averageSpeed > 0
+    ? Math.round(1000 / act.averageSpeed)
+    : null;
+
+  const dateStr = act.startTimeGMT
+    ? act.startTimeGMT.slice(0, 10)
+    : act.startTimeLocal
+      ? act.startTimeLocal.slice(0, 10)
+      : new Date().toISOString().slice(0, 10);
 
   return {
-    id: String(act.activityId || ""),
-    activity_type: actType,
-    date: act.startTimeGMT
-      ? act.startTimeGMT.slice(0, 19).replace(" ", "T") + "Z"
-      : act.startTimeLocal
-        ? act.startTimeLocal.slice(0, 19).replace(" ", "T") + "+07:00"
-        : "",
-    title: act.activityName || "",
-    distance: distM ? Math.round((distM / 1000) * 100) / 100 : null,
-    calories: toInt(act.calories),
-    duration_seconds: toInt(act.duration),
+    garmin_activity_id: String(act.activityId || ""),
+    date: dateStr,
+    session_type: actType === "Treadmill Running" ? "Treadmill" : "Easy Run",
+    distance_km: distKm,
+    duration_seconds: toInt(act.duration) || 0,
+    avg_pace_sec_per_km: secsPerKm,
     avg_hr: toInt(act.averageHR),
     max_hr: toInt(act.maxHR),
+    elevation_gain_m: toInt(act.elevationGain) || 0,
+    route_name: act.activityName || "",
+    // Extra fields
+    activity_type: actType,
+    title: act.activityName || "",
+    distance: distKm,
+    calories: toInt(act.calories),
     avg_cadence: toInt(
       act.averageRunningCadenceInStepsPerMinute ||
         act.averageBikingCadenceInRevPerMinute
@@ -261,47 +273,46 @@ function paceToSeconds(paceString) {
 }
 
 function classifyRun(activity) {
-  const { activity_type, distance, avg_pace, avg_hr, title } = activity;
-  if (activity_type === "Treadmill Running") return "treadmill";
+  const { activity_type, distance_km, avg_pace_sec_per_km, avg_hr, title } = activity;
+  if (activity_type === "Treadmill Running") return "Treadmill";
 
-  const dist = parseFloat(distance) || 0;
-  const paceS = paceToSeconds(avg_pace);
+  const dist = parseFloat(distance_km) || 0;
+  const paceS = avg_pace_sec_per_km || 0;
   const hr = parseInt(avg_hr, 10) || 0;
 
-  const RACE_LOCATIONS = ["Khlong Luang", "Phra Nakhon"];
-  if (RACE_LOCATIONS.some((loc) => title?.includes(loc))) return "tempo";
-  if (paceS > 0 && paceS < 245 && hr >= 170) return "tempo";
-  if (dist >= 15 && paceS >= 270) return "long_run";
-  if (dist >= 4 && paceS > 0 && paceS <= 300 && hr >= 155) return "tempo";
-  if (dist >= 14) return "long_run";
-  return "easy";
+  const RACE_LOCATIONS = ["Khlong Luang", "Phra Nakhon", "Marathon", "10K", "21K"];
+  if (RACE_LOCATIONS.some((loc) => title?.toLowerCase().includes(loc.toLowerCase()))) return "Race";
+  if (paceS > 0 && paceS < 245 && hr >= 170) return "Tempo";
+  if (dist >= 15 && paceS >= 270) return "Long Run";
+  if (dist >= 4 && paceS > 0 && paceS <= 300 && hr >= 155) return "Tempo";
+  if (dist >= 14) return "Long Run";
+  return "Easy Run";
 }
 
 async function importActivitiesToDb(supabase, newRows) {
   const { data: existing, error: fetchErr } = await supabase
     .from("activities")
-    .select("id");
+    .select("garmin_activity_id")
+    .not("garmin_activity_id", "is", null);
   if (fetchErr) throw new Error("Fetch existing failed: " + fetchErr.message);
 
-  // Garmin activityId is a globally unique integer — use it as the sole dedup key.
-  // The previous time+distance fuzzy match caused false negatives when the date format
-  // changed (legacy rows have no TZ, new rows have +07:00) making timeDiff = 7 hours
-  // which exceeded the 300-second threshold, allowing the same run to be inserted twice.
-  const existingIds = new Set((existing || []).map((a) => a.id));
-  const filtered = newRows.filter((a) => !existingIds.has(a.id));
+  const existingIds = new Set((existing || []).map((a) => a.garmin_activity_id));
+  const filtered = newRows.filter((a) => !existingIds.has(a.garmin_activity_id));
 
   if (filtered.length === 0) return { inserted: 0, skipped: newRows.length };
 
-  const rowsToInsert = filtered.map((act) => ({
-    ...act,
-    run_type: act.run_type || classifyRun(act),
-  }));
+  const rowsToInsert = filtered.map((act) => {
+    const sessionType = classifyRun(act);
+    return {
+      ...act,
+      session_type: sessionType,
+      run_type: sessionType.toLowerCase().replace(/ /g, "_"),
+    };
+  });
 
-  // Use upsert (on conflict id) instead of plain insert to safely handle
-  // cases where the same activity ID is re-synced (e.g. Garmin resends same run).
   const { error: insertErr } = await supabase
     .from("activities")
-    .upsert(rowsToInsert, { onConflict: "id", ignoreDuplicates: false });
+    .upsert(rowsToInsert, { onConflict: "garmin_activity_id", ignoreDuplicates: false });
   if (insertErr) throw new Error("Insert failed: " + insertErr.message);
 
   return { inserted: rowsToInsert.length, skipped: newRows.length - rowsToInsert.length };
