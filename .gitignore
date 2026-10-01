@@ -32,3 +32,12 @@ next-env.d.ts
 # agents / scratch files
 .agents/
 .gemini/
+
+# python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+*.csv
+
