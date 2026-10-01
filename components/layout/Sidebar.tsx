@@ -12,6 +12,7 @@ import {
 } from '@phosphor-icons/react';
 import { ThemeToggle } from './ThemeToggle';
 import { useTheme } from './ThemeProvider';
+import { gitInfo } from '@/lib/git-info';
 
 const NAV_ITEMS = [
   { href: '/dashboard',    label: 'Dashboard', Icon: ChartBar },
@@ -162,28 +163,57 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Bottom: Theme toggle */}
+      {/* Bottom: Git info & Theme toggle */}
       <div
         style={{
-          paddingTop: '16px',
           borderTop: `1px solid ${borderColor}`,
+          padding: '12px 14px 0',
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '16px 14px 0',
+          flexDirection: 'column',
+          gap: '8px',
         }}
       >
-        <span
+        <div
           style={{
-            fontFamily: "'Baloo 2', sans-serif",
-            fontWeight: 600,
-            fontSize: '0.8rem',
-            color: inactiveColor,
+            fontSize: '0.6875rem',
+            color: 'var(--color-text-subtle)',
+            lineHeight: 1.4,
           }}
         >
-          {isDark ? '🌙 Dark' : '☀️ Light'}
-        </span>
-        <ThemeToggle />
+          <span style={{ opacity: 0.85 }}>อัปเดตล่าสุด (Git):</span>
+          <div
+            style={{
+              fontFamily: "'Space Grotesk', var(--font-mono, monospace), monospace",
+              fontSize: '0.6875rem',
+              color: inactiveColor,
+              marginTop: '1px',
+              letterSpacing: '-0.01em',
+            }}
+          >
+            {gitInfo.commitDate}
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingTop: '2px',
+          }}
+        >
+          <span
+            style={{
+              fontFamily: "'Baloo 2', sans-serif",
+              fontWeight: 600,
+              fontSize: '0.8rem',
+              color: inactiveColor,
+            }}
+          >
+            {isDark ? '🌙 Dark' : '☀️ Light'}
+          </span>
+          <ThemeToggle />
+        </div>
       </div>
     </aside>
   );

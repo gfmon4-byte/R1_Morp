@@ -13,7 +13,6 @@ import { secondsToHMMSS, mmssToSeconds, thaiToday } from '@/lib/utils';
 import { User, Lightning, FloppyDisk, Heart, Gauge, Trophy, ArrowsClockwise, CalendarBlank, Trash, PencilSimple, Plus, X, Camera, CheckCircle, Warning } from '@phosphor-icons/react';
 import { format, parseISO, differenceInCalendarDays } from 'date-fns';
 import { useTheme } from '@/components/layout/ThemeProvider';
-import { gitInfo } from '@/lib/git-info';
 
 const pbToMMSS = (sec: number | null | undefined): string => {
   if (!sec) return '';
@@ -1398,15 +1397,6 @@ export default function ProfilePage() {
               <><FloppyDisk size={16} weight="fill" /> Save Profile</>
             )}
           </button>
-          <div style={{
-            textAlign: 'center',
-            fontSize: '0.75rem',
-            color: 'var(--color-text-subtle)',
-            marginTop: 16,
-            marginBottom: 8,
-          }}>
-            อัปเดตล่าสุด (Git): {gitInfo.commitDate}
-          </div>
           <div style={{ height: 16 }} />
         </form>
       </div>

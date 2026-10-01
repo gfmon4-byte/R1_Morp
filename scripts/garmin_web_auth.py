@@ -154,6 +154,51 @@ def restore_mfa_client(state_b64: str) -> Garmin:
     return client
 
 
+def robust_login_cascade(client: Garmin):
+    """
+    Cascade login strategies with widget+cffi prioritized for web SSO.
+    Allows mobile credential failures (401) to fall through to web widget before failing.
+    """
+    from garminconnect.client import _MFARequired
+    c = client.client
+    email = client.username
+    password = client.password
+
+    strategies = [
+        ("widget+cffi", lambda: c._widget_web_login(email, password)),
+        ("portal+cffi", lambda: c._portal_web_login_cffi(email, password)),
+        ("mobile+cffi", lambda: c._mobile_login_cffi(email, password)),
+        ("mobile+requests", lambda: c._mobile_login_requests(email, password)),
+        ("portal+requests", lambda: c._portal_web_login_requests(email, password)),
+    ]
+
+    last_err = None
+    rate_limited_count = 0
+
+    for name, run in strategies:
+        try:
+            run()
+            return None, None
+        except _MFARequired:
+            return "needs_mfa", None
+        except GarminConnectAuthenticationError as e:
+            last_err = e
+            continue
+        except GarminConnectTooManyRequestsError as e:
+            rate_limited_count += 1
+            last_err = e
+            continue
+        except Exception as e:
+            last_err = e
+            continue
+
+    if rate_limited_count == len(strategies):
+        raise GarminConnectTooManyRequestsError("All Garmin login strategies rate limited (429).")
+    if last_err:
+        raise last_err
+    raise GarminConnectConnectionError("All Garmin login strategies exhausted.")
+
+
 def main():
     try:
         raw_input = sys.stdin.read().strip()
@@ -171,7 +216,7 @@ def main():
     # ── STEP 1: Login with Email & Password ────────────────────────────────────
     if action == "login":
         email = req.get("email", "").strip()
-        password = req.get("password", "").strip()
+        password = req.get("password", "")
 
         if not email or not password:
             print(json.dumps({"status": "error", "message": "Email and password are required"}))
@@ -179,7 +224,7 @@ def main():
 
         try:
             client = Garmin(email=email, password=password, return_on_mfa=True)
-            mfa_status, _ = client.login()
+            mfa_status, _ = robust_login_cascade(client)
 
             if mfa_status == "needs_mfa":
                 # Serialize the state into clean JSON (no pickle)

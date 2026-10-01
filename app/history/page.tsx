@@ -6,7 +6,7 @@ import type { Activity, Profile } from '@/lib/supabase';
 import { formatPace, formatDuration, thaiDate, getSessionColor, SESSION_TYPES } from '@/lib/utils';
 import { computeHRZones, getHRZoneForBpm } from '@/lib/hrZones';
 import { AddRunForm } from '@/components/runs/AddRunForm';
-import { Plus, Funnel, Trash, PencilSimple, Heart, MapPin, ArrowsDownUp } from '@phosphor-icons/react';
+import { Plus, Funnel, Trash, PencilSimple, Heart, MapPin, ArrowsDownUp, ArrowsClockwise } from '@phosphor-icons/react';
 
 export default function HistoryPage() {
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -18,6 +18,9 @@ export default function HistoryPage() {
   const [showForm, setShowForm] = useState(false);
   const [editActivity, setEditActivity] = useState<Activity | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [syncDays, setSyncDays] = useState<'7' | '30' | 'all'>('7');
+  const [syncing, setSyncing] = useState(false);
+  const [syncToast, setSyncToast] = useState<{ ok: boolean; message: string } | null>(null);
 
   const fetchData = useCallback(async () => {
     const [profileRes, activitiesRes] = await Promise.all([
@@ -54,24 +57,164 @@ export default function HistoryPage() {
     fetchData();
   };
 
+  const handleSyncGarmin = async (range: '7' | '30' | 'all' = syncDays) => {
+    try {
+      setSyncing(true);
+      setSyncToast(null);
+
+      const payload = range === 'all'
+        ? { all: true, days: 'all' }
+        : { days: parseInt(range, 10) };
+
+      const res = await fetch('/api/garmin-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        const rangeLabel = range === 'all' ? 'All-time' : `${range} วันล่าสุด`;
+        if (data.inserted > 0) {
+          setSyncToast({
+            ok: true,
+            message: `Synced ${data.inserted} new run${data.inserted > 1 ? 's' : ''} from Garmin (${rangeLabel}) into database!`,
+          });
+        } else if (data.total > 0) {
+          setSyncToast({
+            ok: true,
+            message: `All runs up to date (${data.skipped} runs already in database, ${rangeLabel})`,
+          });
+        } else {
+          setSyncToast({
+            ok: true,
+            message: `No running activities found in Garmin (${rangeLabel})`,
+          });
+        }
+        await fetchData();
+      } else {
+        setSyncToast({
+          ok: false,
+          message: data.error || 'Garmin sync failed',
+        });
+      }
+    } catch (err: any) {
+      setSyncToast({
+        ok: false,
+        message: err.message || 'Network error while syncing with Garmin',
+      });
+    } finally {
+      setSyncing(false);
+      setTimeout(() => setSyncToast(null), 5000);
+    }
+  };
+
   return (
     <div>
       {/* Header */}
       <header className="page-header">
-        <div style={{ maxWidth: 640, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h1 style={{ fontSize: '1.5rem' }}>Run History</h1>
-          <button
-            className="btn btn-primary btn-sm"
-            onClick={() => { setEditActivity(null); setShowForm(true); }}
-            aria-label="Add new run"
-          >
-            <Plus size={16} weight="bold" />
-            Add Run
-          </button>
+        <div style={{ maxWidth: 640, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+          <h1 style={{ fontSize: '1.5rem', margin: 0 }}>Run History</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            {/* Sync Days Selector & Sync Button */}
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                background: 'var(--color-bg-card, #FFFFFF)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 10,
+                padding: '2px 4px',
+                boxShadow: 'var(--shadow-sm)',
+              }}
+            >
+              <select
+                value={syncDays}
+                onChange={(e) => setSyncDays(e.target.value as '7' | '30' | 'all')}
+                disabled={syncing}
+                aria-label="Garmin sync range"
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
+                  color: 'var(--color-text)',
+                  padding: '4px 6px',
+                  cursor: 'pointer',
+                  outline: 'none',
+                }}
+              >
+                <option value="7">7 วัน</option>
+                <option value="30">30 วัน</option>
+                <option value="all">ทั้งหมด (All)</option>
+              </select>
+              <div style={{ width: 1, height: 16, background: 'var(--color-border)', margin: '0 2px' }} />
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => handleSyncGarmin(syncDays)}
+                disabled={syncing}
+                title={`Sync runs from Garmin Connect (${syncDays === 'all' ? 'All-time' : syncDays + ' days'})`}
+                style={{
+                  border: 'none',
+                  background: 'transparent',
+                  padding: '5px 10px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontSize: '0.8125rem',
+                  color: 'var(--color-primary)',
+                  fontWeight: 600,
+                  boxShadow: 'none',
+                }}
+              >
+                <ArrowsClockwise size={15} weight="bold" className={syncing ? 'spin' : ''} />
+                <span>{syncing ? 'Syncing…' : 'Sync Garmin'}</span>
+              </button>
+            </div>
+
+            {/* Add Run Button */}
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={() => { setEditActivity(null); setShowForm(true); }}
+              aria-label="Add new run"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              <Plus size={16} weight="bold" />
+              Add Run
+            </button>
+          </div>
         </div>
       </header>
 
       <div className="page-content" style={{ paddingTop: 16 }}>
+        {/* Sync Toast Notification */}
+        {syncToast && (
+          <div
+            className="animate-fade-in"
+            style={{
+              padding: '10px 14px',
+              borderRadius: 12,
+              marginBottom: 14,
+              fontSize: '0.8125rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 8,
+              background: syncToast.ok ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+              border: `1px solid ${syncToast.ok ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+              color: syncToast.ok ? '#a7f3d0' : '#fca5a5',
+            }}
+          >
+            <span>{syncToast.ok ? '✓ ' : '⚠️ '}{syncToast.message}</span>
+            <button
+              onClick={() => setSyncToast(null)}
+              style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', padding: 2 }}
+            >
+              ✕
+            </button>
+          </div>
+        )}
         {/* Filters */}
         <div className="card" style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -192,10 +335,28 @@ function ActivityCard({
         {/* Main content */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flexWrap: 'wrap' }}>
               <span style={{ fontWeight: 600, fontSize: '0.9375rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {activity.session_type}
+                {activity.title && activity.title !== activity.session_type ? activity.title : activity.session_type}
               </span>
+              {activity.garmin_activity_id && (
+                <span
+                  title={`Synced from Garmin Connect (#${activity.garmin_activity_id})`}
+                  style={{
+                    fontSize: '0.625rem',
+                    fontWeight: 700,
+                    color: '#007cc3',
+                    background: 'rgba(0, 124, 195, 0.12)',
+                    border: '1px solid rgba(0, 124, 195, 0.28)',
+                    borderRadius: 9999,
+                    padding: '1px 6px',
+                    letterSpacing: '0.03em',
+                    flexShrink: 0,
+                  }}
+                >
+                  Garmin
+                </span>
+              )}
               {zoneInfo && (
                 <span className="badge" style={{ background: `${zoneInfo.color}20`, color: zoneInfo.color, border: `1px solid ${zoneInfo.color}40`, fontSize: '0.625rem', padding: '1px 6px', flexShrink: 0 }}>
                   {zoneInfo.label}
@@ -206,7 +367,7 @@ function ActivityCard({
               {thaiDate(activity.date)}
             </span>
           </div>
-          {activity.route_name && (
+          {(activity.route_name && activity.route_name !== activity.title) && (
             <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
               <MapPin size={11} style={{ flexShrink: 0 }} />
               <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>

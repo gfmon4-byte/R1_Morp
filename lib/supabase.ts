@@ -65,6 +65,8 @@ export interface Activity {
   rpe: number | null;
   notes: string | null;
   route_name: string | null;
+  garmin_activity_id?: string | null;
+  title?: string | null;
   created_at: string;
   updated_at: string;
 }

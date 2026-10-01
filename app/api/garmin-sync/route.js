@@ -108,7 +108,6 @@ function activityToDbRow(act) {
     // Extra fields
     activity_type: actType,
     title: act.activityName || "",
-    distance: distKm,
     calories: toInt(act.calories),
     avg_cadence: toInt(
       act.averageRunningCadenceInStepsPerMinute ||
@@ -118,10 +117,6 @@ function activityToDbRow(act) {
       act.maxRunningCadenceInStepsPerMinute ||
         act.maxBikingCadenceInRevPerMinute
     ),
-    avg_pace: paceStr(act.averageSpeed),
-    best_pace: paceStr(act.maxSpeed),
-    total_ascent: toInt(act.elevationGain),
-    total_descent: toInt(act.elevationLoss),
     avg_stride_length: formatStrideLength(act.avgStrideLength),
     avg_vertical_oscillation: formatVertOsc(act.avgVerticalOscillation),
     avg_vertical_ratio: act.avgVerticalRatio != null ? Math.round(Number(act.avgVerticalRatio) * 10) / 10 : null,
@@ -321,7 +316,7 @@ async function importActivitiesToDb(supabase, newRows) {
 export async function POST(request) {
   try {
     const body = await request.json().catch(() => ({}));
-    const syncAll = body.all === true;
+    const syncAll = body.all === true || body.days === "all";
     const days = syncAll ? 365 : Math.max(1, Math.min(365, parseInt(body.days, 10) || 7));
 
     // Load tokens from Supabase (or env-var fallback)
