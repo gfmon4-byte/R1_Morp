@@ -8,15 +8,17 @@ import {
   CalendarBlank,
   User,
   SneakerMove,
+  ArrowsClockwise,
 } from '@phosphor-icons/react';
 import { ThemeToggle } from './ThemeToggle';
 import { useTheme } from './ThemeProvider';
 
 const NAV_ITEMS = [
-  { href: '/dashboard', label: 'Dashboard', Icon: ChartBar },
-  { href: '/history',   label: 'History',   Icon: ClockCounterClockwise },
-  { href: '/plan',      label: 'Plan',       Icon: CalendarBlank },
-  { href: '/profile',   label: 'Profile',    Icon: User },
+  { href: '/dashboard',    label: 'Dashboard', Icon: ChartBar },
+  { href: '/history',      label: 'History',   Icon: ClockCounterClockwise },
+  { href: '/plan',         label: 'Plan',       Icon: CalendarBlank },
+  { href: '/profile',      label: 'Profile',    Icon: User },
+  { href: '/garmin-login', label: 'Garmin',     Icon: ArrowsClockwise },
 ];
 
 export function Sidebar() {

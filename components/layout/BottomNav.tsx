@@ -8,15 +8,17 @@ import {
   ClockCounterClockwise,
   CalendarBlank,
   User,
+  ArrowsClockwise,
 } from '@phosphor-icons/react';
 import { ThemeToggle } from './ThemeToggle';
 import { useTheme } from './ThemeProvider';
 
 const NAV_ITEMS = [
-  { href: '/dashboard', label: 'Dashboard', Icon: ChartBar },
-  { href: '/history',   label: 'History',   Icon: ClockCounterClockwise },
-  { href: '/plan',      label: 'Plan',       Icon: CalendarBlank },
-  { href: '/profile',   label: 'Profile',    Icon: User },
+  { href: '/dashboard',    label: 'Dashboard', Icon: ChartBar },
+  { href: '/history',      label: 'History',   Icon: ClockCounterClockwise },
+  { href: '/plan',         label: 'Plan',       Icon: CalendarBlank },
+  { href: '/profile',      label: 'Profile',    Icon: User },
+  { href: '/garmin-login', label: 'Garmin',     Icon: ArrowsClockwise },
 ];
 
 export function BottomNav() {
@@ -90,7 +92,7 @@ export function BottomNav() {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr) auto',
+          gridTemplateColumns: 'repeat(5, 1fr) auto',
           width: '100%',
           maxWidth: '640px',
           margin: '0 auto',

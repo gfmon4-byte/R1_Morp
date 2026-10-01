@@ -628,7 +628,7 @@ export default function GarminLoginPage() {
           </div>
 
           <div style={{ marginTop: '20px' }}>
-            <Link href="/run-history" className="btn btn-ghost" style={{ width: '100%', justifyContent: 'center' }}>
+            <Link href="/history" className="btn btn-ghost" style={{ width: '100%', justifyContent: 'center' }}>
               View Run History →
             </Link>
           </div>
@@ -812,13 +812,13 @@ export default function GarminLoginPage() {
           <div className={styles.infoCard}>
             <div className={styles.infoCardTitle}>⚡ Quick Links</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <Link href="/run-history" className="btn btn-secondary" style={{ justifyContent: 'flex-start' }}>
+              <Link href="/history" className="btn btn-secondary" style={{ justifyContent: 'flex-start' }}>
                 🏃 Run History & Activities
               </Link>
               <Link href="/profile" className="btn btn-secondary" style={{ justifyContent: 'flex-start' }}>
                 👤 Runner Profile & Biometrics
               </Link>
-              <Link href="/" className="btn btn-secondary" style={{ justifyContent: 'flex-start' }}>
+              <Link href="/dashboard" className="btn btn-secondary" style={{ justifyContent: 'flex-start' }}>
                 📊 Analytics Dashboard
               </Link>
             </div>
