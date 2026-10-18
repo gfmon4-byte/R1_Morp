@@ -41,7 +41,44 @@ export interface Profile {
   inbody_protein: number | null;
   inbody_mineral: number | null;
   inbody_date: string | null;
+  fitness_age?: number | null;
+  fitness_age_data?: {
+    sleep?: GarminSleepRecord[];
+    fr970?: any;
+    [key: string]: any;
+  } | null;
+  garmin_device?: any;
+  garmin_prs?: any;
+  garmin_gear?: any;
+  garmin_daily_steps?: any;
+  garmin_body_battery?: any;
+  last_garmin_sync?: string | null;
   updated_at: string;
+}
+
+export interface GarminSleepRecord {
+  date: string;
+  duration_seconds: number;
+  duration_hours: number;
+  deep_seconds: number;
+  deep_hours: number;
+  light_seconds: number;
+  light_hours: number;
+  rem_seconds: number;
+  rem_hours: number;
+  awake_seconds: number;
+  awake_hours: number;
+  score?: number | null;
+  qualifier?: string | null;
+  avg_hr?: number | null;
+  avg_stress?: number | null;
+  avg_hrv?: number | null;
+  hrv_status?: string | null;
+  body_battery_change?: number | null;
+  avg_spo2?: number | null;
+  avg_respiration?: number | null;
+  start_time?: number | string | null;
+  end_time?: number | string | null;
 }
 
 export interface Race {

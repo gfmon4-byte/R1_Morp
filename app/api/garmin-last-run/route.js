@@ -219,6 +219,90 @@ function buildCsvLaps(laps) {
   return lines.join('\n');
 }
 
+async function getUserProfileFromSupabase() {
+  try {
+    if (!SUPABASE_URL || !SUPABASE_KEY) return { hr_max: 199, hr_rest: 64 };
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.1&select=hr_max,hr_rest`, {
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+      },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.length > 0) return data[0];
+    }
+  } catch {}
+  return { hr_max: 199, hr_rest: 64 };
+}
+
+function getKarvonenZones(hrMax = 199, hrRest = 64) {
+  const hrr = (hrMax || 199) - (hrRest || 64);
+  const bands = [
+    { zone: 1, name: 'Warm Up (Zone 1)', minPct: 0.50, maxPct: 0.60 },
+    { zone: 2, name: 'Easy / Fat Burn (Zone 2)', minPct: 0.60, maxPct: 0.70 },
+    { zone: 3, name: 'Aerobic (Zone 3)', minPct: 0.70, maxPct: 0.80 },
+    { zone: 4, name: 'Threshold (Zone 4)', minPct: 0.80, maxPct: 0.90 },
+    { zone: 5, name: 'Maximum (Zone 5)', minPct: 0.90, maxPct: 1.00 },
+  ];
+  return bands.map((b) => ({
+    zone_number: b.zone,
+    zone_name: b.name,
+    min_bpm: Math.round(hrr * b.minPct + (hrRest || 64)),
+    max_bpm: b.zone === 5 ? hrMax : Math.round(hrr * b.maxPct + (hrRest || 64)),
+  }));
+}
+
+function computeHrZonesFromMetrics(detailsData, targetZones) {
+  const metrics = detailsData?.activityDetailMetrics;
+  const desc = detailsData?.metricDescriptors;
+  if (!Array.isArray(metrics) || metrics.length === 0 || !Array.isArray(desc)) {
+    return null;
+  }
+  const hrDesc = desc.find((d) => d.key === 'directHeartRate');
+  const durDesc =
+    desc.find((d) => d.key === 'sumDuration') || desc.find((d) => d.key === 'sumMovingDuration');
+  if (!hrDesc || !durDesc) return null;
+
+  const hrIdx = hrDesc.metricsIndex;
+  const durIdx = durDesc.metricsIndex;
+
+  const zoneSecs = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  let lastDur = 0;
+  const sortedBands = [...targetZones].sort((a, b) => b.min_bpm - a.min_bpm);
+
+  for (const m of metrics) {
+    const rawMetrics = m.metrics;
+    if (!rawMetrics) continue;
+    const curDur = rawMetrics[durIdx];
+    const hr = rawMetrics[hrIdx];
+    if (curDur != null && hr != null) {
+      const delta = Math.max(0, curDur - lastDur);
+      lastDur = curDur;
+      for (const band of sortedBands) {
+        if (hr >= band.min_bpm) {
+          zoneSecs[band.zone_number] = (zoneSecs[band.zone_number] || 0) + delta;
+          break;
+        }
+      }
+    }
+  }
+
+  const totSecs = Object.values(zoneSecs).reduce((a, b) => a + b, 0);
+  return targetZones.map((band) => {
+    const secs = Math.round((zoneSecs[band.zone_number] || 0) * 10) / 10;
+    const pct = totSecs > 0 ? Math.round((secs / totSecs) * 1000) / 10 : 0;
+    return {
+      zone_number: band.zone_number,
+      zone_name: band.zone_name,
+      min_bpm: band.min_bpm,
+      seconds_in_zone: secs,
+      duration_formatted: fmtDuration(secs),
+      percentage: pct,
+    };
+  });
+}
+
 /**
  * Process a single Garmin Activity item into complete clean data object
  */
@@ -227,7 +311,7 @@ async function processSingleActivity(headers, actItem, partIdx = 1, totalParts =
   const actName = actItem.activityName || 'Running Activity';
   const partType = detectPartType(actName, partIdx, totalParts);
 
-  const [actServiceData, splitsData, hrZonesData, weatherData, gearData] = await Promise.all([
+  const [actServiceData, splitsData, hrZonesData, weatherData, gearData, detailsData] = await Promise.all([
     fetch(`${CONNECT_API_BASE}/activity-service/activity/${actId}`, { headers })
       .then((r) => (r.ok ? r.json() : {}))
       .catch(() => ({})),
@@ -243,6 +327,9 @@ async function processSingleActivity(headers, actItem, partIdx = 1, totalParts =
     fetch(`${CONNECT_API_BASE}/gear-service/gear/filterGear?activityId=${actId}`, { headers })
       .then((r) => (r.ok ? r.json() : []))
       .catch(() => []),
+    fetch(`${CONNECT_API_BASE}/activity-service/activity/${actId}/details?maxChartSize=2000&maxPolylineSize=1`, { headers })
+      .then((r) => (r.ok ? r.json() : {}))
+      .catch(() => ({})),
   ]);
 
   const summaryDTO = actServiceData.summaryDTO || {};
@@ -386,32 +473,32 @@ async function processSingleActivity(headers, actItem, partIdx = 1, totalParts =
     };
   });
 
-  // HR Zones
-  const rawHrZones = Array.isArray(hrZonesData) ? hrZonesData : [];
-  const totZoneSecs = rawHrZones.reduce((acc, z) => acc + (z.secsInZone || 0), 0);
-  const zoneNames = {
-    1: 'Warm Up (Zone 1)',
-    2: 'Easy / Fat Burn (Zone 2)',
-    3: 'Aerobic (Zone 3)',
-    4: 'Threshold (Zone 4)',
-    5: 'Maximum (Zone 5)',
-  };
+  // HR Zones (calculated using Karvonen formula from user profile and activity metrics)
+  const userProfile = await getUserProfileFromSupabase();
+  const targetZones = getKarvonenZones(userProfile?.hr_max || 199, userProfile?.hr_rest || 64);
+  let hrZonesClean = computeHrZonesFromMetrics(detailsData, targetZones);
 
-  const hrZonesClean = [...rawHrZones]
-    .sort((a, b) => (a.zoneNumber || 0) - (b.zoneNumber || 0))
-    .map((z) => {
-      const zNum = z.zoneNumber || 0;
-      const secs = Math.round((z.secsInZone || 0) * 10) / 10;
+  if (!hrZonesClean) {
+    const rawHrZones = Array.isArray(hrZonesData) ? hrZonesData : [];
+    const isCorrupted =
+      rawHrZones.some((z) => (z.zoneLowBoundary || 0) < 100 && (z.zoneNumber || 0) === 1) ||
+      rawHrZones.some((z) => (z.zoneLowBoundary || 0) < 150 && (z.zoneNumber || 0) === 5);
+
+    const totZoneSecs = rawHrZones.reduce((acc, z) => acc + (z.secsInZone || 0), 0);
+    hrZonesClean = targetZones.map((tz) => {
+      const rawZ = rawHrZones.find((z) => (z.zoneNumber || 0) === tz.zone_number);
+      const secs = rawZ ? Math.round((rawZ.secsInZone || 0) * 10) / 10 : 0;
       const pct = totZoneSecs > 0 ? Math.round((secs / totZoneSecs) * 1000) / 10 : 0;
       return {
-        zone_number: zNum,
-        zone_name: zoneNames[zNum] || `Zone ${zNum}`,
-        min_bpm: z.zoneLowBoundary || null,
+        zone_number: tz.zone_number,
+        zone_name: tz.zone_name,
+        min_bpm: isCorrupted ? tz.min_bpm : (rawZ?.zoneLowBoundary || tz.min_bpm),
         seconds_in_zone: secs,
         duration_formatted: fmtDuration(secs),
         percentage: pct,
       };
     });
+  }
 
   // Weather
   let weatherClean = null;

@@ -279,7 +279,21 @@ export function WorkoutDetailSection({ activities, hrZones }: Props) {
   };
 
   const summary = workoutData?.summary || {};
-  const hrZonesData = workoutData?.hr_zones || [];
+  const rawHrZonesData = workoutData?.hr_zones || [];
+  const hrZonesData = useMemo(() => {
+    if (!rawHrZonesData || rawHrZonesData.length === 0) return [];
+    return rawHrZonesData.map((z: any) => {
+      const zNum = z.zone_number ?? z.zoneNumber;
+      const matched = hrZones?.find((pz) => pz.zone === zNum);
+      const isCorrupted = (z.min_bpm != null && z.min_bpm < 100 && zNum === 1) ||
+                          (z.min_bpm != null && z.min_bpm < 150 && zNum === 5);
+      const minBpm = (isCorrupted && matched) ? matched.minBpm : (z.min_bpm ?? matched?.minBpm);
+      return {
+        ...z,
+        min_bpm: minBpm,
+      };
+    });
+  }, [rawHrZonesData, hrZones]);
   const laps = workoutData?.laps || [];
   const weather = workoutData?.weather;
   const gear = workoutData?.gear;
@@ -1750,10 +1764,34 @@ function getZoneForBpm(
 ): HRZoneInfo | null {
   if (!bpm || bpm <= 0) return null;
 
-  // 1. Check Garmin activity HR zones if available (exact boundaries for this workout)
+  // 1. Check Profile HR zones first (calibrated Karvonen zones from user profile)
+  if (profileHrZones && profileHrZones.length > 0) {
+    const sorted = [...profileHrZones].sort((a, b) => b.minBpm - a.minBpm);
+    for (const z of sorted) {
+      if (bpm >= z.minBpm) {
+        const conf = GARMIN_HR_ZONE_CONFIG[z.zone] || GARMIN_HR_ZONE_CONFIG[1];
+        return {
+          zoneNumber: z.zone,
+          color: conf.color,
+          bg: conf.bg,
+          border: conf.border,
+          label: z.label || `Z${z.zone}`,
+          name: z.description || conf.name,
+        };
+      }
+    }
+  }
+
+  // 2. Check Garmin activity HR zones if available (and only if boundaries are reasonable)
   if (garminHrZones && garminHrZones.length > 0) {
     const valid = garminHrZones.filter((z) => (z.min_bpm != null || z.zoneLowBoundary != null));
-    if (valid.length > 0) {
+    const isCorrupted = valid.some((z) => {
+      const val = z.min_bpm ?? z.zoneLowBoundary;
+      const num = z.zone_number ?? z.zoneNumber;
+      return (num === 1 && val < 100) || (num === 5 && val < 150);
+    });
+
+    if (valid.length > 0 && !isCorrupted) {
       const sorted = [...valid].sort(
         (a, b) => (b.min_bpm ?? b.zoneLowBoundary ?? 0) - (a.min_bpm ?? a.zoneLowBoundary ?? 0)
       );
@@ -1771,24 +1809,6 @@ function getZoneForBpm(
             name: conf.name,
           };
         }
-      }
-    }
-  }
-
-  // 2. Check Profile HR zones
-  if (profileHrZones && profileHrZones.length > 0) {
-    const sorted = [...profileHrZones].sort((a, b) => b.minBpm - a.minBpm);
-    for (const z of sorted) {
-      if (bpm >= z.minBpm) {
-        const conf = GARMIN_HR_ZONE_CONFIG[z.zone] || GARMIN_HR_ZONE_CONFIG[1];
-        return {
-          zoneNumber: z.zone,
-          color: conf.color,
-          bg: conf.bg,
-          border: conf.border,
-          label: z.label || `Z${z.zone}`,
-          name: z.description || conf.name,
-        };
       }
     }
   }

@@ -684,7 +684,9 @@ export async function POST(request) {
         hr_rest: data.resting_hr || existing.hr_rest || existing.resting_hr,
         fitness_age: data.fitness_age || existing.fitness_age,
         fitness_age_data: {
-          ...(data.fitness_age_components || existing.fitness_age_data || {}),
+          ...(existing.fitness_age_data || {}),
+          ...(data.fitness_age_components || {}),
+          sleep: (data.sleep && data.sleep.length > 0) ? data.sleep : (existing.fitness_age_data?.sleep || []),
           fr970: {
             training_readiness: data.training_readiness,
             hrv_summary: data.hrv_summary,

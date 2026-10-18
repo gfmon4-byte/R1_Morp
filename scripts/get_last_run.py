@@ -242,6 +242,7 @@ def process_single_activity(client, act_item: dict, part_idx: int = 1, total_par
     hr_zones_data = safe_call(client.get_activity_hr_in_timezones, act_id) or []
     weather_data = safe_call(client.get_activity_weather, act_id) or {}
     gear_data = safe_call(client.get_activity_gear, act_id) or []
+    details_data = safe_call(client.get_activity_details, act_id, 2000, 1) or {}
 
     summary_dto = act_service_data.get("summaryDTO") or {}
     metadata_dto = act_service_data.get("metadataDTO") or {}
@@ -389,28 +390,73 @@ def process_single_activity(client, act_item: dict, part_idx: int = 1, total_par
             "calories": int(lap["calories"]) if lap.get("calories") else None,
         })
 
-    # HR Zones
-    total_zone_secs = sum(z.get("secsInZone", 0) for z in hr_zones_data) if hr_zones_data else 0
-    zone_names = {
-        1: "Warm Up (Zone 1)",
-        2: "Easy / Fat Burn (Zone 2)",
-        3: "Aerobic (Zone 3)",
-        4: "Threshold (Zone 4)",
-        5: "Maximum (Zone 5)"
-    }
-    hr_zones_clean = []
-    for z in sorted(hr_zones_data, key=lambda x: x.get("zoneNumber", 0)):
-        z_num = z.get("zoneNumber", 0)
-        secs = z.get("secsInZone", 0)
-        pct = round((secs / total_zone_secs * 100), 1) if total_zone_secs > 0 else 0
-        hr_zones_clean.append({
-            "zone_number": z_num,
-            "zone_name": zone_names.get(z_num, f"Zone {z_num}"),
-            "min_bpm": z.get("zoneLowBoundary"),
-            "seconds_in_zone": round(secs, 1),
-            "duration_formatted": fmt_duration(secs),
-            "percentage": pct
-        })
+    # HR Zones (Karvonen formula from user profile hr_max=199, hr_rest=64)
+    # Z1: >= 132, Z2: >= 145, Z3: >= 159, Z4: >= 172, Z5: >= 186
+    target_zones = [
+        {"zone_number": 1, "zone_name": "Warm Up (Zone 1)", "min_bpm": 132},
+        {"zone_number": 2, "zone_name": "Easy / Fat Burn (Zone 2)", "min_bpm": 145},
+        {"zone_number": 3, "zone_name": "Aerobic (Zone 3)", "min_bpm": 159},
+        {"zone_number": 4, "zone_name": "Threshold (Zone 4)", "min_bpm": 172},
+        {"zone_number": 5, "zone_name": "Maximum (Zone 5)", "min_bpm": 186},
+    ]
+
+    metrics = details_data.get("activityDetailMetrics") or []
+    desc = details_data.get("metricDescriptors") or []
+    hr_idx = next((d["metricsIndex"] for d in desc if d.get("key") == "directHeartRate"), None)
+    dur_idx = next((d["metricsIndex"] for d in desc if d.get("key") in ("sumDuration", "sumMovingDuration")), None)
+
+    zone_secs = {1: 0.0, 2: 0.0, 3: 0.0, 4: 0.0, 5: 0.0}
+    if hr_idx is not None and dur_idx is not None and metrics:
+        last_d = 0.0
+        for m in metrics:
+            raw_m = m.get("metrics") or []
+            if len(raw_m) > max(hr_idx, dur_idx):
+                cur_d = raw_m[dur_idx]
+                hr = raw_m[hr_idx]
+                if cur_d is not None and hr is not None:
+                    delta = max(0.0, cur_d - last_d)
+                    last_d = cur_d
+                    if hr >= 186: zone_secs[5] += delta
+                    elif hr >= 172: zone_secs[4] += delta
+                    elif hr >= 159: zone_secs[3] += delta
+                    elif hr >= 145: zone_secs[2] += delta
+                    elif hr >= 132: zone_secs[1] += delta
+        tot_secs = sum(zone_secs.values())
+        hr_zones_clean = []
+        for tz in target_zones:
+            zn = tz["zone_number"]
+            s = round(zone_secs[zn], 1)
+            pct = round((s / tot_secs * 100), 1) if tot_secs > 0 else 0
+            hr_zones_clean.append({
+                "zone_number": zn,
+                "zone_name": tz["zone_name"],
+                "min_bpm": tz["min_bpm"],
+                "seconds_in_zone": s,
+                "duration_formatted": fmt_duration(s),
+                "percentage": pct,
+            })
+    else:
+        total_zone_secs = sum(z.get("secsInZone", 0) for z in hr_zones_data) if hr_zones_data else 0
+        zone_names = {
+            1: "Warm Up (Zone 1)",
+            2: "Easy / Fat Burn (Zone 2)",
+            3: "Aerobic (Zone 3)",
+            4: "Threshold (Zone 4)",
+            5: "Maximum (Zone 5)"
+        }
+        hr_zones_clean = []
+        for z in sorted(hr_zones_data, key=lambda x: x.get("zoneNumber", 0)):
+            z_num = z.get("zoneNumber", 0)
+            secs = z.get("secsInZone", 0)
+            pct = round((secs / total_zone_secs * 100), 1) if total_zone_secs > 0 else 0
+            hr_zones_clean.append({
+                "zone_number": z_num,
+                "zone_name": zone_names.get(z_num, f"Zone {z_num}"),
+                "min_bpm": z.get("zoneLowBoundary"),
+                "seconds_in_zone": round(secs, 1),
+                "duration_formatted": fmt_duration(secs),
+                "percentage": pct
+            })
 
     # Weather
     weather_clean = None

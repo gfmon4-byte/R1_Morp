@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -13,6 +13,7 @@ import { secondsToHMMSS, mmssToSeconds, thaiToday } from '@/lib/utils';
 import { User, Lightning, FloppyDisk, Heart, Gauge, Trophy, ArrowsClockwise, CalendarBlank, Trash, PencilSimple, Plus, X, Camera, CheckCircle, Warning } from '@phosphor-icons/react';
 import { format, parseISO, differenceInCalendarDays } from 'date-fns';
 import { useTheme } from '@/components/layout/ThemeProvider';
+import { DailySleepMonitor } from '@/components/profile/DailySleepMonitor';
 
 const pbToMMSS = (sec: number | null | undefined): string => {
   if (!sec) return '';
@@ -291,6 +292,13 @@ export default function ProfilePage() {
     resolver: zodResolver(schema),
     defaultValues: { pace_zone_mode: 'auto', hr_max: 185, hr_rest: 42 },
   });
+
+  const refreshProfile = useCallback(async () => {
+    const { data } = await supabase.from('profiles').select('*').eq('id', 1).single();
+    if (data) {
+      setProfile(data as Profile);
+    }
+  }, []);
 
   useEffect(() => {
     supabase.from('profiles').select('*').eq('id', 1).single().then(({ data }) => {
@@ -1310,6 +1318,13 @@ export default function ProfilePage() {
               ))}
             </div>
           </Section>
+
+          {/* Daily Sleep Monitor */}
+          <DailySleepMonitor
+            sleepRecords={profile?.fitness_age_data?.sleep || []}
+            onRefresh={refreshProfile}
+            lastSyncTime={profile?.last_garmin_sync}
+          />
 
           {/* Pace Zones */}
           <Section title="Pace Zones" icon={<Lightning size={16} color="#FBBF24" />}>
