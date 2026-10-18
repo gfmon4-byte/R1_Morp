@@ -36,11 +36,12 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Skip non-GET and cross-origin requests
+  // Skip non-GET and cross-origin requests, or local development
   if (request.method !== 'GET' || url.origin !== self.location.origin) return;
+  if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') return;
 
   // Skip Next.js internal routes
-  if (url.pathname.startsWith('/_next/') && url.pathname.includes('webpack')) return;
+  if (url.pathname.startsWith('/_next/')) return;
 
   // For navigation requests: network-first, fallback to offline page
   if (request.mode === 'navigate') {

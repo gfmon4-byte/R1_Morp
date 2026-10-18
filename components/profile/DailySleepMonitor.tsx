@@ -11,7 +11,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
   ReferenceLine,
   Cell,
@@ -20,16 +19,15 @@ import {
   Moon,
   Bed,
   MoonStars,
-  Sparkle,
-  Heartbeat,
-  Waveform,
   ArrowsClockwise,
   BatteryCharging,
   CheckCircle,
-  WarningCircle,
-  Info,
+  Warning,
+  Heart,
+  Lightning,
 } from '@phosphor-icons/react';
 import { format, parseISO } from 'date-fns';
+import { th } from 'date-fns/locale';
 import type { GarminSleepRecord } from '@/lib/supabase';
 
 interface Props {
@@ -39,14 +37,14 @@ interface Props {
 }
 
 const STAGE_COLORS = {
-  deep: '#7FDBB6',    // Pastel Mint
-  light: '#8ECDF0',   // Pastel Sky Blue
-  rem: '#C9A7EB',     // Pastel Lavender
-  awake: '#FF8FA3',   // Pastel Coral Pink
+  deep: '#10B981',    // Emerald / Green
+  light: '#38BDF8',   // Sky Blue
+  rem: '#A855F7',     // Purple
+  awake: '#FB7185',   // Coral Pink
 };
 
-function formatHoursAndMinutes(hours: number): string {
-  if (!hours || isNaN(hours)) return '0 ชม.';
+function formatHoursAndMinutes(hours?: number | null): string {
+  if (!hours || isNaN(hours) || hours <= 0) return '0 น.';
   const totalMins = Math.round(hours * 60);
   const h = Math.floor(totalMins / 60);
   const m = totalMins % 60;
@@ -55,87 +53,142 @@ function formatHoursAndMinutes(hours: number): string {
   return `${m} น.`;
 }
 
-function getScoreBadge(score?: number | null, qualifier?: string | null) {
-  if (score == null) return { text: 'ไม่มีคะแนน', bg: 'var(--color-bg-elevated)', color: 'var(--color-text-muted)' };
-  if (score >= 80) return { text: `${score} ดีเยี่ยม (${qualifier || 'GOOD'})`, bg: 'rgba(127, 219, 182, 0.2)', color: '#059669' };
-  if (score >= 60) return { text: `${score} พอใช้ (${qualifier || 'FAIR'})`, bg: 'rgba(142, 205, 240, 0.2)', color: '#0284C7' };
-  return { text: `${score} ควรพักเพิ่ม (${qualifier || 'POOR'})`, bg: 'rgba(255, 143, 163, 0.2)', color: '#E11D48' };
+function formatShortDuration(hours?: number | null): string {
+  if (!hours || isNaN(hours) || hours <= 0) return '0h';
+  const totalMins = Math.round(hours * 60);
+  const h = Math.floor(totalMins / 60);
+  const m = totalMins % 60;
+  if (h > 0 && m > 0) return `${h}h ${m}m`;
+  if (h > 0) return `${h}h`;
+  return `${m}m`;
 }
 
-export function DailySleepMonitor({ sleepRecords = [], onRefresh, lastSyncTime }: Props) {
+function formatBedtimeWindow(start?: number | string | null, end?: number | string | null): string | null {
+  if (!start || !end) return null;
+  try {
+    const sDate = typeof start === 'number' ? new Date(start) : new Date(String(start));
+    const eDate = typeof end === 'number' ? new Date(end) : new Date(String(end));
+    if (isNaN(sDate.getTime()) || isNaN(eDate.getTime())) return null;
+    const sStr = sDate.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false });
+    const eStr = eDate.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false });
+    return `${sStr} – ${eStr} น.`;
+  } catch {
+    return null;
+  }
+}
+
+function getScoreBadge(score?: number | null, qualifier?: string | null) {
+  if (score == null) {
+    return {
+      text: 'ไม่มีคะแนน',
+      label: 'N/A',
+      bg: 'var(--color-bg-elevated)',
+      color: 'var(--color-text-muted)',
+      border: 'var(--color-border)',
+    };
+  }
+  if (score >= 80) {
+    return {
+      text: `${score} ดีเยี่ยม`,
+      label: qualifier || 'GOOD',
+      bg: 'rgba(16, 185, 129, 0.15)',
+      color: '#059669',
+      border: 'rgba(16, 185, 129, 0.3)',
+    };
+  }
+  if (score >= 60) {
+    return {
+      text: `${score} พอใช้`,
+      label: qualifier || 'FAIR',
+      bg: 'rgba(56, 189, 248, 0.15)',
+      color: '#0284C7',
+      border: 'rgba(56, 189, 248, 0.3)',
+    };
+  }
+  return {
+    text: `${score} ควรพักเพิ่ม`,
+    label: qualifier || 'POOR',
+    bg: 'rgba(244, 63, 94, 0.15)',
+    color: '#E11D48',
+    border: 'rgba(244, 63, 94, 0.3)',
+  };
+}
+
+export function DailySleepMonitor({ sleepRecords = [], onRefresh }: Props) {
   const [activeTab, setActiveTab] = useState<'stages' | 'score' | 'hrv'>('stages');
-  const [timeframe, setTimeframe] = useState<'7' | '14' | '30' | 'all'>('14');
+  const [timeframe, setTimeframe] = useState<'7' | '14' | '30'>('7');
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
 
-  // Filter and sort records chronologically
-  const filteredRecords = useMemo(() => {
+  // Sort chronological
+  const sortedRecords = useMemo(() => {
     if (!sleepRecords || sleepRecords.length === 0) return [];
-    const sorted = [...sleepRecords].sort((a, b) => a.date.localeCompare(b.date));
-    if (timeframe === '7') return sorted.slice(-7);
-    if (timeframe === '14') return sorted.slice(-14);
-    if (timeframe === '30') return sorted.slice(-30);
-    return sorted;
-  }, [sleepRecords, timeframe]);
+    return [...sleepRecords].sort((a, b) => a.date.localeCompare(b.date));
+  }, [sleepRecords]);
 
-  // Summary Metrics computed from all or filtered records
-  const metrics = useMemo(() => {
-    if (!sleepRecords || sleepRecords.length === 0) return null;
-    const sorted = [...sleepRecords].sort((a, b) => a.date.localeCompare(b.date));
-    const latest = sorted[sorted.length - 1];
+  // Selected date state (default to latest night)
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
-    const count = sorted.length;
-    const totalDuration = sorted.reduce((acc, r) => acc + (r.duration_hours || 0), 0);
+  const activeDate = useMemo(() => {
+    if (selectedDate && sortedRecords.some((r) => r.date === selectedDate)) {
+      return selectedDate;
+    }
+    return sortedRecords.length > 0 ? sortedRecords[sortedRecords.length - 1].date : null;
+  }, [selectedDate, sortedRecords]);
+
+  const activeRecord = useMemo(() => {
+    if (!activeDate) return null;
+    return sortedRecords.find((r) => r.date === activeDate) || null;
+  }, [activeDate, sortedRecords]);
+
+  // Timeframe slice
+  const filteredRecords = useMemo(() => {
+    if (sortedRecords.length === 0) return [];
+    const count = parseInt(timeframe, 10);
+    return sortedRecords.slice(-count);
+  }, [sortedRecords, timeframe]);
+
+  // Average metrics
+  const avgMetrics = useMemo(() => {
+    if (sortedRecords.length === 0) return null;
+    const count = sortedRecords.length;
+    const totalDuration = sortedRecords.reduce((acc, r) => acc + (r.duration_hours || 0), 0);
     const avgDuration = totalDuration / count;
 
-    const scoredRecords = sorted.filter((r) => r.score != null && r.score > 0);
-    const avgScore = scoredRecords.length > 0
-      ? Math.round(scoredRecords.reduce((acc, r) => acc + (r.score || 0), 0) / scoredRecords.length)
+    const scored = sortedRecords.filter((r) => r.score != null && r.score > 0);
+    const avgScore = scored.length > 0
+      ? Math.round(scored.reduce((acc, r) => acc + (r.score || 0), 0) / scored.length)
       : null;
 
-    const totalDeep = sorted.reduce((acc, r) => acc + (r.deep_hours || 0), 0);
+    const totalDeep = sortedRecords.reduce((acc, r) => acc + (r.deep_hours || 0), 0);
     const avgDeep = totalDeep / count;
     const deepPct = avgDuration > 0 ? Math.round((avgDeep / avgDuration) * 100) : 0;
 
-    const totalRem = sorted.reduce((acc, r) => acc + (r.rem_hours || 0), 0);
-    const avgRem = totalRem / count;
-    const remPct = avgDuration > 0 ? Math.round((avgRem / avgDuration) * 100) : 0;
-
-    const hrvRecords = sorted.filter((r) => r.avg_hrv != null && r.avg_hrv > 0);
-    const avgHrv = hrvRecords.length > 0
-      ? Math.round(hrvRecords.reduce((acc, r) => acc + (r.avg_hrv || 0), 0) / hrvRecords.length)
-      : null;
-
-    const hrRecords = sorted.filter((r) => r.avg_hr != null && r.avg_hr > 0);
-    const avgSleepingHr = hrRecords.length > 0
-      ? Math.round(hrRecords.reduce((acc, r) => acc + (r.avg_hr || 0), 0) / hrRecords.length)
-      : null;
-
     return {
-      latest,
       avgDuration,
       avgScore,
       avgDeep,
       deepPct,
-      avgRem,
-      remPct,
-      avgHrv,
-      avgSleepingHr,
       totalNights: count,
     };
-  }, [sleepRecords]);
+  }, [sortedRecords]);
 
-  // Prepare chart dataset
+  // Chart data formatting
   const chartData = useMemo(() => {
     return filteredRecords.map((r) => {
-      let label = r.date;
+      let shortDay = r.date;
+      let dayName = '';
       try {
-        label = format(parseISO(r.date), 'dd/MM');
+        const d = parseISO(r.date);
+        shortDay = format(d, 'd/M');
+        dayName = format(d, 'EEE', { locale: th });
       } catch (e) {}
 
       return {
         date: r.date,
-        label,
+        shortDay,
+        dayName,
+        label: `${dayName} ${shortDay}`,
         deep: r.deep_hours || 0,
         light: r.light_hours || 0,
         rem: r.rem_hours || 0,
@@ -146,9 +199,10 @@ export function DailySleepMonitor({ sleepRecords = [], onRefresh, lastSyncTime }
         hrv: r.avg_hrv ?? null,
         avgHr: r.avg_hr ?? null,
         bodyBattery: r.body_battery_change ?? null,
+        isSelected: r.date === activeDate,
       };
     });
-  }, [filteredRecords]);
+  }, [filteredRecords, activeDate]);
 
   const handleManualSync = async () => {
     setSyncing(true);
@@ -172,63 +226,80 @@ export function DailySleepMonitor({ sleepRecords = [], onRefresh, lastSyncTime }
     }
   };
 
+  // Active record computations
+  const activeTotalH = activeRecord?.duration_hours || 0;
+  const activeDeepPct = activeTotalH > 0 ? Math.round(((activeRecord?.deep_hours || 0) / activeTotalH) * 100) : 0;
+  const activeLightPct = activeTotalH > 0 ? Math.round(((activeRecord?.light_hours || 0) / activeTotalH) * 100) : 0;
+  const activeRemPct = activeTotalH > 0 ? Math.round(((activeRecord?.rem_hours || 0) / activeTotalH) * 100) : 0;
+  const activeAwakePct = activeTotalH > 0 ? Math.max(0, 100 - activeDeepPct - activeLightPct - activeRemPct) : 0;
+  const activeBadge = getScoreBadge(activeRecord?.score, activeRecord?.qualifier);
+  const activeBedtime = formatBedtimeWindow(activeRecord?.start_time, activeRecord?.end_time);
+
+  let activeDateLabel = activeRecord?.date || '';
+  try {
+    if (activeRecord?.date) {
+      activeDateLabel = format(parseISO(activeRecord.date), 'EEEEที่ d MMMM yyyy', { locale: th });
+    }
+  } catch (e) {}
+
   return (
     <div
       style={{
         background: 'var(--color-bg-card)',
         borderRadius: 20,
         border: '1px solid var(--color-border)',
-        padding: '20px',
+        padding: '16px',
         marginBottom: '20px',
         boxShadow: 'var(--shadow-sm)',
       }}
     >
-      {/* Header */}
+      {/* Header Bar */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 12,
-          marginBottom: 18,
+          gap: 8,
+          marginBottom: 16,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
           <div
             style={{
-              width: 38,
-              height: 38,
-              borderRadius: 12,
+              width: 36,
+              height: 36,
+              borderRadius: 10,
               background: 'rgba(201, 167, 235, 0.2)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              flexShrink: 0,
             }}
           >
-            <MoonStars size={22} weight="fill" color="var(--color-secondary)" />
+            <MoonStars size={20} weight="fill" color="var(--color-secondary)" />
           </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               <h3
                 style={{
                   margin: 0,
-                  fontSize: '1.125rem',
+                  fontSize: '1.0625rem',
                   fontWeight: 700,
                   fontFamily: "'Baloo 2', sans-serif",
                   color: 'var(--color-foreground)',
+                  lineHeight: 1.2,
                 }}
               >
-                Daily Sleep Monitor
+                Sleep Monitor
               </h3>
               <span
                 style={{
-                  fontSize: '0.6875rem',
+                  fontSize: '0.625rem',
                   fontWeight: 700,
-                  background: 'rgba(127, 219, 182, 0.2)',
+                  background: 'rgba(16, 185, 129, 0.15)',
                   color: '#059669',
-                  padding: '2px 8px',
-                  borderRadius: 6,
+                  padding: '2px 6px',
+                  borderRadius: 5,
                   fontFamily: "'Baloo 2', sans-serif",
                 }}
               >
@@ -238,296 +309,619 @@ export function DailySleepMonitor({ sleepRecords = [], onRefresh, lastSyncTime }
             <p
               style={{
                 margin: '2px 0 0',
-                fontSize: '0.75rem',
+                fontSize: '0.6875rem',
                 color: 'var(--color-text-muted)',
                 fontFamily: "'Mali', sans-serif",
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
               }}
             >
-              ติดตามระยะเวลา คุณภาพการนอน และการฟื้นฟูร่างกายแต่ละคืน
+              ติดตามคุณภาพการนอน & การฟื้นฟูร่างกาย
             </p>
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button
-            type="button"
-            onClick={handleManualSync}
-            disabled={syncing}
-            className="btn btn-ghost btn-sm"
+        <button
+          type="button"
+          onClick={handleManualSync}
+          disabled={syncing}
+          className="btn btn-ghost btn-sm"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 5,
+            fontSize: '0.75rem',
+            padding: '6px 10px',
+            borderRadius: 10,
+            background: 'var(--color-bg-elevated)',
+            border: '1px solid var(--color-border)',
+            cursor: syncing ? 'not-allowed' : 'pointer',
+            flexShrink: 0,
+          }}
+          title="ซิงค์ข้อมูลจาก Garmin Connect"
+        >
+          <ArrowsClockwise
+            size={13}
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              fontSize: '0.75rem',
-              padding: '6px 12px',
-              borderRadius: 10,
-              background: 'var(--color-bg-elevated)',
-              border: '1px solid var(--color-border)',
-              cursor: syncing ? 'not-allowed' : 'pointer',
+              animation: syncing ? 'spin 1s linear infinite' : 'none',
             }}
-            title="ดึงข้อมูลการนอนล่าสุดจาก Garmin Connect"
-          >
-            <ArrowsClockwise
-              size={14}
-              style={{
-                animation: syncing ? 'spin 1s linear infinite' : 'none',
-              }}
-            />
-            {syncing ? 'กำลังซิงค์...' : 'Sync Sleep'}
-          </button>
-        </div>
+          />
+          <span style={{ fontWeight: 600 }}>{syncing ? 'กำลังซิงค์' : 'Sync'}</span>
+        </button>
       </div>
 
       {syncMsg && (
         <div
           style={{
-            marginBottom: 16,
+            marginBottom: 14,
             padding: '8px 12px',
             borderRadius: 10,
-            fontSize: '0.8125rem',
+            fontSize: '0.75rem',
             background: syncMsg.includes('เรียบร้อย')
-              ? 'rgba(127, 219, 182, 0.15)'
-              : 'rgba(255, 107, 129, 0.15)',
+              ? 'rgba(16, 185, 129, 0.15)'
+              : 'rgba(244, 63, 94, 0.15)',
             color: syncMsg.includes('เรียบร้อย') ? '#059669' : 'var(--color-destructive)',
             display: 'flex',
             alignItems: 'center',
             gap: 6,
           }}
         >
-          {syncMsg.includes('เรียบร้อย') ? <CheckCircle size={16} /> : <WarningCircle size={16} />}
+          {syncMsg.includes('เรียบร้อย') ? <CheckCircle size={15} /> : <Warning size={15} />}
           <span>{syncMsg}</span>
         </div>
       )}
 
       {/* Empty State */}
-      {(!sleepRecords || sleepRecords.length === 0) ? (
+      {sortedRecords.length === 0 ? (
         <div
           style={{
             textAlign: 'center',
-            padding: '36px 16px',
+            padding: '32px 16px',
             background: 'var(--color-bg-elevated)',
             borderRadius: 16,
             border: '2px dashed var(--color-border)',
           }}
         >
-          <Bed size={36} color="var(--color-secondary)" style={{ marginBottom: 10, opacity: 0.8 }} />
-          <p style={{ margin: '0 0 6px', fontWeight: 600, fontSize: '0.9375rem' }}>
+          <Bed size={32} color="var(--color-secondary)" style={{ marginBottom: 8, opacity: 0.8 }} />
+          <p style={{ margin: '0 0 6px', fontWeight: 600, fontSize: '0.875rem' }}>
             ยังไม่มีข้อมูลการนอนจาก Garmin Connect
-          </p>
-          <p
-            style={{
-              margin: '0 0 16px',
-              fontSize: '0.8125rem',
-              color: 'var(--color-text-muted)',
-              maxWidth: 400,
-              marginLeft: 'auto',
-              marginRight: 'auto',
-            }}
-          >
-            กดปุ่มซิงค์เพื่อเชื่อมต่อและดึงสถิติการนอนจากนาฬิกา Garmin Venu 3 ของคุณ
           </p>
           <button
             type="button"
             onClick={handleManualSync}
             disabled={syncing}
             className="btn btn-primary btn-sm"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 8 }}
           >
-            <ArrowsClockwise size={14} className={syncing ? 'animate-spin' : ''} />
-            {syncing ? 'กำลังดึงข้อมูล...' : 'ซิงค์ข้อมูลการนอนตอนนี้'}
+            <ArrowsClockwise size={13} className={syncing ? 'animate-spin' : ''} />
+            {syncing ? 'กำลังซิงค์...' : 'ซิงค์ข้อมูลการนอน'}
           </button>
         </div>
       ) : (
         <>
-          {/* Metric Summary Cards Grid */}
-          {metrics && (
+          {/* ========================================================
+              HERO CARD: Selected Night Spotlight (Mobile Optimized)
+             ======================================================== */}
+          {activeRecord && (
+            <div
+              style={{
+                background: 'var(--color-bg-elevated)',
+                borderRadius: 16,
+                padding: '16px',
+                border: '1.5px solid var(--color-border)',
+                marginBottom: 16,
+                position: 'relative',
+              }}
+            >
+              {/* Top Row: Date & Status Badge */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 8,
+                  marginBottom: 10,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Moon size={15} weight="fill" color="var(--color-secondary)" />
+                  <span
+                    style={{
+                      fontSize: '0.8125rem',
+                      fontWeight: 700,
+                      color: 'var(--color-foreground)',
+                      fontFamily: "'Baloo 2', sans-serif",
+                    }}
+                  >
+                    {activeDateLabel}
+                  </span>
+                </div>
+                <span
+                  style={{
+                    fontSize: '0.6875rem',
+                    fontWeight: 700,
+                    padding: '2px 8px',
+                    borderRadius: 999,
+                    background: activeBadge.bg,
+                    color: activeBadge.color,
+                    border: `1px solid ${activeBadge.border}`,
+                    fontFamily: "'Baloo 2', sans-serif",
+                  }}
+                >
+                  {activeBadge.text}
+                </span>
+              </div>
+
+              {/* Main Numbers: Total Duration + Target Info */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'baseline',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: 8,
+                  marginBottom: 12,
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      fontSize: '1.75rem',
+                      fontWeight: 800,
+                      fontFamily: "'Baloo 2', sans-serif",
+                      color: 'var(--color-foreground)',
+                      lineHeight: 1,
+                      letterSpacing: '-0.5px',
+                    }}
+                  >
+                    {formatHoursAndMinutes(activeTotalH)}
+                  </div>
+                  {activeBedtime && (
+                    <div
+                      style={{
+                        fontSize: '0.6875rem',
+                        color: 'var(--color-text-muted)',
+                        marginTop: 4,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4,
+                      }}
+                    >
+                      <Bed size={12} />
+                      <span>{activeBedtime}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Target badge */}
+                <div
+                  style={{
+                    textAlign: 'right',
+                    fontSize: '0.6875rem',
+                    color: 'var(--color-text-muted)',
+                  }}
+                >
+                  <div>เป้าหมาย 7–8 ชม.</div>
+                  <div
+                    style={{
+                      fontWeight: 700,
+                      color: activeTotalH >= 7 ? '#059669' : 'var(--color-primary)',
+                      marginTop: 2,
+                    }}
+                  >
+                    {activeTotalH >= 7
+                      ? '✓ บรรลุเป้าหมาย'
+                      : `ขาดอีก ${formatHoursAndMinutes(Math.max(0, 7 - activeTotalH))}`}
+                  </div>
+                </div>
+              </div>
+
+              {/* Segmented Stage Visual Progress Bar */}
+              <div style={{ marginBottom: 12 }}>
+                <div
+                  style={{
+                    height: 10,
+                    borderRadius: 6,
+                    background: 'var(--color-border-muted)',
+                    display: 'flex',
+                    overflow: 'hidden',
+                    gap: '2px',
+                  }}
+                >
+                  {activeDeepPct > 0 && (
+                    <div
+                      style={{
+                        width: `${activeDeepPct}%`,
+                        background: STAGE_COLORS.deep,
+                        borderRadius: '4px',
+                      }}
+                      title={`Deep: ${activeRecord.deep_hours}h (${activeDeepPct}%)`}
+                    />
+                  )}
+                  {activeLightPct > 0 && (
+                    <div
+                      style={{
+                        width: `${activeLightPct}%`,
+                        background: STAGE_COLORS.light,
+                        borderRadius: '4px',
+                      }}
+                      title={`Light: ${activeRecord.light_hours}h (${activeLightPct}%)`}
+                    />
+                  )}
+                  {activeRemPct > 0 && (
+                    <div
+                      style={{
+                        width: `${activeRemPct}%`,
+                        background: STAGE_COLORS.rem,
+                        borderRadius: '4px',
+                      }}
+                      title={`REM: ${activeRecord.rem_hours}h (${activeRemPct}%)`}
+                    />
+                  )}
+                  {activeAwakePct > 0 && (
+                    <div
+                      style={{
+                        width: `${activeAwakePct}%`,
+                        background: STAGE_COLORS.awake,
+                        borderRadius: '4px',
+                      }}
+                      title={`Awake: ${activeRecord.awake_hours}h (${activeAwakePct}%)`}
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* 4 Stage Pills (Mobile 2x2 Grid) */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: 8,
+                  marginBottom: 12,
+                }}
+              >
+                {/* Deep */}
+                <div
+                  style={{
+                    padding: '8px 10px',
+                    borderRadius: 10,
+                    background: 'var(--color-bg-card)',
+                    border: '1px solid var(--color-border)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      background: STAGE_COLORS.deep,
+                      flexShrink: 0,
+                    }}
+                  />
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: '0.625rem', color: 'var(--color-text-muted)' }}>
+                      หลับลึก (Deep)
+                    </div>
+                    <div
+                      style={{
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        color: 'var(--color-foreground)',
+                        fontFamily: "'Baloo 2', sans-serif",
+                      }}
+                    >
+                      {formatHoursAndMinutes(activeRecord.deep_hours)}{' '}
+                      <span style={{ fontSize: '0.6875rem', color: '#059669', fontWeight: 600 }}>
+                        ({activeDeepPct}%)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* REM */}
+                <div
+                  style={{
+                    padding: '8px 10px',
+                    borderRadius: 10,
+                    background: 'var(--color-bg-card)',
+                    border: '1px solid var(--color-border)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      background: STAGE_COLORS.rem,
+                      flexShrink: 0,
+                    }}
+                  />
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: '0.625rem', color: 'var(--color-text-muted)' }}>
+                      ช่วงฝัน (REM)
+                    </div>
+                    <div
+                      style={{
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        color: 'var(--color-foreground)',
+                        fontFamily: "'Baloo 2', sans-serif",
+                      }}
+                    >
+                      {formatHoursAndMinutes(activeRecord.rem_hours)}{' '}
+                      <span style={{ fontSize: '0.6875rem', color: '#7C3AED', fontWeight: 600 }}>
+                        ({activeRemPct}%)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Light */}
+                <div
+                  style={{
+                    padding: '8px 10px',
+                    borderRadius: 10,
+                    background: 'var(--color-bg-card)',
+                    border: '1px solid var(--color-border)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      background: STAGE_COLORS.light,
+                      flexShrink: 0,
+                    }}
+                  />
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: '0.625rem', color: 'var(--color-text-muted)' }}>
+                      หลับตื้น (Light)
+                    </div>
+                    <div
+                      style={{
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        color: 'var(--color-foreground)',
+                        fontFamily: "'Baloo 2', sans-serif",
+                      }}
+                    >
+                      {formatHoursAndMinutes(activeRecord.light_hours)}{' '}
+                      <span style={{ fontSize: '0.6875rem', color: '#0284C7', fontWeight: 600 }}>
+                        ({activeLightPct}%)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Awake */}
+                <div
+                  style={{
+                    padding: '8px 10px',
+                    borderRadius: 10,
+                    background: 'var(--color-bg-card)',
+                    border: '1px solid var(--color-border)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      background: STAGE_COLORS.awake,
+                      flexShrink: 0,
+                    }}
+                  />
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: '0.625rem', color: 'var(--color-text-muted)' }}>
+                      ตื่น (Awake)
+                    </div>
+                    <div
+                      style={{
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        color: 'var(--color-foreground)',
+                        fontFamily: "'Baloo 2', sans-serif",
+                      }}
+                    >
+                      {formatHoursAndMinutes(activeRecord.awake_hours)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Recovery Quick Chips Row */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  flexWrap: 'wrap',
+                  paddingTop: 10,
+                  borderTop: '1px solid var(--color-border-muted)',
+                  fontSize: '0.6875rem',
+                }}
+              >
+                {activeRecord.avg_hrv != null && (
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      padding: '3px 8px',
+                      borderRadius: 8,
+                      background: 'rgba(201, 167, 235, 0.2)',
+                      color: 'var(--color-secondary)',
+                      fontWeight: 600,
+                    }}
+                  >
+                    <Lightning size={12} weight="fill" />
+                    HRV {activeRecord.avg_hrv} ms
+                  </span>
+                )}
+                {activeRecord.avg_hr != null && (
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      padding: '3px 8px',
+                      borderRadius: 8,
+                      background: 'rgba(251, 113, 133, 0.15)',
+                      color: '#E11D48',
+                      fontWeight: 600,
+                    }}
+                  >
+                    <Heart size={12} weight="fill" />
+                    HR {Math.round(activeRecord.avg_hr)} bpm
+                  </span>
+                )}
+                {activeRecord.body_battery_change != null && (
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      padding: '3px 8px',
+                      borderRadius: 8,
+                      background: 'rgba(16, 185, 129, 0.15)',
+                      color: '#059669',
+                      fontWeight: 600,
+                    }}
+                  >
+                    <BatteryCharging size={13} weight="fill" />
+                    +{activeRecord.body_battery_change} ชาร์จพลัง
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================
+              3 COMPACT METRIC CARDS (Average stats)
+             ======================================================== */}
+          {avgMetrics && (
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-                gap: 12,
-                marginBottom: 20,
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: 8,
+                marginBottom: 16,
               }}
             >
-              {/* Card 1: Latest Night */}
               <div
                 style={{
                   background: 'var(--color-bg-elevated)',
-                  borderRadius: 16,
-                  padding: '14px',
+                  borderRadius: 12,
+                  padding: '10px 8px',
+                  textAlign: 'center',
                   border: '1px solid var(--color-border)',
-                  position: 'relative',
-                  overflow: 'hidden',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>
-                    คืนล่าสุด ({metrics.latest?.date ? format(parseISO(metrics.latest.date), 'dd MMM') : '-'})
-                  </span>
-                  <Moon size={14} color="var(--color-secondary)" weight="fill" />
+                <div style={{ fontSize: '0.625rem', color: 'var(--color-text-muted)', marginBottom: 2 }}>
+                  เวลานอนเฉลี่ย
                 </div>
                 <div
                   style={{
-                    fontSize: '1.25rem',
+                    fontSize: '0.9375rem',
                     fontWeight: 800,
                     fontFamily: "'Baloo 2', sans-serif",
                     color: 'var(--color-foreground)',
-                    lineHeight: 1.1,
-                    marginBottom: 4,
                   }}
                 >
-                  {formatHoursAndMinutes(metrics.latest?.duration_hours || 0)}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  {(() => {
-                    const badge = getScoreBadge(metrics.latest?.score, metrics.latest?.qualifier);
-                    return (
-                      <span
-                        style={{
-                          fontSize: '0.6875rem',
-                          fontWeight: 700,
-                          padding: '2px 6px',
-                          borderRadius: 6,
-                          background: badge.bg,
-                          color: badge.color,
-                        }}
-                      >
-                        {badge.text}
-                      </span>
-                    );
-                  })()}
+                  {formatShortDuration(avgMetrics.avgDuration)}
                 </div>
               </div>
 
-              {/* Card 2: Average Duration */}
               <div
                 style={{
                   background: 'var(--color-bg-elevated)',
-                  borderRadius: 16,
-                  padding: '14px',
+                  borderRadius: 12,
+                  padding: '10px 8px',
+                  textAlign: 'center',
                   border: '1px solid var(--color-border)',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>
-                    เวลานอนเฉลี่ย
-                  </span>
-                  <Bed size={14} color="var(--color-sky)" weight="fill" />
+                <div style={{ fontSize: '0.625rem', color: 'var(--color-text-muted)', marginBottom: 2 }}>
+                  คะแนนเฉลี่ย
                 </div>
                 <div
                   style={{
-                    fontSize: '1.25rem',
+                    fontSize: '0.9375rem',
                     fontWeight: 800,
                     fontFamily: "'Baloo 2', sans-serif",
-                    color: 'var(--color-foreground)',
-                    lineHeight: 1.1,
-                    marginBottom: 4,
+                    color: avgMetrics.avgScore && avgMetrics.avgScore >= 70 ? '#059669' : '#0284C7',
                   }}
                 >
-                  {formatHoursAndMinutes(metrics.avgDuration)}
-                </div>
-                <div style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>
-                  เป้าหมาย: 7–8 ชม./คืน
+                  {avgMetrics.avgScore ?? '-'}
                 </div>
               </div>
 
-              {/* Card 3: Deep Sleep Ratio */}
               <div
                 style={{
                   background: 'var(--color-bg-elevated)',
-                  borderRadius: 16,
-                  padding: '14px',
+                  borderRadius: 12,
+                  padding: '10px 8px',
+                  textAlign: 'center',
                   border: '1px solid var(--color-border)',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>
-                    หลับลึก (Deep Sleep)
-                  </span>
-                  <Sparkle size={14} color="var(--color-accent)" weight="fill" />
+                <div style={{ fontSize: '0.625rem', color: 'var(--color-text-muted)', marginBottom: 2 }}>
+                  หลับลึกเฉลี่ย
                 </div>
                 <div
                   style={{
-                    fontSize: '1.25rem',
+                    fontSize: '0.9375rem',
                     fontWeight: 800,
                     fontFamily: "'Baloo 2', sans-serif",
                     color: '#059669',
-                    lineHeight: 1.1,
-                    marginBottom: 4,
                   }}
                 >
-                  {formatHoursAndMinutes(metrics.avgDeep)}
-                </div>
-                <div style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>
-                  สัดส่วน <strong>{metrics.deepPct}%</strong> (เกณฑ์ 15–25%)
-                </div>
-              </div>
-
-              {/* Card 4: Overnight HRV & Battery */}
-              <div
-                style={{
-                  background: 'var(--color-bg-elevated)',
-                  borderRadius: 16,
-                  padding: '14px',
-                  border: '1px solid var(--color-border)',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>
-                    HRV / การฟื้นฟู
-                  </span>
-                  <Waveform size={14} color="var(--color-primary)" weight="bold" />
-                </div>
-                <div
-                  style={{
-                    fontSize: '1.25rem',
-                    fontWeight: 800,
-                    fontFamily: "'Baloo 2', sans-serif",
-                    color: 'var(--color-foreground)',
-                    lineHeight: 1.1,
-                    marginBottom: 4,
-                  }}
-                >
-                  {metrics.latest?.avg_hrv ? `${metrics.latest.avg_hrv} ms` : '-'}
-                </div>
-                <div style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {metrics.latest?.body_battery_change != null && (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, color: '#059669', fontWeight: 600 }}>
-                      <BatteryCharging size={12} />+{metrics.latest.body_battery_change}
-                    </span>
-                  )}
-                  {metrics.latest?.avg_hr && (
-                    <span>HR {Math.round(metrics.latest.avg_hr)} bpm</span>
-                  )}
+                  {avgMetrics.deepPct}%
                 </div>
               </div>
             </div>
           )}
 
-          {/* Controls: Chart Mode Tabs & Timeframe */}
+          {/* ========================================================
+              CONTROLS: Tab switcher + Timeframe
+             ======================================================== */}
           <div
             style={{
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: 10,
-              marginBottom: 16,
+              flexDirection: 'column',
+              gap: 8,
+              marginBottom: 12,
             }}
           >
-            {/* Chart Type Tabs */}
+            {/* Main Tabs (Full width segmented control) */}
             <div
               style={{
-                display: 'flex',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
                 background: 'var(--color-bg-elevated)',
                 borderRadius: 12,
                 padding: '3px',
                 border: '1px solid var(--color-border)',
+                gap: 2,
               }}
             >
               {[
-                { key: 'stages', label: 'ระยะเวลานอน & Stages' },
-                { key: 'score', label: 'คะแนนการนอน (Score)' },
+                { key: 'stages', label: 'สเตจการนอน' },
+                { key: 'score', label: 'คะแนนการนอน' },
                 { key: 'hrv', label: 'HRV & ชีพจร' },
               ].map((tab) => (
                 <button
@@ -535,16 +929,17 @@ export function DailySleepMonitor({ sleepRecords = [], onRefresh, lastSyncTime }
                   type="button"
                   onClick={() => setActiveTab(tab.key as any)}
                   style={{
-                    padding: '6px 12px',
+                    padding: '6px 4px',
                     borderRadius: 9,
                     border: 'none',
-                    fontSize: '0.75rem',
+                    fontSize: '0.6875rem',
                     fontWeight: activeTab === tab.key ? 700 : 500,
                     cursor: 'pointer',
                     background: activeTab === tab.key ? 'var(--color-bg-card)' : 'transparent',
                     color: activeTab === tab.key ? 'var(--color-foreground)' : 'var(--color-text-muted)',
                     boxShadow: activeTab === tab.key ? 'var(--shadow-sm)' : 'none',
                     transition: 'all 0.15s ease',
+                    textAlign: 'center',
                   }}
                 >
                   {tab.label}
@@ -552,271 +947,261 @@ export function DailySleepMonitor({ sleepRecords = [], onRefresh, lastSyncTime }
               ))}
             </div>
 
-            {/* Timeframe Filter */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              {[
-                { key: '7', label: '7 วัน' },
-                { key: '14', label: '14 วัน' },
-                { key: '30', label: '30 วัน' },
-                { key: 'all', label: 'ทั้งหมด' },
-              ].map((tf) => (
-                <button
-                  key={tf.key}
-                  type="button"
-                  onClick={() => setTimeframe(tf.key as any)}
-                  style={{
-                    padding: '4px 8px',
-                    borderRadius: 8,
-                    border: '1px solid',
-                    borderColor: timeframe === tf.key ? 'var(--color-secondary)' : 'var(--color-border)',
-                    background: timeframe === tf.key ? 'rgba(201, 167, 235, 0.15)' : 'transparent',
-                    color: timeframe === tf.key ? 'var(--color-secondary)' : 'var(--color-text-muted)',
-                    fontSize: '0.6875rem',
-                    fontWeight: timeframe === tf.key ? 700 : 500,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {tf.label}
-                </button>
-              ))}
+            {/* Timeframe + Tap Hint */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 6,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: '0.625rem',
+                  color: 'var(--color-text-muted)',
+                  fontFamily: "'Mali', sans-serif",
+                }}
+              >
+                💡 แตะแท่งกราฟเพื่อดูสถิติของวันนั้น
+              </span>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                {[
+                  { key: '7', label: '7 วัน' },
+                  { key: '14', label: '14 วัน' },
+                  { key: '30', label: '30 วัน' },
+                ].map((tf) => (
+                  <button
+                    key={tf.key}
+                    type="button"
+                    onClick={() => setTimeframe(tf.key as any)}
+                    style={{
+                      padding: '3px 8px',
+                      borderRadius: 6,
+                      border: '1px solid',
+                      borderColor: timeframe === tf.key ? 'var(--color-secondary)' : 'var(--color-border)',
+                      background: timeframe === tf.key ? 'rgba(201, 167, 235, 0.15)' : 'transparent',
+                      color: timeframe === tf.key ? 'var(--color-secondary)' : 'var(--color-text-muted)',
+                      fontSize: '0.625rem',
+                      fontWeight: timeframe === tf.key ? 700 : 500,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {tf.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
-          {/* Chart Rendering Container */}
+          {/* ========================================================
+              RESPONSIVE RECHARTS CONTAINER
+             ======================================================== */}
           <div
             style={{
               width: '100%',
-              height: 260,
+              height: 210,
               background: 'var(--color-bg-elevated)',
-              borderRadius: 16,
-              padding: '16px 12px 10px 0',
+              borderRadius: 14,
+              padding: '12px 8px 6px 0',
               border: '1px solid var(--color-border)',
               position: 'relative',
+              marginBottom: 16,
             }}
           >
             <ResponsiveContainer width="100%" height="100%">
               {activeTab === 'stages' ? (
-                <BarChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                <BarChart
+                  data={chartData}
+                  margin={{ top: 8, right: 6, left: -22, bottom: 0 }}
+                  onClick={(state: any) => {
+                    if (state?.activePayload && state.activePayload.length > 0) {
+                      const clicked = state.activePayload[0].payload;
+                      if (clicked?.date) setSelectedDate(clicked.date);
+                    }
+                  }}
+                >
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-muted)" vertical={false} />
                   <XAxis
-                    dataKey="label"
-                    tick={{ fill: 'var(--color-text-muted)', fontSize: 11 }}
+                    dataKey="shortDay"
+                    tick={{ fill: 'var(--color-text-muted)', fontSize: 10 }}
                     axisLine={{ stroke: 'var(--color-border)' }}
                     tickLine={false}
                   />
                   <YAxis
-                    tick={{ fill: 'var(--color-text-muted)', fontSize: 11 }}
+                    tick={{ fill: 'var(--color-text-muted)', fontSize: 10 }}
                     unit="h"
-                    domain={[0, (dataMax: number) => Math.max(9, Math.ceil(dataMax + 0.5))]}
+                    domain={[0, (dataMax: number) => Math.max(8.5, Math.ceil(dataMax + 0.5))]}
                     axisLine={{ stroke: 'var(--color-border)' }}
                     tickLine={false}
                   />
-                  <Tooltip content={<CustomSleepTooltip />} />
-                  <Legend
-                    verticalAlign="top"
-                    align="right"
-                    iconType="circle"
-                    iconSize={8}
-                    wrapperStyle={{ fontSize: '0.75rem', paddingBottom: 10, fontFamily: "'Mali', sans-serif" }}
-                  />
+                  <Tooltip content={<MobileCustomTooltip />} />
                   <ReferenceLine
                     y={7}
                     stroke="var(--color-primary)"
-                    strokeDasharray="4 4"
+                    strokeDasharray="3 3"
                     strokeWidth={1.5}
-                    label={{
-                      value: 'เป้าหมาย 7 ชม.',
-                      position: 'insideTopLeft',
-                      fill: 'var(--color-primary)',
-                      fontSize: 10,
-                      fontWeight: 600,
-                    }}
                   />
-                  <Bar dataKey="deep" name="Deep (หลับลึก)" stackId="sleep" fill={STAGE_COLORS.deep} radius={[0, 0, 0, 0]} />
-                  <Bar dataKey="light" name="Light (หลับตื้น)" stackId="sleep" fill={STAGE_COLORS.light} radius={[0, 0, 0, 0]} />
-                  <Bar dataKey="rem" name="REM (ช่วงฝัน)" stackId="sleep" fill={STAGE_COLORS.rem} radius={[0, 0, 0, 0]} />
-                  <Bar dataKey="awake" name="Awake (ตื่น)" stackId="sleep" fill={STAGE_COLORS.awake} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="deep" stackId="s" fill={STAGE_COLORS.deep} radius={[0, 0, 0, 0]}>
+                    {chartData.map((entry, index) => (
+                      <Cell
+                        key={`cell-deep-${index}`}
+                        stroke={entry.isSelected ? 'var(--color-foreground)' : 'transparent'}
+                        strokeWidth={entry.isSelected ? 2 : 0}
+                      />
+                    ))}
+                  </Bar>
+                  <Bar dataKey="light" stackId="s" fill={STAGE_COLORS.light} radius={[0, 0, 0, 0]} />
+                  <Bar dataKey="rem" stackId="s" fill={STAGE_COLORS.rem} radius={[0, 0, 0, 0]} />
+                  <Bar dataKey="awake" stackId="s" fill={STAGE_COLORS.awake} radius={[4, 4, 0, 0]} />
                 </BarChart>
               ) : activeTab === 'score' ? (
-                <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                <ComposedChart
+                  data={chartData}
+                  margin={{ top: 8, right: 6, left: -22, bottom: 0 }}
+                  onClick={(state: any) => {
+                    if (state?.activePayload && state.activePayload.length > 0) {
+                      const clicked = state.activePayload[0].payload;
+                      if (clicked?.date) setSelectedDate(clicked.date);
+                    }
+                  }}
+                >
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-muted)" vertical={false} />
                   <XAxis
-                    dataKey="label"
-                    tick={{ fill: 'var(--color-text-muted)', fontSize: 11 }}
+                    dataKey="shortDay"
+                    tick={{ fill: 'var(--color-text-muted)', fontSize: 10 }}
                     axisLine={{ stroke: 'var(--color-border)' }}
                     tickLine={false}
                   />
                   <YAxis
                     domain={[0, 100]}
-                    tick={{ fill: 'var(--color-text-muted)', fontSize: 11 }}
+                    tick={{ fill: 'var(--color-text-muted)', fontSize: 10 }}
                     axisLine={{ stroke: 'var(--color-border)' }}
                     tickLine={false}
                   />
-                  <Tooltip content={<CustomScoreTooltip />} />
-                  <Legend
-                    verticalAlign="top"
-                    align="right"
-                    iconType="circle"
-                    iconSize={8}
-                    wrapperStyle={{ fontSize: '0.75rem', paddingBottom: 10, fontFamily: "'Mali', sans-serif" }}
-                  />
-                  <ReferenceLine
-                    y={80}
-                    stroke="#059669"
-                    strokeDasharray="3 3"
-                    label={{ value: 'Good (80)', position: 'insideTopLeft', fill: '#059669', fontSize: 10 }}
-                  />
-                  <ReferenceLine
-                    y={60}
-                    stroke="#EAB308"
-                    strokeDasharray="3 3"
-                    label={{ value: 'Fair (60)', position: 'insideTopLeft', fill: '#EAB308', fontSize: 10 }}
-                  />
-                  <Bar dataKey="score" name="Sleep Score" radius={[6, 6, 0, 0]} maxBarSize={36}>
+                  <Tooltip content={<MobileCustomTooltip />} />
+                  <ReferenceLine y={80} stroke="#10B981" strokeDasharray="3 3" />
+                  <ReferenceLine y={60} stroke="#38BDF8" strokeDasharray="3 3" />
+                  <Bar dataKey="score" radius={[5, 5, 0, 0]} maxBarSize={28}>
                     {chartData.map((entry, index) => (
                       <Cell
                         key={`cell-${index}`}
                         fill={
                           entry.score != null && entry.score >= 80
-                            ? '#7FDBB6'
+                            ? STAGE_COLORS.deep
                             : entry.score != null && entry.score >= 60
-                            ? '#8ECDF0'
-                            : '#FF8FA3'
+                            ? STAGE_COLORS.light
+                            : STAGE_COLORS.awake
                         }
+                        stroke={entry.isSelected ? 'var(--color-foreground)' : 'transparent'}
+                        strokeWidth={entry.isSelected ? 2 : 0}
                       />
                     ))}
                   </Bar>
                 </ComposedChart>
               ) : (
-                <LineChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                <LineChart
+                  data={chartData}
+                  margin={{ top: 8, right: 6, left: -22, bottom: 0 }}
+                  onClick={(state: any) => {
+                    if (state?.activePayload && state.activePayload.length > 0) {
+                      const clicked = state.activePayload[0].payload;
+                      if (clicked?.date) setSelectedDate(clicked.date);
+                    }
+                  }}
+                >
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border-muted)" vertical={false} />
                   <XAxis
-                    dataKey="label"
-                    tick={{ fill: 'var(--color-text-muted)', fontSize: 11 }}
+                    dataKey="shortDay"
+                    tick={{ fill: 'var(--color-text-muted)', fontSize: 10 }}
                     axisLine={{ stroke: 'var(--color-border)' }}
                     tickLine={false}
                   />
                   <YAxis
-                    tick={{ fill: 'var(--color-text-muted)', fontSize: 11 }}
+                    tick={{ fill: 'var(--color-text-muted)', fontSize: 10 }}
                     axisLine={{ stroke: 'var(--color-border)' }}
                     tickLine={false}
                   />
-                  <Tooltip content={<CustomRecoveryTooltip />} />
-                  <Legend
-                    verticalAlign="top"
-                    align="right"
-                    iconType="circle"
-                    iconSize={8}
-                    wrapperStyle={{ fontSize: '0.75rem', paddingBottom: 10, fontFamily: "'Mali', sans-serif" }}
-                  />
+                  <Tooltip content={<MobileCustomTooltip />} />
                   <Line
                     type="monotone"
-                    name="Overnight HRV (ms)"
+                    name="HRV (ms)"
                     dataKey="hrv"
                     stroke="var(--color-secondary)"
                     strokeWidth={2.5}
-                    dot={{ r: 4, fill: 'var(--color-secondary)' }}
-                    activeDot={{ r: 6 }}
+                    dot={{ r: 3, fill: 'var(--color-secondary)' }}
+                    activeDot={{ r: 5 }}
                   />
                   <Line
                     type="monotone"
-                    name="Sleeping HR (bpm)"
+                    name="Sleeping HR"
                     dataKey="avgHr"
-                    stroke="#FF8FA3"
+                    stroke="#FB7185"
                     strokeWidth={2.5}
-                    dot={{ r: 4, fill: '#FF8FA3' }}
-                    activeDot={{ r: 6 }}
+                    dot={{ r: 3, fill: '#FB7185' }}
+                    activeDot={{ r: 5 }}
                   />
                 </LineChart>
               )}
             </ResponsiveContainer>
           </div>
 
-          {/* Stage Guide Badges */}
-          <div
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: 8,
-              marginTop: 14,
-              padding: '10px 12px',
-              borderRadius: 12,
-              background: 'var(--color-bg-elevated)',
-              fontSize: '0.75rem',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ width: 10, height: 10, borderRadius: 3, background: STAGE_COLORS.deep }} />
-              <span style={{ color: 'var(--color-text-muted)' }}>
-                <strong>Deep Sleep</strong> (ฟื้นฟูกล้ามเนื้อ & ร่างกาย)
-              </span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ width: 10, height: 10, borderRadius: 3, background: STAGE_COLORS.rem }} />
-              <span style={{ color: 'var(--color-text-muted)' }}>
-                <strong>REM Sleep</strong> (ฟื้นฟูสมอง & อารมณ์)
-              </span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ width: 10, height: 10, borderRadius: 3, background: STAGE_COLORS.light }} />
-              <span style={{ color: 'var(--color-text-muted)' }}>
-                <strong>Light Sleep</strong> (การพักผ่อนทั่วไป)
-              </span>
-            </div>
-          </div>
-
-          {/* Recent Nights Breakdown List */}
-          <div style={{ marginTop: 20 }}>
+          {/* ========================================================
+              RECENT NIGHTS LIST (Clean Mobile Cards)
+             ======================================================== */}
+          <div>
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                marginBottom: 10,
+                marginBottom: 8,
               }}
             >
-              <h4
+              <span
                 style={{
-                  margin: 0,
-                  fontSize: '0.875rem',
+                  fontSize: '0.8125rem',
                   fontWeight: 700,
                   fontFamily: "'Baloo 2', sans-serif",
                   color: 'var(--color-foreground)',
                 }}
               >
-                ประวัติการนอนแต่ละคืน (Recent Nights)
-              </h4>
-              <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                {filteredRecords.length} คืนล่าสุด
+                ประวัติย้อนหลัง ({sortedRecords.length} คืน)
+              </span>
+              <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>
+                แตะเพื่อเลือกดูรายละเอียด
               </span>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {[...filteredRecords]
+              {[...sortedRecords]
                 .reverse()
                 .map((record) => {
-                  let formattedDate = record.date;
-                  try {
-                    formattedDate = format(parseISO(record.date), 'EEEE dd MMMM yyyy');
-                  } catch (e) {}
-
+                  const isSelected = record.date === activeDate;
                   const totalH = record.duration_hours || 0;
-                  const deepPct = totalH > 0 ? Math.round(((record.deep_hours || 0) / totalH) * 100) : 0;
-                  const lightPct = totalH > 0 ? Math.round(((record.light_hours || 0) / totalH) * 100) : 0;
-                  const remPct = totalH > 0 ? Math.round(((record.rem_hours || 0) / totalH) * 100) : 0;
+                  const dPct = totalH > 0 ? Math.round(((record.deep_hours || 0) / totalH) * 100) : 0;
+                  const lPct = totalH > 0 ? Math.round(((record.light_hours || 0) / totalH) * 100) : 0;
+                  const rPct = totalH > 0 ? Math.round(((record.rem_hours || 0) / totalH) * 100) : 0;
                   const badge = getScoreBadge(record.score, record.qualifier);
+
+                  let formattedDay = record.date;
+                  try {
+                    formattedDay = format(parseISO(record.date), 'EEE d MMM', { locale: th });
+                  } catch (e) {}
 
                   return (
                     <div
                       key={record.date}
+                      onClick={() => setSelectedDate(record.date)}
                       style={{
-                        padding: '12px 14px',
-                        borderRadius: 14,
-                        background: 'var(--color-bg-elevated)',
-                        border: '1px solid var(--color-border)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 8,
+                        padding: '10px 12px',
+                        borderRadius: 12,
+                        background: isSelected ? 'var(--color-bg-card)' : 'var(--color-bg-elevated)',
+                        border: isSelected ? '2px solid var(--color-secondary)' : '1px solid var(--color-border)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                        boxShadow: isSelected ? 'var(--shadow-sm)' : 'none',
                       }}
                     >
                       <div
@@ -824,20 +1209,27 @@ export function DailySleepMonitor({ sleepRecords = [], onRefresh, lastSyncTime }
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
-                          flexWrap: 'wrap',
                           gap: 6,
+                          marginBottom: 6,
                         }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--color-foreground)' }}>
-                            {record.date}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span
+                            style={{
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              color: isSelected ? 'var(--color-secondary)' : 'var(--color-foreground)',
+                              fontFamily: "'Baloo 2', sans-serif",
+                            }}
+                          >
+                            {formattedDay}
                           </span>
                           <span
                             style={{
-                              fontSize: '0.6875rem',
+                              fontSize: '0.625rem',
                               fontWeight: 700,
-                              padding: '2px 6px',
-                              borderRadius: 6,
+                              padding: '1px 6px',
+                              borderRadius: 4,
                               background: badge.bg,
                               color: badge.color,
                             }}
@@ -846,55 +1238,51 @@ export function DailySleepMonitor({ sleepRecords = [], onRefresh, lastSyncTime }
                           </span>
                         </div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span
-                            style={{
-                              fontSize: '0.9375rem',
-                              fontWeight: 800,
-                              fontFamily: "'Baloo 2', sans-serif",
-                              color: 'var(--color-foreground)',
-                            }}
-                          >
-                            {formatHoursAndMinutes(totalH)}
-                          </span>
+                        <div
+                          style={{
+                            fontSize: '0.875rem',
+                            fontWeight: 800,
+                            fontFamily: "'Baloo 2', sans-serif",
+                            color: 'var(--color-foreground)',
+                          }}
+                        >
+                          {formatShortDuration(totalH)}
                         </div>
                       </div>
 
-                      {/* Mini Stage Stack Bar */}
+                      {/* Mini Bar */}
                       <div
                         style={{
-                          height: 8,
-                          borderRadius: 4,
+                          height: 5,
+                          borderRadius: 3,
                           background: 'var(--color-border-muted)',
                           display: 'flex',
                           overflow: 'hidden',
+                          gap: '1px',
+                          marginBottom: 6,
                         }}
                       >
-                        <div style={{ width: `${deepPct}%`, background: STAGE_COLORS.deep }} title={`Deep: ${record.deep_hours}h (${deepPct}%)`} />
-                        <div style={{ width: `${lightPct}%`, background: STAGE_COLORS.light }} title={`Light: ${record.light_hours}h (${lightPct}%)`} />
-                        <div style={{ width: `${remPct}%`, background: STAGE_COLORS.rem }} title={`REM: ${record.rem_hours}h (${remPct}%)`} />
+                        <div style={{ width: `${dPct}%`, background: STAGE_COLORS.deep }} />
+                        <div style={{ width: `${lPct}%`, background: STAGE_COLORS.light }} />
+                        <div style={{ width: `${rPct}%`, background: STAGE_COLORS.rem }} />
                       </div>
 
-                      {/* Detail Footer */}
+                      {/* Micro Pills */}
                       <div
                         style={{
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
-                          fontSize: '0.6875rem',
+                          fontSize: '0.625rem',
                           color: 'var(--color-text-muted)',
-                          flexWrap: 'wrap',
-                          gap: 8,
                         }}
                       >
-                        <div style={{ display: 'flex', gap: 10 }}>
-                          <span>Deep: <strong>{formatHoursAndMinutes(record.deep_hours)}</strong> ({deepPct}%)</span>
-                          <span>Light: <strong>{formatHoursAndMinutes(record.light_hours)}</strong></span>
-                          <span>REM: <strong>{formatHoursAndMinutes(record.rem_hours)}</strong> ({remPct}%)</span>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <span>หลับลึก {formatShortDuration(record.deep_hours)}</span>
+                          <span>ฝัน {formatShortDuration(record.rem_hours)}</span>
                         </div>
-                        <div style={{ display: 'flex', gap: 10 }}>
-                          {record.avg_hrv != null && <span>HRV: <strong>{record.avg_hrv} ms</strong></span>}
-                          {record.avg_hr != null && <span>HR: <strong>{Math.round(record.avg_hr)} bpm</strong></span>}
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          {record.avg_hrv != null && <span>HRV {record.avg_hrv} ms</span>}
                           {record.body_battery_change != null && (
                             <span style={{ color: '#059669', fontWeight: 600 }}>
                               🔋 +{record.body_battery_change}
@@ -913,8 +1301,8 @@ export function DailySleepMonitor({ sleepRecords = [], onRefresh, lastSyncTime }
   );
 }
 
-// Custom Tooltip for Stages
-function CustomSleepTooltip({ active, payload, label }: any) {
+// Mobile Clean Custom Tooltip
+function MobileCustomTooltip({ active, payload }: any) {
   if (!active || !payload || !payload.length) return null;
   const data = payload[0]?.payload;
   if (!data) return null;
@@ -923,117 +1311,34 @@ function CustomSleepTooltip({ active, payload, label }: any) {
     <div
       style={{
         background: 'var(--color-bg-surface)',
-        border: '1px solid var(--color-border)',
-        borderRadius: 12,
-        padding: '10px 14px',
+        border: '1.5px solid var(--color-border)',
+        borderRadius: 10,
+        padding: '8px 10px',
         boxShadow: 'var(--shadow-md)',
-        fontSize: '0.75rem',
-        minWidth: 180,
+        fontSize: '0.6875rem',
+        minWidth: 140,
+        pointerEvents: 'none',
       }}
     >
-      <div style={{ fontWeight: 700, fontSize: '0.8125rem', marginBottom: 6, color: 'var(--color-foreground)' }}>
-        วันที่ {data.date}
+      <div style={{ fontWeight: 700, fontSize: '0.75rem', marginBottom: 4, color: 'var(--color-foreground)' }}>
+        {data.label || data.date}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-        <span style={{ color: 'var(--color-text-muted)' }}>เวลานอนทั้งหมด:</span>
-        <strong style={{ color: 'var(--color-foreground)' }}>{formatHoursAndMinutes(data.total)}</strong>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+        <span style={{ color: 'var(--color-text-muted)' }}>เวลานอน:</span>
+        <strong>{formatShortDuration(data.total)}</strong>
       </div>
       {data.score != null && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-          <span style={{ color: 'var(--color-text-muted)' }}>Sleep Score:</span>
-          <strong>{data.score} ({data.qualifier || 'FAIR'})</strong>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+          <span style={{ color: 'var(--color-text-muted)' }}>คะแนน:</span>
+          <strong style={{ color: data.score >= 80 ? '#059669' : data.score >= 60 ? '#0284C7' : '#E11D48' }}>
+            {data.score}
+          </strong>
         </div>
       )}
-      <div style={{ borderTop: '1px solid var(--color-border-muted)', paddingTop: 6, display: 'flex', flexDirection: 'column', gap: 3 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#059669' }}>
-          <span>Deep Sleep:</span>
-          <span>{formatHoursAndMinutes(data.deep)}</span>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#0284C7' }}>
-          <span>Light Sleep:</span>
-          <span>{formatHoursAndMinutes(data.light)}</span>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#7C3AED' }}>
-          <span>REM Sleep:</span>
-          <span>{formatHoursAndMinutes(data.rem)}</span>
-        </div>
-        {data.awake > 0 && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#E11D48' }}>
-            <span>Awake (ตื่น):</span>
-            <span>{formatHoursAndMinutes(data.awake)}</span>
-          </div>
-        )}
-      </div>
-      {(data.hrv || data.bodyBattery) && (
-        <div style={{ borderTop: '1px solid var(--color-border-muted)', marginTop: 6, paddingTop: 4, display: 'flex', justifyContent: 'space-between', color: 'var(--color-text-muted)' }}>
-          {data.hrv && <span>HRV: {data.hrv} ms</span>}
-          {data.bodyBattery && <span style={{ color: '#059669' }}>🔋 +{data.bodyBattery}</span>}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Custom Tooltip for Score
-function CustomScoreTooltip({ active, payload }: any) {
-  if (!active || !payload || !payload.length) return null;
-  const data = payload[0]?.payload;
-  if (!data) return null;
-
-  return (
-    <div
-      style={{
-        background: 'var(--color-bg-surface)',
-        border: '1px solid var(--color-border)',
-        borderRadius: 12,
-        padding: '10px 14px',
-        boxShadow: 'var(--shadow-md)',
-        fontSize: '0.75rem',
-      }}
-    >
-      <div style={{ fontWeight: 700, marginBottom: 4 }}>วันที่ {data.date}</div>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <span>Sleep Score:</span>
-        <strong style={{ fontSize: '0.9375rem', color: data.score >= 80 ? '#059669' : data.score >= 60 ? '#0284C7' : '#E11D48' }}>
-          {data.score ?? '-'}
-        </strong>
-        <span>({data.qualifier || '-'})</span>
-      </div>
-      <div style={{ marginTop: 4, color: 'var(--color-text-muted)' }}>
-        รวม: {formatHoursAndMinutes(data.total)}
-      </div>
-    </div>
-  );
-}
-
-// Custom Tooltip for Recovery
-function CustomRecoveryTooltip({ active, payload }: any) {
-  if (!active || !payload || !payload.length) return null;
-  const data = payload[0]?.payload;
-  if (!data) return null;
-
-  return (
-    <div
-      style={{
-        background: 'var(--color-bg-surface)',
-        border: '1px solid var(--color-border)',
-        borderRadius: 12,
-        padding: '10px 14px',
-        boxShadow: 'var(--shadow-md)',
-        fontSize: '0.75rem',
-      }}
-    >
-      <div style={{ fontWeight: 700, marginBottom: 4 }}>วันที่ {data.date}</div>
       {data.hrv != null && (
-        <div style={{ color: 'var(--color-secondary)', display: 'flex', justifyContent: 'space-between', gap: 10 }}>
-          <span>Overnight HRV:</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <span style={{ color: 'var(--color-text-muted)' }}>HRV:</span>
           <strong>{data.hrv} ms</strong>
-        </div>
-      )}
-      {data.avgHr != null && (
-        <div style={{ color: '#FF8FA3', display: 'flex', justifyContent: 'space-between', gap: 10, marginTop: 2 }}>
-          <span>Sleeping HR:</span>
-          <strong>{Math.round(data.avgHr)} bpm</strong>
         </div>
       )}
     </div>

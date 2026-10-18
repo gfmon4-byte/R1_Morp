@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Script from 'next/script';
 import { Baloo_2, Mali } from 'next/font/google';
 import './globals.css';
 import { BottomNav } from '@/components/layout/BottomNav';
@@ -65,15 +66,30 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="RunMorp" />
         <meta name="application-name" content="RunMorp" />
         {/* Service Worker registration */}
-        <script
+        <Script
+          id="sw-register"
+          strategy="afterInteractive"
           dangerouslySetInnerHTML={{
             __html: `
-              if ('serviceWorker' in navigator) {
+              if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' && 'serviceWorker' in navigator) {
                 window.addEventListener('load', function() {
                   navigator.serviceWorker.register('/sw.js').catch(function(err) {
                     console.warn('SW registration failed:', err);
                   });
                 });
+              } else if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(function(regs) {
+                  for (var i = 0; i < regs.length; i++) {
+                    regs[i].unregister();
+                  }
+                });
+                if ('caches' in window) {
+                  caches.keys().then(function(names) {
+                    for (var i = 0; i < names.length; i++) {
+                      caches.delete(names[i]);
+                    }
+                  });
+                }
               }
             `,
           }}
