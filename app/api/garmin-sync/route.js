@@ -88,10 +88,10 @@ function activityToDbRow(act) {
     ? Math.round(1000 / act.averageSpeed)
     : null;
 
-  const dateStr = act.startTimeGMT
-    ? act.startTimeGMT.slice(0, 10)
-    : act.startTimeLocal
-      ? act.startTimeLocal.slice(0, 10)
+  const dateStr = act.startTimeLocal
+    ? act.startTimeLocal.slice(0, 10)
+    : act.startTimeGMT
+      ? act.startTimeGMT.slice(0, 10)
       : new Date().toISOString().slice(0, 10);
 
   return {

@@ -36,7 +36,7 @@ import {
   addMonths,
   subMonths,
 } from 'date-fns';
-import { formatPace, formatDuration, thaiDate, getSessionColor } from '@/lib/utils';
+import { formatPace, formatDuration, thaiDate, thaiToday, getSessionColor } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import type { Activity } from '@/lib/supabase';
 import type { HRZone } from '@/lib/hrZones';
@@ -267,9 +267,13 @@ export function WorkoutDetailSection({ activities, hrZones }: Props) {
   const handlePrevMonth = () => setCalendarMonth((m) => subMonths(m, 1));
   const handleNextMonth = () => setCalendarMonth((m) => addMonths(m, 1));
   const handleSelectToday = () => {
-    const today = format(new Date(), 'yyyy-MM-dd');
+    const today = thaiToday();
     setSelectedDate(today);
-    setCalendarMonth(new Date());
+    try {
+      setCalendarMonth(parseISO(today));
+    } catch {
+      setCalendarMonth(new Date());
+    }
   };
   const handleSelectLatest = () => {
     setSelectedDate(latestDateWithActivity);
@@ -540,7 +544,7 @@ export function WorkoutDetailSection({ activities, hrZones }: Props) {
               }
               const dStr = format(day, 'yyyy-MM-dd');
               const isSelected = dStr === selectedDate;
-              const isToday = dStr === format(new Date(), 'yyyy-MM-dd');
+              const isToday = dStr === thaiToday();
               const acts = activitiesByDate[dStr] || [];
               const hasRun = acts.length > 0;
               const totalKm = acts.reduce((s, a) => s + (a.distance_km || 0), 0);

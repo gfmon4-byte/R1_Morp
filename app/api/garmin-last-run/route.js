@@ -886,10 +886,12 @@ async function getSessionFromSupabase(targetDate = null) {
     const combinedLapsCsv = buildCsvLaps(combinedLaps);
     const fullCombinedCsv = `# GARMIN WORKOUT SESSION SUMMARY (${finalDate})\n${combinedSummaryCsv}\n\n# ALL LAPS / SPLITS BREAKDOWN (WU + MAIN + CD)\n${combinedLapsCsv}`;
 
+    const actualLocalDate = parts[0]?.start_time_local ? parts[0].start_time_local.slice(0, 10) : finalDate;
+
     return {
       status: 'success',
       is_multi_session: true,
-      session_date: finalDate,
+      session_date: actualLocalDate,
       session_activities_count: parts.length,
       activity_id: parts[0].activity_id,
       activity_name: sessionTitle,
@@ -931,11 +933,14 @@ async function persistToSupabase(data) {
       const actId = p.activity_id;
       if (!actId) continue;
 
-      const sessionDate = data.session_date || p.start_time_local?.slice(0, 10);
+      const sessionDate = p.start_time_local?.slice(0, 10) || data.session_date;
       const payload = {
         activity_id: String(actId),
         session_date: sessionDate,
-        details: p,
+        details: {
+          ...p,
+          session_date: sessionDate,
+        },
         updated_at: new Date().toISOString(),
       };
 
@@ -1092,17 +1097,28 @@ async function fetchGarminDetailsNode(targetDate = null) {
   let sessionDate = targetDate;
 
   if (targetDate) {
-    // 1. Query for targetDate
-    const url = `${CONNECT_API_BASE}/activitylist-service/activities/search/activities?startDate=${targetDate}&endDate=${targetDate}&limit=20`;
+    // 1. Query for targetDate with a 3-day window [targetDate - 1 day, targetDate + 1 day]
+    // because Garmin Connect API search uses GMT timestamps. A morning run (e.g. 05:50 AM UTC+7)
+    // has a GMT start time on the previous date (22:50 UTC).
+    const targetDt = new Date(`${targetDate}T12:00:00Z`);
+    const prevDt = new Date(targetDt.getTime() - 24 * 60 * 60 * 1000);
+    const nextDt = new Date(targetDt.getTime() + 24 * 60 * 60 * 1000);
+    const fmt = (d) => d.toISOString().slice(0, 10);
+
+    const url = `${CONNECT_API_BASE}/activitylist-service/activities/search/activities?startDate=${fmt(prevDt)}&endDate=${fmt(nextDt)}&limit=50`;
     const res = await fetch(url, { headers });
     if (res.ok) {
       const acts = await res.json();
-      runningActs = (Array.isArray(acts) ? acts : []).filter((a) =>
+      const allRuns = (Array.isArray(acts) ? acts : []).filter((a) =>
         RUNNING_TYPES.has((a.activityType?.typeKey || '').toLowerCase())
+      );
+      // Strictly match activity's LOCAL date to targetDate
+      runningActs = allRuns.filter(
+        (a) => (a.startTimeLocal || '').slice(0, 10) === targetDate
       );
     }
 
-    // If not found in date range search (could be due to GMT vs local time offset), search recent 50
+    // Fallback: search recent 50 if empty
     if (runningActs.length === 0) {
       const searchRes = await fetch(
         `${CONNECT_API_BASE}/activitylist-service/activities/search/activities?start=0&limit=50`,
@@ -1114,7 +1130,7 @@ async function fetchGarminDetailsNode(targetDate = null) {
           RUNNING_TYPES.has((a.activityType?.typeKey || '').toLowerCase())
         );
         runningActs = allRuns.filter(
-          (a) => (a.startTimeLocal || '').slice(0, 10) === targetDate || (a.startTimeGMT || '').slice(0, 10) === targetDate
+          (a) => (a.startTimeLocal || '').slice(0, 10) === targetDate
         );
       }
     }
@@ -1165,11 +1181,12 @@ async function fetchGarminDetailsNode(targetDate = null) {
 
   if (totalParts === 1) {
     const single = parts[0];
+    const actualLocalDate = single.start_time_local ? single.start_time_local.slice(0, 10) : sessionDate;
     const out = {
       status: 'success',
       ...single,
       is_multi_session: false,
-      session_date: sessionDate,
+      session_date: actualLocalDate,
       session_activities_count: 1,
       parts,
       available_sessions: availableSessions,

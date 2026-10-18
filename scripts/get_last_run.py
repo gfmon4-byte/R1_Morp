@@ -544,16 +544,12 @@ def main():
         if not running_acts:
             sys.exit(json.dumps({"status": "error", "message": "No running activities found"}))
 
-        # Group running activities by date (YYYY-MM-DD)
+        # Group running activities by local date (YYYY-MM-DD)
         runs_by_date = {}
         for a in running_acts:
-            dt_local = (a.get("startTimeLocal") or "")[:10]
-            dt_gmt = (a.get("startTimeGMT") or "")[:10]
+            dt_local = (a.get("startTimeLocal") or a.get("startTimeGMT") or "")[:10]
             if dt_local:
                 runs_by_date.setdefault(dt_local, []).append(a)
-            if dt_gmt and dt_gmt != dt_local:
-                if a not in runs_by_date.setdefault(dt_gmt, []):
-                    runs_by_date[dt_gmt].append(a)
 
         # Build list of available recent sessions for UI selector
         available_sessions = []
