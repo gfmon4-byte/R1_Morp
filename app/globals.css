@@ -1253,3 +1253,71 @@ input[type='number']::-webkit-inner-spin-button {
   }
 }
 
+/* ============================================================
+   HR Zone Calculation Mode Toggle (details_hr vs avg_hr)
+   ============================================================ */
+.hr-mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 2px;
+  gap: 2px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.hr-mode-btn {
+  appearance: none;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: 'Baloo 2', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  user-select: none;
+  line-height: 1.25;
+}
+
+.hr-mode-btn:hover:not(.active) {
+  color: var(--color-foreground);
+  background: rgba(255, 143, 163, 0.10);
+}
+
+.hr-mode-btn.active {
+  background: var(--color-primary);
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(255, 143, 163, 0.35);
+}
+
+[data-theme="dark"] .hr-mode-btn.active {
+  background: var(--color-primary);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(255, 45, 120, 0.45);
+}
+
+.hr-total-time-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--color-primary-soft);
+  border: 1px solid var(--color-border);
+  color: var(--color-primary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-family: 'Baloo 2', sans-serif;
+  line-height: 1.25;
+}
+
+

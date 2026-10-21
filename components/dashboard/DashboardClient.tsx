@@ -1,17 +1,19 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Lightning, CalendarBlank } from '@phosphor-icons/react';
 import { DashboardCharts } from './DashboardCharts';
 import { WorkoutDetailSection } from './WorkoutDetailSection';
 import { formatPace, thaiToday } from '@/lib/utils';
-import type { Activity, Profile } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
+import type { Activity, Profile, ActivityDetail } from '@/lib/supabase';
 import type { HRZone } from '@/lib/hrZones';
 import { parseISO, differenceInCalendarDays } from 'date-fns';
 
 interface Props {
   profile: Profile | null;
   activities: Activity[];
+  activityDetails?: ActivityDetail[];
   hrZones: HRZone[];
 }
 
@@ -20,7 +22,36 @@ const MONTHS = [
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ];
 
-export function DashboardClient({ profile, activities, hrZones }: Props) {
+export function DashboardClient({ profile, activities, activityDetails, hrZones }: Props) {
+  const [localActivities, setLocalActivities] = useState<Activity[]>(activities);
+  const [localActivityDetails, setLocalActivityDetails] = useState<ActivityDetail[]>(activityDetails ?? []);
+
+  useEffect(() => {
+    setLocalActivities(activities);
+  }, [activities]);
+
+  useEffect(() => {
+    setLocalActivityDetails(activityDetails ?? []);
+  }, [activityDetails]);
+
+  // Listen to global sync event (when user hits sync button anywhere) to immediately refresh data
+  useEffect(() => {
+    const handleGlobalSync = async () => {
+      try {
+        const [actsRes, detailsRes] = await Promise.all([
+          supabase.from('activities').select('*').order('date', { ascending: false }).limit(500),
+          supabase.from('activity_details').select('activity_id, session_date, details').order('session_date', { ascending: false }).limit(500),
+        ]);
+        if (actsRes.data) setLocalActivities(actsRes.data as Activity[]);
+        if (detailsRes.data) setLocalActivityDetails(detailsRes.data as ActivityDetail[]);
+      } catch (err) {
+        console.error('Failed to reload dashboard data after global sync:', err);
+      }
+    };
+    window.addEventListener('garmin-synced-all', handleGlobalSync);
+    return () => window.removeEventListener('garmin-synced-all', handleGlobalSync);
+  }, []);
+
   // Load races (merging database and local storage fallback)
   const races = useMemo(() => {
     const localRacesStr = typeof window !== 'undefined' ? localStorage.getItem('profile_races') : null;
@@ -59,11 +90,11 @@ export function DashboardClient({ profile, activities, hrZones }: Props) {
   // Derive available years from data
   const availableYears = useMemo(() => {
     const years = new Set<number>();
-    activities.forEach((a) => {
+    localActivities.forEach((a) => {
       if (a.date) years.add(new Date(a.date).getFullYear());
     });
     return Array.from(years).sort((a, b) => b - a); // newest first
-  }, [activities]);
+  }, [localActivities]);
 
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1; // 1-indexed
@@ -75,14 +106,14 @@ export function DashboardClient({ profile, activities, hrZones }: Props) {
 
   // Filtered activities based on year + optional month
   const filtered = useMemo(() => {
-    return activities.filter((a) => {
+    return localActivities.filter((a) => {
       if (!a.date) return false;
       const d = new Date(a.date);
       if (d.getFullYear() !== selectedYear) return false;
       if (selectedMonth !== null && d.getMonth() + 1 !== selectedMonth) return false;
       return true;
     });
-  }, [activities, selectedYear, selectedMonth]);
+  }, [localActivities, selectedYear, selectedMonth]);
 
   // ---- Stat computations on filtered set ----
   const totalDistance = filtered.reduce((sum, a) => sum + (a.distance_km || 0), 0);
@@ -252,16 +283,22 @@ export function DashboardClient({ profile, activities, hrZones }: Props) {
         </div>
 
         {/* Workout Details & Interactive Calendar (Overview, Splits/Lap, HR Zones) */}
-        <WorkoutDetailSection activities={activities} hrZones={hrZones} />
+        <WorkoutDetailSection activities={localActivities} hrZones={hrZones} />
 
         {/* Charts */}
-        <DashboardCharts activities={filtered} allActivities={activities} hrZones={hrZones} />
+        <DashboardCharts
+          activities={filtered}
+          allActivities={localActivities}
+          activityDetails={localActivityDetails}
+          hrZones={hrZones}
+        />
 
         <div style={{ height: 16 }} />
       </div>
     </div>
   );
 }
+
 
 // ---- Helpers ----
 

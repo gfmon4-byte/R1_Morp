@@ -148,3 +148,54 @@ export interface InBodyHistory {
   mineral: number | null;
   created_at: string;
 }
+
+export interface ActivityDetailLap {
+  lap_index?: number;
+  part_name?: string;
+  part_index?: number;
+  part_label?: string;
+  distance_km?: number;
+  distance_meters?: number;
+  duration_seconds?: number;
+  moving_duration_seconds?: number;
+  duration_formatted?: string;
+  moving_duration_formatted?: string;
+  avg_hr?: number;
+  max_hr?: number;
+  avg_pace?: string;
+  avg_speed_kph?: number;
+  avg_cadence?: number;
+  max_cadence?: number;
+  calories?: number;
+  elevation_gain_m?: number;
+  elevation_loss_m?: number;
+  avg_stride_length_m?: number;
+  avg_ground_contact_time_ms?: number;
+  avg_vertical_ratio_percent?: number;
+  avg_vertical_oscillation_cm?: number;
+  [key: string]: any;
+}
+
+export interface ActivityDetail {
+  activity_id: string;
+  session_date: string;
+  details: {
+    laps?: ActivityDetailLap[];
+    hr_zones?: Array<{
+      zone_number: number;
+      zone_name?: string;
+      seconds_in_zone?: number;
+      percentage?: number;
+      min_bpm?: number;
+      duration_formatted?: string;
+      [key: string]: any;
+    }>;
+    summary?: Record<string, any>;
+    gear?: Record<string, any>;
+    weather?: Record<string, any>;
+    [key: string]: any;
+  };
+  created_at?: string;
+  updated_at?: string;
+}
+

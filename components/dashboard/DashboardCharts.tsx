@@ -8,7 +8,7 @@ import {
 } from 'recharts';
 import { Heart } from '@phosphor-icons/react';
 import { formatDuration } from '@/lib/utils';
-import type { Activity } from '@/lib/supabase';
+import type { Activity, ActivityDetail } from '@/lib/supabase';
 import type { HRZone } from '@/lib/hrZones';
 import {
   format,
@@ -21,9 +21,12 @@ import {
   eachWeekOfInterval,
 } from 'date-fns';
 
+export type HRCalcMode = 'details_hr' | 'avg_hr';
+
 interface Props {
   activities: Activity[];
   allActivities?: Activity[];
+  activityDetails?: ActivityDetail[];
   hrZones: HRZone[];
 }
 
@@ -41,9 +44,49 @@ const CustomTooltipStyle = {
   color: '#F8FAFC',
 };
 
-export function DashboardCharts({ activities, allActivities, hrZones }: Props) {
+export function DashboardCharts({ activities, allActivities, activityDetails, hrZones }: Props) {
   const [paceHrFilter, setPaceHrFilter] = useState<string>('All');
+  const [hrCalcMode, setHrCalcMode] = useState<HRCalcMode>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('dashboard_hr_calc_mode');
+      if (saved === 'details_hr' || saved === 'avg_hr') return saved;
+    }
+    return 'details_hr';
+  });
+
+  const handleSetHrCalcMode = (mode: HRCalcMode) => {
+    setHrCalcMode(mode);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('dashboard_hr_calc_mode', mode);
+    }
+  };
+
   const sourceActivities = allActivities ?? activities;
+
+  // Pre-index activityDetails for fast lookup by session_date (yyyy-MM-dd) and activity_id
+  const detailsByDate = useMemo(() => {
+    const map = new Map<string, ActivityDetail>();
+    if (activityDetails) {
+      activityDetails.forEach((d) => {
+        if (d.session_date) {
+          map.set(d.session_date.split('T')[0], d);
+        }
+      });
+    }
+    return map;
+  }, [activityDetails]);
+
+  const detailsById = useMemo(() => {
+    const map = new Map<string, ActivityDetail>();
+    if (activityDetails) {
+      activityDetails.forEach((d) => {
+        if (d.activity_id) {
+          map.set(String(d.activity_id), d);
+        }
+      });
+    }
+    return map;
+  }, [activityDetails]);
 
   // ---- Weekly Distance (last 8 weeks, sorted left to right) ----
   const weeklyData = useMemo(() => {
@@ -111,24 +154,79 @@ export function DashboardCharts({ activities, allActivities, hrZones }: Props) {
       }));
   }, [sourceActivities, paceHrFilter]);
 
-  // ---- HR Zone Distribution Stats ----
+  // Helper: map heart rate bpm to Karvonen HR Zone (1-5)
+  const getZoneForBpm = (bpm: number, zones: HRZone[]): number => {
+    for (let i = zones.length - 1; i >= 0; i--) {
+      if (bpm >= zones[i].minBpm) return zones[i].zone;
+    }
+    return 1;
+  };
+
+  // ---- HR Zone Distribution Stats (supports details_hr and avg_hr modes) ----
   const zoneStats = useMemo(() => {
-    // Prefer filtered activities if they have zone breakdown, else fallback to sourceActivities
-    const hasFilteredData = activities.some((a) => {
-      const b = a.hr_zone_breakdown as Record<string, number> | null;
-      return b && Object.values(b).some((v) => typeof v === 'number' && v > 0);
-    });
-    const target = hasFilteredData ? activities : sourceActivities;
+    const target = activities.length > 0 ? activities : sourceActivities;
 
     const rawTotals: Record<string, number> = { Z1: 0, Z2: 0, Z3: 0, Z4: 0, Z5: 0 };
+    let detailedRunsCount = 0;
+    let avgRunsCount = 0;
+
     target.forEach((a) => {
-      const breakdown = a.hr_zone_breakdown as Record<string, number> | null;
-      if (!breakdown) return;
-      Object.entries(breakdown).forEach(([k, v]) => {
-        if (typeof v === 'number' && v > 0) {
-          rawTotals[k] = (rawTotals[k] || 0) + v;
+      if (hrCalcMode === 'avg_hr') {
+        // Mode: avg_hr — attribute total duration to the zone matching overall avg_hr
+        if (a.avg_hr && a.avg_hr > 0 && a.duration_seconds > 0) {
+          const z = getZoneForBpm(a.avg_hr, hrZones);
+          rawTotals[`Z${z}`] = (rawTotals[`Z${z}`] || 0) + a.duration_seconds;
+          avgRunsCount++;
         }
-      });
+      } else {
+        // Mode: details_hr — calculate from detailed per-km laps where each km has its own avg_hr
+        const dateKey = a.date ? a.date.split('T')[0] : '';
+        const detail =
+          (a.garmin_activity_id ? detailsById.get(String(a.garmin_activity_id)) : null) ||
+          (a.id ? detailsById.get(String(a.id)) : null) ||
+          (dateKey ? detailsByDate.get(dateKey) : null);
+
+        const laps = detail?.details?.laps;
+        if (Array.isArray(laps) && laps.length > 0) {
+          let hasLapHr = false;
+          laps.forEach((lap) => {
+            const lapHr = lap.avg_hr ?? lap.hr;
+            const lapDur = lap.duration_seconds ?? lap.moving_duration_seconds ?? 0;
+            if (typeof lapHr === 'number' && lapHr > 0 && typeof lapDur === 'number' && lapDur > 0) {
+              hasLapHr = true;
+              const z = getZoneForBpm(lapHr, hrZones);
+              rawTotals[`Z${z}`] = (rawTotals[`Z${z}`] || 0) + lapDur;
+            }
+          });
+          if (hasLapHr) {
+            detailedRunsCount++;
+            return;
+          }
+        }
+
+        // Fallback 1: if activity has hr_zone_breakdown from Garmin
+        const breakdown = a.hr_zone_breakdown as Record<string, number> | null;
+        let breakdownUsed = false;
+        if (breakdown && typeof breakdown === 'object') {
+          Object.entries(breakdown).forEach(([k, v]) => {
+            if (typeof v === 'number' && v > 0) {
+              rawTotals[k] = (rawTotals[k] || 0) + v;
+              breakdownUsed = true;
+            }
+          });
+        }
+        if (breakdownUsed) {
+          detailedRunsCount++;
+          return;
+        }
+
+        // Fallback 2: overall avg_hr if no detailed laps or breakdown exists
+        if (a.avg_hr && a.avg_hr > 0 && a.duration_seconds > 0) {
+          const z = getZoneForBpm(a.avg_hr, hrZones);
+          rawTotals[`Z${z}`] = (rawTotals[`Z${z}`] || 0) + a.duration_seconds;
+          avgRunsCount++;
+        }
+      }
     });
 
     const totalSeconds = Object.values(rawTotals).reduce((sum, s) => sum + s, 0);
@@ -166,8 +264,10 @@ export function DashboardCharts({ activities, allActivities, hrZones }: Props) {
       formattedTotalTime: formatDuration(totalSeconds),
       zones,
       donutData,
+      detailedRunsCount,
+      avgRunsCount,
     };
-  }, [activities, sourceActivities, hrZones]);
+  }, [activities, sourceActivities, hrZones, hrCalcMode, detailsByDate, detailsById]);
 
   const runTypes = ['All', 'Easy Run', 'Long Run', 'Tempo', 'Intervals', 'Recovery Run'];
 
@@ -300,28 +400,70 @@ export function DashboardCharts({ activities, allActivities, hrZones }: Props) {
         title="HR Zone Distribution"
         unit=""
         action={
-          zoneStats.totalSeconds > 0 ? (
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 5,
-                padding: '3px 10px',
-                borderRadius: 100,
-                background: 'rgba(255,143,163,0.12)',
-                border: '1px solid rgba(255,143,163,0.25)',
-                color: 'var(--color-primary)',
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                fontFamily: "'Baloo 2', sans-serif",
-              }}
-            >
-              <Heart size={13} weight="fill" />
-              <span>{zoneStats.formattedTotalTime}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            {/* Mode Switcher: details_hr vs avg_hr */}
+            <div className="hr-mode-toggle" role="group" aria-label="Heart rate calculation mode">
+              <button
+                type="button"
+                className={`hr-mode-btn ${hrCalcMode === 'details_hr' ? 'active' : ''}`}
+                onClick={() => handleSetHrCalcMode('details_hr')}
+                title="คิดจากข้อมูล HR ละเอียดแต่ละ km (Laps / Splits)"
+              >
+                details_hr
+              </button>
+              <button
+                type="button"
+                className={`hr-mode-btn ${hrCalcMode === 'avg_hr' ? 'active' : ''}`}
+                onClick={() => handleSetHrCalcMode('avg_hr')}
+                title="คิดจากค่าเฉลี่ย HR ของแต่ละการวิ่ง (Avg HR)"
+              >
+                avg_hr
+              </button>
             </div>
-          ) : undefined
+
+            {zoneStats.totalSeconds > 0 && (
+              <div className="hr-total-time-badge">
+                <Heart size={13} weight="fill" />
+                <span>{zoneStats.formattedTotalTime}</span>
+              </div>
+            )}
+          </div>
         }
       >
+        {/* Active Mode Info Indicator */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 6,
+            padding: '6px 10px',
+            borderRadius: 8,
+            marginBottom: 12,
+            background: hrCalcMode === 'details_hr' ? 'rgba(127, 219, 182, 0.12)' : 'rgba(255, 143, 163, 0.1)',
+            border: `1px solid ${hrCalcMode === 'details_hr' ? 'rgba(127, 219, 182, 0.35)' : 'rgba(255, 143, 163, 0.25)'}`,
+            fontSize: '0.75rem',
+            color: hrCalcMode === 'details_hr' ? '#059669' : 'var(--color-primary)',
+            fontFamily: "'Mali', sans-serif",
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontWeight: 700, fontFamily: "'Baloo 2', sans-serif" }}>
+              {hrCalcMode === 'details_hr' ? '⚡ details_hr' : '📊 avg_hr'}:
+            </span>
+            <span>
+              {hrCalcMode === 'details_hr'
+                ? 'คิดจากข้อมูล HR ละเอียดแต่ละ km (Laps / Splits)'
+                : 'คิดจาก Heart Rate เฉลี่ยรวมของการวิ่งแต่ละครั้ง'}
+            </span>
+          </div>
+          <span style={{ fontSize: '0.6875rem', opacity: 0.85, fontWeight: 600 }}>
+            {hrCalcMode === 'details_hr'
+              ? `${zoneStats.detailedRunsCount} run(s) with detail`
+              : `${zoneStats.avgRunsCount} run(s)`}
+          </span>
+        </div>
         {zoneStats.totalSeconds === 0 ? (
           <div
             style={{
@@ -608,9 +750,9 @@ export function DashboardCharts({ activities, allActivities, hrZones }: Props) {
 function ChartCard({ title, unit, children, action }: { title: string; unit: string; children: React.ReactNode; action?: React.ReactNode }) {
   return (
     <div className="card">
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12, gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12, gap: 8, flexWrap: 'wrap' }}>
         <div>
-          <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--color-text)' }}>{title}</h3>
+          <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--color-text)', margin: 0 }}>{title}</h3>
           {unit && <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{unit}</span>}
         </div>
         {action && <div>{action}</div>}
