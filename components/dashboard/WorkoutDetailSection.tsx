@@ -25,7 +25,10 @@ import {
   Copy,
   DownloadSimple,
   Check,
+  Warning,
+  X,
 } from '@phosphor-icons/react';
+import { useRouter } from 'next/navigation';
 import {
   format,
   parseISO,
@@ -47,9 +50,11 @@ interface Props {
 }
 
 export function WorkoutDetailSection({ activities, hrZones }: Props) {
+  const router = useRouter();
   const [localActivities, setLocalActivities] = useState<Activity[]>(activities);
+  const [syncDays, setSyncDays] = useState<'7' | '30'>('7');
   const [syncingNewRuns, setSyncingNewRuns] = useState<boolean>(false);
-  const [syncToast, setSyncToast] = useState<string | null>(null);
+  const [syncToast, setSyncToast] = useState<{ type: 'success' | 'info' | 'error'; message: string } | null>(null);
 
   useEffect(() => {
     setLocalActivities(activities);
@@ -101,16 +106,20 @@ export function WorkoutDetailSection({ activities, hrZones }: Props) {
       .slice(0, 6);
   }, [activitiesByDate]);
 
-  // Handler to pull any newly recorded Garmin runs from the last 7 days
-  const handleSyncGarminRuns = async () => {
+  // Handler to pull newly recorded Garmin runs (e.g. 7 or 30 days)
+  const handleSyncGarminRuns = async (overrideDays?: '7' | '30') => {
+    const daysToSync = overrideDays || syncDays;
     try {
+      if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+        navigator.vibrate?.(15);
+      }
       setSyncingNewRuns(true);
       setSyncToast(null);
 
       const res = await fetch('/api/garmin-sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ days: 7 }),
+        body: JSON.stringify({ days: parseInt(daysToSync, 10) }),
       });
       const data = await res.json();
 
@@ -131,16 +140,31 @@ export function WorkoutDetailSection({ activities, hrZones }: Props) {
           fetchWorkoutDetails(newest, true);
         }
 
+        // Refresh Next.js server components / dashboard stats & charts
+        router.refresh();
+
         if (data.inserted > 0) {
-          setSyncToast(`ซิงค์สำเร็จ! พบการวิ่งใหม่ ${data.inserted} รายการ`);
+          setSyncToast({
+            type: 'success',
+            message: `ซิงค์สำเร็จ! พบการวิ่งใหม่ ${data.inserted} รายการ (${daysToSync} วันล่าสุด)`,
+          });
         } else {
-          setSyncToast(`ข้อมูลเป็นปัจจุบันแล้ว (${data.total || 0} รายการ)`);
+          setSyncToast({
+            type: 'info',
+            message: `ข้อมูลเป็นปัจจุบันแล้ว (${data.total || 0} รายการใน ${daysToSync} วัน)`,
+          });
         }
       } else {
-        setSyncToast(data.error || 'การซิงค์ล้มเหลว');
+        setSyncToast({
+          type: 'error',
+          message: data.error || 'การซิงค์ล้มเหลว กรุณาตรวจสอบการเชื่อมต่อ Garmin',
+        });
       }
     } catch (e: any) {
-      setSyncToast(e.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อ Garmin');
+      setSyncToast({
+        type: 'error',
+        message: e.message || 'เกิดข้อผิดพลาดในการเชื่อมต่อ Garmin',
+      });
     } finally {
       setSyncingNewRuns(false);
       setTimeout(() => setSyncToast(null), 5000);
@@ -252,6 +276,29 @@ export function WorkoutDetailSection({ activities, hrZones }: Props) {
     }
   }, [selectedDate, fetchWorkoutDetails]);
 
+  // Listen for global master sync events (from GlobalTopSyncBar)
+  useEffect(() => {
+    const handleGlobalSync = async () => {
+      const { data: refreshedActs } = await supabase
+        .from('activities')
+        .select('*')
+        .order('date', { ascending: false });
+
+      if (refreshedActs && refreshedActs.length > 0) {
+        setLocalActivities(refreshedActs);
+        const newest = refreshedActs[0].date;
+        setSelectedDate(newest);
+        try {
+          setCalendarMonth(parseISO(newest));
+        } catch { }
+        fetchWorkoutDetails(newest, true);
+      }
+    };
+
+    window.addEventListener('garmin-synced-all', handleGlobalSync);
+    return () => window.removeEventListener('garmin-synced-all', handleGlobalSync);
+  }, [fetchWorkoutDetails]);
+
   // Calendar calculations
   const monthStart = startOfMonth(calendarMonth);
   const monthEnd = endOfMonth(calendarMonth);
@@ -323,96 +370,119 @@ export function WorkoutDetailSection({ activities, hrZones }: Props) {
 
   return (
     <div style={{ marginTop: 24, marginBottom: 28 }}>
-      {/* Section Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      {/* Section Header with Responsive Mobile-First Action Bar */}
+      <div className="workout-section-header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div
             style={{
-              width: 32,
-              height: 32,
-              borderRadius: 10,
+              width: 36,
+              height: 36,
+              borderRadius: 12,
               background: 'var(--color-primary-soft)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: 'var(--color-primary)',
+              flexShrink: 0,
             }}
           >
-            <CalendarBlank size={18} weight="fill" />
+            <CalendarBlank size={20} weight="fill" />
           </div>
           <div>
-            <h2 style={{ fontSize: '1.125rem', margin: 0, fontWeight: 700, fontFamily: "'Baloo 2', sans-serif" }}>
+            <h2 style={{ fontSize: '1.25rem', margin: 0, fontWeight: 700, fontFamily: "'Baloo 2', sans-serif" }}>
               details run
             </h2>
-            <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+            <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>
               เลือกวันที่ในปฏิทินเพื่อดู Overview, Splits และ Heart Rate Zones จากฐานข้อมูล
             </p>
           </div>
         </div>
 
         {/* Action Buttons: Sync New Runs & Jump to Latest */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {syncToast && (
-            <span
-              style={{
-                fontSize: '0.6875rem',
-                fontWeight: 600,
-                color: 'var(--color-primary)',
-                background: 'var(--color-primary-soft)',
-                padding: '4px 10px',
-                borderRadius: 100,
-                border: '1px solid rgba(255,143,163,0.3)',
-              }}
+        <div className="workout-actions-wrapper">
+          <div className="mobile-sync-row">
+            {/* Range Selector Pill: 7d or 30d */}
+            <div className="sync-range-selector" title="เลือกระยะเวลาย้อนหลังเพื่อซิงค์">
+              <button
+                type="button"
+                onClick={() => setSyncDays('7')}
+                disabled={syncingNewRuns}
+                className={`sync-range-btn ${syncDays === '7' ? 'active' : ''}`}
+                aria-label="ซิงค์ 7 วันล่าสุด"
+              >
+                7d
+              </button>
+              <button
+                type="button"
+                onClick={() => setSyncDays('30')}
+                disabled={syncingNewRuns}
+                className={`sync-range-btn ${syncDays === '30' ? 'active' : ''}`}
+                aria-label="ซิงค์ 30 วันล่าสุด"
+              >
+                30d
+              </button>
+            </div>
+
+            {/* Main Sync Button - Optimized for Mobile Touch */}
+            <button
+              type="button"
+              onClick={() => handleSyncGarminRuns()}
+              disabled={syncingNewRuns}
+              className="mobile-sync-btn"
+              aria-label="ซิงค์ข้อมูลวิ่งจาก Garmin"
             >
-              {syncToast}
-            </span>
+              <ArrowsClockwise
+                size={18}
+                weight="bold"
+                className={syncingNewRuns ? 'animate-spin' : ''}
+              />
+              <span>{syncingNewRuns ? 'กำลังซิงค์...' : 'Sync Garmin'}</span>
+            </button>
+
+            {/* Jump to Latest Run Button */}
+            <button
+              type="button"
+              onClick={handleSelectLatest}
+              className="mobile-latest-btn"
+              title="ไปยังการวิ่งล่าสุด"
+              aria-label="ไปยังการวิ่งล่าสุด"
+            >
+              <Sparkle size={16} weight="fill" />
+              <span>ล่าสุด ({latestDateWithActivity.slice(5)})</span>
+            </button>
+          </div>
+
+          {/* Toast Notification Banner */}
+          {syncToast && (
+            <div
+              className={`mobile-sync-toast toast-${syncToast.type}`}
+              role="alert"
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
+                {syncToast.type === 'success' && <CheckCircle size={16} weight="fill" color="#059669" />}
+                {syncToast.type === 'info' && <CheckCircle size={16} weight="fill" color="var(--color-primary)" />}
+                {syncToast.type === 'error' && <Warning size={16} weight="fill" color="#EF4444" />}
+                <span>{syncToast.message}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSyncToast(null)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  padding: 4,
+                  cursor: 'pointer',
+                  color: 'inherit',
+                  display: 'flex',
+                  alignItems: 'center',
+                  opacity: 0.7,
+                }}
+                aria-label="Dismiss"
+              >
+                <X size={14} weight="bold" />
+              </button>
+            </div>
           )}
-
-          <button
-            onClick={handleSyncGarminRuns}
-            disabled={syncingNewRuns}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 5,
-              padding: '5px 12px',
-              borderRadius: 100,
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              fontFamily: "'Baloo 2', sans-serif",
-              background: 'var(--color-primary)',
-              color: '#FFFFFF',
-              border: 'none',
-              cursor: syncingNewRuns ? 'not-allowed' : 'pointer',
-              boxShadow: 'var(--shadow-sm)',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            <ArrowsClockwise size={13} className={syncingNewRuns ? 'animate-spin' : ''} />
-            <span>{syncingNewRuns ? 'Syncing...' : 'Sync Garmin'}</span>
-          </button>
-
-          <button
-            onClick={handleSelectLatest}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 5,
-              padding: '5px 12px',
-              borderRadius: 100,
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              fontFamily: "'Baloo 2', sans-serif",
-              background: 'var(--color-primary-soft)',
-              border: '1px solid rgba(255,143,163,0.3)',
-              color: 'var(--color-primary)',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            <Sparkle size={13} weight="fill" />
-            <span>ล่าสุด ({latestDateWithActivity.slice(5)})</span>
-          </button>
         </div>
       </div>
 
