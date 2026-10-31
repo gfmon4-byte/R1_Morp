@@ -33,45 +33,7 @@ export function mmssToSeconds(mmss: string): number {
   if (!mmss) return 0;
   const parts = mmss.split(':').map(Number);
   if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
-
-/** Safe fetch that parses response JSON, throwing descriptive errors on HTML/status error */
-export async function safeFetchJson<T = any>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
-  const res = await fetch(input, init);
-  const text = await res.text();
-  let data: any;
-  try {
-    data = text ? JSON.parse(text) : {};
-  } catch {
-    if (res.status === 504) {
-      throw new Error('เซิร์ฟเวอร์ใช้เวลาตอบสนองนานเกินกำหนด (504 Gateway Timeout) กรุณากดลองใหม่อีกครั้ง');
-    }
-    throw new Error(`เซิร์ฟเวอร์ตอบกลับไม่ถูกต้อง (HTTP ${res.status})`);
-  }
-  if (!res.ok) {
-    throw new Error(data?.error || `Request failed with status ${res.status}`);
-  }
-  return data as T;
-}
   if (parts.length === 2) return parts[0] * 60 + parts[1];
-
-/** Safe fetch that parses response JSON, throwing descriptive errors on HTML/status error */
-export async function safeFetchJson<T = any>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
-  const res = await fetch(input, init);
-  const text = await res.text();
-  let data: any;
-  try {
-    data = text ? JSON.parse(text) : {};
-  } catch {
-    if (res.status === 504) {
-      throw new Error('เซิร์ฟเวอร์ใช้เวลาตอบสนองนานเกินกำหนด (504 Gateway Timeout) กรุณากดลองใหม่อีกครั้ง');
-    }
-    throw new Error(`เซิร์ฟเวอร์ตอบกลับไม่ถูกต้อง (HTTP ${res.status})`);
-  }
-  if (!res.ok) {
-    throw new Error(data?.error || `Request failed with status ${res.status}`);
-  }
-  return data as T;
-}
   return 0;
 }
 
@@ -208,71 +170,14 @@ export function getSessionColor(type: string, theme: 'light' | 'dark' = 'light')
   // 1. Try exact match first
   if (map[type]) return map[type];
 
-/** Safe fetch that parses response JSON, throwing descriptive errors on HTML/status error */
-export async function safeFetchJson<T = any>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
-  const res = await fetch(input, init);
-  const text = await res.text();
-  let data: any;
-  try {
-    data = text ? JSON.parse(text) : {};
-  } catch {
-    if (res.status === 504) {
-      throw new Error('เซิร์ฟเวอร์ใช้เวลาตอบสนองนานเกินกำหนด (504 Gateway Timeout) กรุณากดลองใหม่อีกครั้ง');
-    }
-    throw new Error(`เซิร์ฟเวอร์ตอบกลับไม่ถูกต้อง (HTTP ${res.status})`);
-  }
-  if (!res.ok) {
-    throw new Error(data?.error || `Request failed with status ${res.status}`);
-  }
-  return data as T;
-}
-
   // 2. Try normalized category
   const normalized = normalizeSessionType(type);
   if (map[normalized]) return map[normalized];
-
-/** Safe fetch that parses response JSON, throwing descriptive errors on HTML/status error */
-export async function safeFetchJson<T = any>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
-  const res = await fetch(input, init);
-  const text = await res.text();
-  let data: any;
-  try {
-    data = text ? JSON.parse(text) : {};
-  } catch {
-    if (res.status === 504) {
-      throw new Error('เซิร์ฟเวอร์ใช้เวลาตอบสนองนานเกินกำหนด (504 Gateway Timeout) กรุณากดลองใหม่อีกครั้ง');
-    }
-    throw new Error(`เซิร์ฟเวอร์ตอบกลับไม่ถูกต้อง (HTTP ${res.status})`);
-  }
-  if (!res.ok) {
-    throw new Error(data?.error || `Request failed with status ${res.status}`);
-  }
-  return data as T;
-}
 
   // 3. Case-insensitive fallback
   const targetLower = type.trim().toLowerCase();
   const matchedKey = Object.keys(map).find(key => key.toLowerCase() === targetLower);
   if (matchedKey) return map[matchedKey];
-
-/** Safe fetch that parses response JSON, throwing descriptive errors on HTML/status error */
-export async function safeFetchJson<T = any>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
-  const res = await fetch(input, init);
-  const text = await res.text();
-  let data: any;
-  try {
-    data = text ? JSON.parse(text) : {};
-  } catch {
-    if (res.status === 504) {
-      throw new Error('เซิร์ฟเวอร์ใช้เวลาตอบสนองนานเกินกำหนด (504 Gateway Timeout) กรุณากดลองใหม่อีกครั้ง');
-    }
-    throw new Error(`เซิร์ฟเวอร์ตอบกลับไม่ถูกต้อง (HTTP ${res.status})`);
-  }
-  if (!res.ok) {
-    throw new Error(data?.error || `Request failed with status ${res.status}`);
-  }
-  return data as T;
-}
 
   return theme === 'dark' ? '#6B7280' : '#9CA3AF';
 }
@@ -282,23 +187,3 @@ export const SESSION_TYPES = [
   'Tempo', 'Intervals', 'Strength', 'Strength A', 'Strength B',
   'Rest', 'Mobility', 'Race', 'Other'
 ];
-
-/** Safe fetch that parses response JSON, throwing descriptive errors on HTML/status error */
-export async function safeFetchJson<T = any>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
-  const res = await fetch(input, init);
-  const text = await res.text();
-  let data: any;
-  try {
-    data = text ? JSON.parse(text) : {};
-  } catch {
-    if (res.status === 504) {
-      throw new Error('เซิร์ฟเวอร์ใช้เวลาตอบสนองนานเกินกำหนด (504 Gateway Timeout) กรุณากดลองใหม่อีกครั้ง');
-    }
-    throw new Error(`เซิร์ฟเวอร์ตอบกลับไม่ถูกต้อง (HTTP ${res.status})`);
-  }
-  if (!res.ok) {
-    throw new Error(data?.error || `Request failed with status ${res.status}`);
-  }
-  return data as T;
-}
-
