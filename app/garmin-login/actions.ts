@@ -36,3 +36,4 @@ export async function verifyMfaAction(sessionId: string, code: string): Promise<
 export async function testConnectionAction(): Promise<AuthResult> {
   return testGarminConnection();
 }
+
