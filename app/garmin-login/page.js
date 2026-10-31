@@ -2,6 +2,12 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import styles from './page.module.css';
+import {
+  getStatusAction,
+  loginAction,
+  verifyMfaAction,
+  testConnectionAction,
+} from './actions';
 
 // SVG Icons
 const IconLock = () => (
@@ -82,12 +88,11 @@ export default function GarminLoginPage() {
     };
   }, []);
 
-  // Fetch token status on load from Supabase
+  // Fetch token status on load from Supabase via Server Action
   const fetchTokenStatus = async () => {
     try {
       setLoadingStatus(true);
-      const res = await fetch('/api/garmin-login');
-      const data = await res.json();
+      const data = await getStatusAction();
       setTokenInfo(data);
       if (data?.status === 'valid') {
         setErrorMsg(null);
@@ -128,7 +133,7 @@ export default function GarminLoginPage() {
     return () => clearInterval(interval);
   }, [sessionId]);
 
-  // Handle Primary Login Submission
+  // Handle Primary Login Submission via Server Action
   const handleLogin = async (e) => {
     e.preventDefault();
     if (!email.trim() || !password) {
@@ -141,26 +146,10 @@ export default function GarminLoginPage() {
     setSuccessMsg(null);
 
     try {
-      const res = await fetch('/api/garmin-login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'login', email: email.trim(), password }),
-      });
+      const data = await loginAction(email.trim(), password);
 
-      let data = {};
-      const rawText = await res.text();
-      try {
-        data = JSON.parse(rawText);
-      } catch {
-        throw new Error(
-          res.ok
-            ? 'Unexpected non-JSON response from server'
-            : `Server returned HTTP ${res.status}: ${rawText.slice(0, 150)}`
-        );
-      }
-
-      if (data.needs_mfa || data.needsMfa) {
-        setSessionId(data.session_id || data.mfaState);
+      if (data.needsMfa || data.needs_mfa) {
+        setSessionId(data.sessionId || data.session_id);
         setMfaPromptMsg(data.message || 'Garmin 2FA code sent to your email / authenticator app');
         setMfaCode('');
       } else if (data.success) {
@@ -172,13 +161,13 @@ export default function GarminLoginPage() {
         setErrorMsg(data.error || 'Login failed. Please check your credentials.');
       }
     } catch (err) {
-      setErrorMsg(err.message);
+      setErrorMsg(err.message || 'Login failed');
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Handle 2FA / MFA Submission
+  // Handle 2FA / MFA Submission via Server Action
   const handleMfaSubmit = async (e) => {
     e.preventDefault();
     if (!mfaCode.trim()) {
@@ -194,29 +183,7 @@ export default function GarminLoginPage() {
     setErrorMsg(null);
 
     try {
-      const res = await fetch('/api/garmin-login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'mfa',
-          session_id: sessionId,
-          mfaState: sessionId,
-          otp_code: mfaCode.trim(),
-          code: mfaCode.trim(),
-        }),
-      });
-
-      let data = {};
-      const rawText = await res.text();
-      try {
-        data = JSON.parse(rawText);
-      } catch {
-        throw new Error(
-          res.ok
-            ? 'Unexpected non-JSON response from server'
-            : `Server returned HTTP ${res.status}: ${rawText.slice(0, 150)}`
-        );
-      }
+      const data = await verifyMfaAction(sessionId, mfaCode.trim());
 
       if (data.success) {
         setSuccessMsg(data.message || 'MFA verified and tokens stored in database!');
@@ -226,13 +193,13 @@ export default function GarminLoginPage() {
         setShowReauth(false);
         fetchTokenStatus();
       } else {
-        if (data.session_expired) {
+        if (data.error?.includes('expired')) {
           setSessionId(null);
         }
         setErrorMsg(data.error || 'Invalid MFA code. Please try again.');
       }
     } catch (err) {
-      setErrorMsg(err.message);
+      setErrorMsg(err.message || 'MFA verification failed');
     } finally {
       setSubmitting(false);
     }
@@ -245,7 +212,7 @@ export default function GarminLoginPage() {
     setErrorMsg(null);
   };
 
-  // Test Connection
+  // Test Connection via Server Action
   const handleTestConnection = async () => {
     if (actionTimeoutRef.current) clearTimeout(actionTimeoutRef.current);
     setActiveAction('test');
@@ -253,12 +220,7 @@ export default function GarminLoginPage() {
     setErrorMsg(null);
 
     try {
-      const res = await fetch('/api/garmin-login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'test' }),
-      });
-      const data = await res.json();
+      const data = await testConnectionAction();
       if (data.success) {
         showActionStatus({ ok: true, msg: '✅ ' + data.message }, 60000);
       } else {
