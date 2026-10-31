@@ -754,17 +754,28 @@ export async function POST(request) {
       const hrMaxToSave = data.hr_zones?.max_hr || existing.hr_max || 193;
       const hrRestToSave = data.resting_hr || data.hr_zones?.resting_hr || existing.hr_rest || 63;
 
+      // Automatically sync Official Personal Records (PRs) from Garmin into benchmark fields
+      const pb5kToSave = data.prs?.['5k']?.seconds ? Math.round(data.prs['5k'].seconds) : existing.pb_5k;
+      const pb10kToSave = data.prs?.['10k']?.seconds ? Math.round(data.prs['10k'].seconds) : existing.pb_10k;
+      const pbHalfToSave = data.prs?.['hm']?.seconds ? Math.round(data.prs['hm'].seconds) : existing.pb_half;
+      const pbFullToSave = data.prs?.['full']?.seconds ? Math.round(data.prs['full'].seconds) : existing.pb_marathon;
+
       // Prepare updates - strictly preserve weight, inbody and custom settings
       const updates = {
         id: 1,
         vo2max: vo2ToSave,
         hr_max: hrMaxToSave,
         hr_rest: hrRestToSave,
+        pb_5k: pb5kToSave,
+        pb_10k: pb10kToSave,
+        pb_half: pbHalfToSave,
+        pb_marathon: pbFullToSave,
         fitness_age: data.fitness_age || existing.fitness_age,
         fitness_age_data: {
           ...(existing.fitness_age_data || {}),
           ...(data.fitness_age_components || {}),
           garmin_hr_zones: garminHrZonesToSave,
+          metrics_history: (data.metrics_history && data.metrics_history.length > 0) ? data.metrics_history : (existing.fitness_age_data?.metrics_history || []),
           sleep: (data.sleep && data.sleep.length > 0) ? data.sleep : (existing.fitness_age_data?.sleep || []),
           fr970: {
             training_readiness: data.training_readiness,
@@ -795,6 +806,10 @@ export async function POST(request) {
           vo2max: data.vo2max || existing.vo2max,
           hr_max: hrMaxToSave,
           hr_rest: hrRestToSave,
+          pb_5k: pb5kToSave,
+          pb_10k: pb10kToSave,
+          pb_half: pbHalfToSave,
+          pb_marathon: pbFullToSave,
           updated_at: new Date().toISOString(),
         };
         const { error: fallbackErr } = await supabase.from('profiles').upsert(basicUpdates, { onConflict: 'id' });
@@ -822,6 +837,10 @@ export async function POST(request) {
         await supabase.from('user_profile').update({
           vo2max: vo2ToSave,
           hr_rest: updates.hr_rest,
+          pb_5k: updates.pb_5k,
+          pb_10k: updates.pb_10k,
+          pb_half: updates.pb_half,
+          pb_marathon: updates.pb_marathon,
           fitness_age: updates.fitness_age,
           fitness_age_data: updates.fitness_age_data,
           garmin_device: updates.garmin_device,

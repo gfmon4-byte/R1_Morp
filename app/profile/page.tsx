@@ -14,6 +14,7 @@ import { User, Lightning, FloppyDisk, Heart, Gauge, Trophy, ArrowsClockwise, Cal
 import { format, parseISO, differenceInCalendarDays } from 'date-fns';
 import { useTheme } from '@/components/layout/ThemeProvider';
 import { DailySleepMonitor } from '@/components/profile/DailySleepMonitor';
+import { Vo2MaxChart } from '@/components/profile/Vo2MaxChart';
 
 const pbToMMSS = (sec: number | null | undefined): string => {
   if (!sec) return '';
@@ -77,6 +78,10 @@ export default function ProfilePage() {
   const [ocrSuccess, setOcrSuccess] = useState(false);
   const [inbodyHistory, setInbodyHistory] = useState<InBodyHistory[]>([]);
   const [isInbodyHistoryModalOpen, setIsInbodyHistoryModalOpen] = useState(false);
+
+  // PR sync states
+  const [isSyncingPrs, setIsSyncingPrs] = useState(false);
+  const [prSyncMsg, setPrSyncMsg] = useState<string | null>(null);
 
   const handleDeleteHistory = async (id: string, date: string) => {
     const confirmDelete = confirm(`คุณต้องการลบข้อมูล InBody ของวันที่ ${date} ใช่หรือไม่?`);
@@ -306,6 +311,12 @@ export default function ProfilePage() {
       }
     }
 
+    const garminPrs = (data as any)?.garmin_prs || {};
+    const effectivePb5k = data.pb_5k ?? garminPrs['5k']?.seconds;
+    const effectivePb10k = data.pb_10k ?? garminPrs['10k']?.seconds;
+    const effectivePbHalf = data.pb_half ?? garminPrs['hm']?.seconds;
+    const effectivePbMarathon = data.pb_marathon ?? garminPrs['full']?.seconds;
+
     reset({
       name: data.name,
       gender: data.gender,
@@ -313,10 +324,10 @@ export default function ProfilePage() {
       vo2max: data.vo2max,
       weight_kg: data.weight_kg,
       height_cm: data.height_cm,
-      pb_5k: pbToMMSS(data.pb_5k),
-      pb_10k: pbToMMSS(data.pb_10k),
-      pb_half: pbToMMSS(data.pb_half),
-      pb_marathon: pbToMMSS(data.pb_marathon),
+      pb_5k: pbToMMSS(effectivePb5k),
+      pb_10k: pbToMMSS(effectivePb10k),
+      pb_half: pbToMMSS(effectivePbHalf),
+      pb_marathon: pbToMMSS(effectivePbMarathon),
       hr_max: data.hr_max ?? 193,
       hr_rest: data.hr_rest ?? 63,
       pace_zone_mode: data.pace_zone_mode,
@@ -346,6 +357,31 @@ export default function ProfilePage() {
       applyProfileToForm(data as Profile);
     }
   }, [applyProfileToForm]);
+
+  const handleSyncPrs = async () => {
+    setIsSyncingPrs(true);
+    setPrSyncMsg(null);
+    try {
+      const res = await fetch('/api/garmin-profile-sync', { method: 'POST' });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || 'Sync failed');
+      }
+      setPrSyncMsg('ซิงค์ Official Personal Records จาก Garmin สำเร็จ ✨');
+      await refreshProfile();
+      setTimeout(() => setPrSyncMsg(null), 3500);
+    } catch (err: any) {
+      setPrSyncMsg(`เกิดข้อผิดพลาด: ${err.message || 'ไม่สามารถซิงค์ได้'}`);
+      setTimeout(() => setPrSyncMsg(null), 4000);
+    } finally {
+      setIsSyncingPrs(false);
+    }
+  };
+
+  const garminPrsList = useMemo(() => {
+    const prs = profile?.garmin_prs || {};
+    return Object.values(prs).sort((a: any, b: any) => (a.order || 99) - (b.order || 99));
+  }, [profile?.garmin_prs]);
 
   useEffect(() => {
     supabase.from('profiles').select('*').eq('id', 1).single().then(({ data }) => {
@@ -768,118 +804,93 @@ export default function ProfilePage() {
 
           {/* InBody Composition OCR Section */}
           <Section title="InBody Composition (OCR)" icon={<Lightning size={16} color="var(--color-primary)" />}>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                style={{ padding: '0 14px', height: '36px', minHeight: '36px', fontSize: '0.8125rem', display: 'flex', alignItems: 'center', gap: 6 }}
-                onClick={() => setIsInbodyHistoryModalOpen(true)}
-              >
-                <CalendarBlank size={14} /> ดูประวัติ InBody ({inbodyHistory.length})
-              </button>
-            </div>
-
-            {/* OCR File Upload Area */}
-            <div 
+            {/* Minimal Clean InBody Action Row */}
+            <div
               style={{
-                padding: '16px',
-                border: '2px dashed var(--color-border)',
-                borderRadius: '20px',
-                background: 'rgba(255, 143, 163, 0.05)',
                 display: 'flex',
-                flexDirection: 'column',
-                gap: '12px',
-                marginBottom: '20px',
-                transition: 'all 200ms ease',
-                position: 'relative'
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: 8,
+                marginBottom: 16,
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-primary)' }}>
-                  <Lightning size={16} weight="fill" />
-                  <span style={{ fontFamily: 'Baloo 2', fontWeight: 700, fontSize: '0.9375rem' }}>Auto-fill with InBody OCR</span>
-                </div>
-              </div>
-
-              <label 
+              {/* Sleek Minimal OCR Upload Button */}
+              <label
                 style={{
-                  display: 'flex',
-                  flexDirection: 'column',
+                  display: 'inline-flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '16px 8px',
-                  borderRadius: '14px',
-                  background: 'var(--color-bg-surface)',
-                  border: '1px solid var(--color-border)',
+                  gap: 6,
+                  padding: '5px 12px',
+                  borderRadius: 10,
+                  background: 'rgba(255, 143, 163, 0.08)',
+                  border: '1px dashed var(--color-border)',
                   cursor: ocrLoading ? 'not-allowed' : 'pointer',
-                  textAlign: 'center',
-                  transition: 'all 200ms ease',
-                  boxShadow: 'var(--shadow-sm)'
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
+                  color: 'var(--color-text)',
+                  transition: 'all 0.15s ease',
                 }}
                 onMouseEnter={(e) => !ocrLoading && (e.currentTarget.style.borderColor = 'var(--color-primary)')}
                 onMouseLeave={(e) => !ocrLoading && (e.currentTarget.style.borderColor = 'var(--color-border)')}
               >
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  style={{ display: 'none' }} 
+                <input
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
                   onChange={handleOcrUpload}
                   disabled={ocrLoading}
                 />
-                
                 {ocrLoading ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                    <div className="skeleton" style={{ width: '40px', height: '40px', borderRadius: '50%' }} />
-                    <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-text)' }}>
-                      กำลังสแกนรูปภาพ InBody... 📊🏃‍♂️
-                    </span>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                      ระบบกำลังดึงข้อมูลส่วนประกอบของร่างกาย
-                    </span>
-                  </div>
+                  <>
+                    <div className="skeleton" style={{ width: 14, height: 14, borderRadius: '50%' }} />
+                    <span style={{ fontSize: '0.75rem', color: 'var(--color-primary)' }}>กำลังสแกนรูป InBody... 📊</span>
+                  </>
                 ) : ocrSuccess ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', color: 'var(--color-accent)' }}>
-                    <CheckCircle size={32} weight="fill" />
-                    <span style={{ fontSize: '0.875rem', fontWeight: 700 }}>
-                      ดึงข้อมูลสำเร็จแล้ว! 🎉
-                    </span>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                      ข้อมูลถูกเติมลงในฟอร์มด้านล่างเรียบร้อยแล้ว
-                    </span>
-                  </div>
+                  <>
+                    <CheckCircle size={15} weight="fill" color="var(--color-accent)" />
+                    <span style={{ fontSize: '0.75rem', color: 'var(--color-accent)' }}>ดึงข้อมูลสำเร็จ! 🎉</span>
+                  </>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
-                    <Camera size={28} color="var(--color-primary)" />
-                    <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-text)' }}>
-                      อัปโหลดรูปภาพ InBody (OCR)
-                    </span>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                      ลากวางหรือแตะเพื่อเลือกรูปภาพ InBody
-                    </span>
-                  </div>
+                  <>
+                    <Camera size={15} color="var(--color-primary)" weight="duotone" />
+                    <span>Auto-fill InBody (OCR)</span>
+                    <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', fontWeight: 400 }}>• แตะเลือกรูป</span>
+                  </>
                 )}
               </label>
 
-              {ocrError && (
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'flex-start', 
-                  gap: '8px', 
-                  padding: '10px 12px', 
-                  background: 'rgba(255,107,129,0.1)', 
-                  border: '1px solid rgba(255,107,129,0.2)', 
-                  borderRadius: '12px',
-                  color: 'var(--color-destructive)',
-                  fontSize: '0.8125rem'
-                }}>
-                  <Warning size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
-                  <div>
-                    <div style={{ fontWeight: 'bold' }}>ไม่สามารถสแกนรูปภาพได้</div>
-                    <div>{ocrError}</div>
-                  </div>
-                </div>
-              )}
+              {/* View History Button */}
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                style={{ height: 30, padding: '0 10px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: 5, borderRadius: 8 }}
+                onClick={() => setIsInbodyHistoryModalOpen(true)}
+              >
+                <CalendarBlank size={13} /> ประวัติ InBody ({inbodyHistory.length})
+              </button>
             </div>
+
+            {/* OCR Error Alert if any */}
+            {ocrError && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '6px 10px',
+                  background: 'rgba(255, 107, 129, 0.1)',
+                  border: '1px solid rgba(255, 107, 129, 0.25)',
+                  borderRadius: 10,
+                  color: 'var(--color-destructive)',
+                  fontSize: '0.75rem',
+                  marginBottom: 14,
+                }}
+              >
+                <Warning size={14} style={{ flexShrink: 0 }} />
+                <span>{ocrError}</span>
+              </div>
+            )}
 
             {/* InBody Inputs */}
             <div className="form-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: '20px' }}>
@@ -1054,59 +1065,137 @@ export default function ProfilePage() {
             )}
           </Section>
 
-                    {/* VO2max */}
+                    {/* Performance Metrics: VO2max Trend Line Chart */}
           <Section title="Performance Metrics" icon={<Gauge size={16} color="var(--color-primary)" />}>
-            <div style={{ maxWidth: 280 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                <label className="form-label" htmlFor="p-vo2" style={{ margin: 0 }}>VO₂max (ml/kg/min)</label>
-                {profile?.vo2max && (
-                  <span style={{ fontSize: '0.6875rem', color: '#10B981', fontWeight: 600 }}>Garmin: {profile.vo2max}</span>
-                )}
-              </div>
-              <input id="p-vo2" type="number" step="0.1" className="form-input" {...register('vo2max')} placeholder="e.g. 45" />
-            </div>
-
-            {/* VO2max benchmark bar */}
-            {watchVo2 > 0 && (
-              <div style={{ marginTop: 16 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: '0.8125rem' }}>
-                  <span style={{ color: 'var(--color-text-muted)' }}>VO₂max comparison</span>
-                  <span style={{ fontWeight: 700, color: 'var(--color-primary)', fontFamily: 'Barlow Condensed' }}>{watchVo2.toFixed(1)} ml/kg/min</span>
-                </div>
-                <div style={{ height: 8, background: 'var(--color-bg-elevated)', borderRadius: 4, overflow: 'hidden', position: 'relative' }}>
-                  <div style={{ position: 'absolute', left: `${(80 / 90) * 100}%`, width: `${(5 / 90) * 100}%`, height: '100%', background: 'rgba(5,150,105,0.3)', borderRadius: 2 }} title="Elite 80–85" />
-                  <div style={{
-                    height: '100%',
-                    width: `${Math.min((watchVo2 / 90) * 100, 100)}%`,
-                    background: watchVo2 >= 75 ? '#059669' : watchVo2 >= 60 ? 'var(--color-primary)' : '#FBBF24',
-                    borderRadius: 4,
-                    transition: 'width 0.4s',
-                  }} />
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: '0.6875rem', color: 'var(--color-text-subtle)' }}>
-                  <span>Beginner 35</span>
-                  <span style={{ color: '#059669' }}>Elite 75–90+</span>
-                  <span>90 ml/kg/min</span>
-                </div>
-              </div>
-            )}
+            <Vo2MaxChart
+              profile={profile}
+              watchVo2={watchVo2}
+              register={register}
+              onRefresh={refreshProfile}
+            />
           </Section>
 
-          {/* Personal Bests */}
-          <Section title="Personal Bests" icon={<Trophy size={16} color="var(--color-primary)" />}>
-            <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', marginBottom: 12 }}>Format: H:MM:SS or MM:SS</p>
-            <div className="form-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              {[
-                { id: 'pb-5k', field: 'pb_5k' as const, label: '5K' },
-                { id: 'pb-10k', field: 'pb_10k' as const, label: '10K' },
-                { id: 'pb-half', field: 'pb_half' as const, label: 'Half Marathon' },
-                { id: 'pb-marathon', field: 'pb_marathon' as const, label: 'Marathon' },
-              ].map(({ id, field, label }) => (
-                <div key={id}>
-                  <label className="form-label" htmlFor={id}>{label}</label>
-                  <input id={id} type="text" className="form-input" {...register(field)} placeholder="e.g. 38:30" />
-                </div>
-              ))}
+          {/* Official Personal Records */}
+          <Section
+            title="Official Personal Records"
+            icon={<Trophy size={16} color="#F59E0B" weight="fill" />}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+              <div>
+                <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', margin: 0 }}>
+                  สถิติสถิติส่วนบุคคลอย่างเป็นทางการจาก Garmin Connect • ซิงค์อัตโนมัติ
+                </p>
+                {prSyncMsg && (
+                  <div style={{ fontSize: '0.75rem', color: '#10B981', fontWeight: 600, marginTop: 4 }}>
+                    {prSyncMsg}
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                disabled={isSyncingPrs}
+                onClick={handleSyncPrs}
+                style={{
+                  padding: '0 12px',
+                  height: '32px',
+                  fontSize: '0.75rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  color: 'var(--color-primary)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 10,
+                  background: 'var(--color-bg-surface)',
+                  cursor: isSyncingPrs ? 'not-allowed' : 'pointer',
+                }}
+              >
+                <ArrowsClockwise size={13} className={isSyncingPrs ? 'animate-spin' : ''} />
+                {isSyncingPrs ? 'กำลังซิงค์...' : 'ซิงค์จาก Garmin'}
+              </button>
+            </div>
+
+            {/* Official Garmin PR Showcase Cards */}
+            {garminPrsList.length > 0 && (
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
+                gap: 10,
+                marginBottom: 18,
+              }}>
+                {garminPrsList.map((pr: any) => (
+                  <div key={pr.key} style={{
+                    background: 'var(--color-bg-surface)',
+                    border: '1.5px solid var(--color-border)',
+                    borderRadius: 14,
+                    padding: '10px 12px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 3,
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '0.6875rem', fontWeight: 800, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        {pr.label}
+                      </span>
+                      <Trophy size={14} color="#F59E0B" weight="fill" />
+                    </div>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-foreground)', fontFamily: "'Baloo 2', sans-serif", lineHeight: 1.2 }}>
+                      {pr.time_str}
+                    </div>
+                    {pr.activity_name && (
+                      <div style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={pr.activity_name}>
+                        {pr.activity_name}
+                      </div>
+                    )}
+                    {pr.date && (
+                      <div style={{ fontSize: '0.625rem', color: '#10B981', fontWeight: 600 }}>
+                        {pr.date}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Benchmark Inputs for Training Pace Zones */}
+            <div style={{
+              background: 'var(--color-bg-card)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 14,
+              padding: '14px 16px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--color-foreground)' }}>
+                  Benchmark Records (ใช้คำนวณ Pace Zones):
+                </span>
+                <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>
+                  Format: H:MM:SS or MM:SS
+                </span>
+              </div>
+              <div className="form-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                {[
+                  { id: 'pb-5k', field: 'pb_5k' as const, label: '5K', garminKey: '5k' },
+                  { id: 'pb-10k', field: 'pb_10k' as const, label: '10K', garminKey: '10k' },
+                  { id: 'pb-half', field: 'pb_half' as const, label: 'Half Marathon', garminKey: 'hm' },
+                  { id: 'pb-marathon', field: 'pb_marathon' as const, label: 'Marathon', garminKey: 'full' },
+                ].map(({ id, field, label, garminKey }) => {
+                  const gPr = profile?.garmin_prs?.[garminKey];
+                  return (
+                    <div key={id}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <label className="form-label" htmlFor={id} style={{ margin: 0 }}>{label}</label>
+                        {gPr?.time_str && (
+                          <span style={{ fontSize: '0.6875rem', color: '#10B981', fontWeight: 600 }}>
+                            Garmin: {gPr.time_str}
+                          </span>
+                        )}
+                      </div>
+                      <input id={id} type="text" className="form-input" {...register(field)} placeholder="e.g. 38:30" />
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </Section>
 
@@ -1377,7 +1466,7 @@ export default function ProfilePage() {
               />
               <span style={{ fontSize: '0.875rem', fontWeight: 500, color: watchPaceMode === 'manual' ? 'var(--color-text)' : 'var(--color-text-muted)' }}>Manual</span>
               {watchPaceMode === 'auto' && (
-                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-subtle)' }}>from 10k/Half PBs</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-subtle)' }}>from 10k/Half PRs</span>
               )}
             </div>
 

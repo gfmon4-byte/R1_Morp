@@ -4,7 +4,6 @@ import { Baloo_2, Mali } from 'next/font/google';
 import './globals.css';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { Sidebar } from '@/components/layout/Sidebar';
-import { InstallBanner } from '@/components/layout/InstallBanner';
 import { ThemeProvider } from '@/components/layout/ThemeProvider';
 import { GlobalTopSyncBar } from '@/components/layout/GlobalTopSyncBar';
 
@@ -26,6 +25,12 @@ export const metadata: Metadata = {
   title: 'RunMorp — Happy Running',
   description: 'แอปติดตามการวิ่งสุดน่ารัก บันทึกรัน จัดการแผนซ้อม และดูสถิติการวิ่งของคุณ',
   manifest: '/manifest.json',
+  icons: {
+    icon: '/icons/icon-192-dark.png',
+    apple: [
+      { url: '/icons/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+    ],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
@@ -115,9 +120,6 @@ export default function RootLayout({
           <div className="bottom-nav-wrapper">
             <BottomNav />
           </div>
-
-          {/* PWA Install Banner */}
-          <InstallBanner />
         </ThemeProvider>
       </body>
     </html>

@@ -30,7 +30,6 @@ import {
   CaretRight,
   CaretDown,
   CaretUp,
-  Sparkle,
   Pulse,
   ChartBar,
   Trophy,
@@ -142,43 +141,6 @@ function getScoreTheme(score?: number | null, qualifier?: string | null) {
     color: '#E11D48',
     stroke: '#FB7185',
     border: 'rgba(244, 63, 94, 0.32)',
-  };
-}
-
-function getSleepCoachInsight(record: GarminSleepRecord, deepPct: number, remPct: number): {
-  title: string;
-  desc: string;
-  tone: 'good' | 'fair' | 'warn';
-} {
-  const score = record.score ?? 0;
-  const totalH = record.duration_hours || 0;
-  const bb = record.body_battery_change;
-
-  if (score >= 80 && totalH >= 7) {
-    return {
-      title: 'ร่างกายฟื้นฟูเต็มที่ พร้อมซ้อมหนัก 💪',
-      desc: `นอนครบ ${formatHoursAndMinutes(totalH)} (หลับลึก ${deepPct}%, REM ${remPct}%)${bb ? ` ชาร์จพลัง +${bb}%` : ''} เหมาะสำหรับโปรแกรมซ้อมหลักหรือวิ่งทำความเร็ว`,
-      tone: 'good',
-    };
-  }
-  if (totalH < 6) {
-    return {
-      title: 'ชั่วโมงการนอนน้อยกว่าเกณฑ์ 🌙',
-      desc: `เมื่อคืนนอนไป ${formatHoursAndMinutes(totalH)} แนะนำให้เน้นวิ่ง Easy Run หรือพักผ่อนให้เร็วขึ้นในคืนนี้เพื่อลดความเสี่ยงบาดเจ็บ`,
-      tone: 'warn',
-    };
-  }
-  if (deepPct < 13 && totalH > 0) {
-    return {
-      title: 'สัดส่วนหลับลึกค่อนข้างน้อย 🧘‍♂️',
-      desc: `หลับลึกอยู่ที่ ${deepPct}% (เกณฑ์แนะนำ 15–25%) ลองงดคาเฟอีนช่วงบ่ายและลดแสงหน้าจอก่อนนอน 30 นาที`,
-      tone: 'fair',
-    };
-  }
-  return {
-    title: 'การฟื้นฟูอยู่ในเกณฑ์สมดุล ✨',
-    desc: `คุณภาพการนอนระดับน่าพอใจ (${formatHoursAndMinutes(totalH)})${bb ? ` ชาร์จพลังงานได้ +${bb}%` : ''} รักษาวินัยการเข้านอนเวลาเดิมต่อเนื่อง`,
-    tone: 'good',
   };
 }
 
@@ -352,10 +314,7 @@ export function DailySleepMonitor({ sleepRecords = [], onRefresh, lastSyncTime }
     } catch {}
   }
 
-  const coachInsight = useMemo(() => {
-    if (!activeRecord) return null;
-    return getSleepCoachInsight(activeRecord, activeDeepPct, activeRemPct);
-  }, [activeRecord, activeDeepPct, activeRemPct]);
+  
 
   const reversedHistory = useMemo(() => {
     return [...sortedRecords].reverse();
@@ -1185,7 +1144,7 @@ export function DailySleepMonitor({ sleepRecords = [], onRefresh, lastSyncTime }
                   display: 'grid',
                   gridTemplateColumns: 'repeat(auto-fit, minmax(115px, 1fr))',
                   gap: 8,
-                  marginBottom: coachInsight ? 12 : 0,
+                  marginBottom: 0,
                 }}
               >
                 {activeRecord.avg_hrv != null && (
@@ -1456,49 +1415,7 @@ export function DailySleepMonitor({ sleepRecords = [], onRefresh, lastSyncTime }
                 )}
               </div>
 
-              {/* Smart Sleep Coach Insight Banner */}
-              {coachInsight && (
-                <div
-                  style={{
-                    padding: '10px 12px',
-                    borderRadius: 14,
-                    background:
-                      coachInsight.tone === 'good'
-                        ? 'rgba(16, 185, 129, 0.1)'
-                        : coachInsight.tone === 'warn'
-                        ? 'rgba(244, 63, 94, 0.1)'
-                        : 'rgba(168, 85, 247, 0.1)',
-                    border: `1px solid ${
-                      coachInsight.tone === 'good'
-                        ? 'rgba(16, 185, 129, 0.25)'
-                        : coachInsight.tone === 'warn'
-                        ? 'rgba(244, 63, 94, 0.25)'
-                        : 'rgba(168, 85, 247, 0.25)'
-                    }`,
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: 8,
-                  }}
-                >
-                  <Sparkle
-                    size={16}
-                    weight="fill"
-                    color={
-                      coachInsight.tone === 'good'
-                        ? '#059669'
-                        : coachInsight.tone === 'warn'
-                        ? '#E11D48'
-                        : '#A855F7'
-                    }
-                    style={{ flexShrink: 0, marginTop: 2 }}
-                  />
-                  <div style={{ fontSize: '0.72rem', lineHeight: 1.4 }}>
-                    <div style={{ fontWeight: 700, color: 'var(--color-foreground)' }}>{coachInsight.title}</div>
-                    <div style={{ color: 'var(--color-text-muted)', marginTop: 1 }}>{coachInsight.desc}</div>
-                  </div>
-                </div>
-              )}
-            </div>
+                          </div>
           )}
 
           {/* ========================================================
