@@ -83,6 +83,10 @@ export default function ProfilePage() {
   const [isSyncingPrs, setIsSyncingPrs] = useState(false);
   const [prSyncMsg, setPrSyncMsg] = useState<string | null>(null);
 
+  // HR sync states
+  const [isSyncingHr, setIsSyncingHr] = useState(false);
+  const [hrSyncMsg, setHrSyncMsg] = useState<string | null>(null);
+
   const handleDeleteHistory = async (id: string, date: string) => {
     const confirmDelete = confirm(`คุณต้องการลบข้อมูล InBody ของวันที่ ${date} ใช่หรือไม่?`);
     if (!confirmDelete) return;
@@ -375,6 +379,30 @@ export default function ProfilePage() {
       setTimeout(() => setPrSyncMsg(null), 4000);
     } finally {
       setIsSyncingPrs(false);
+    }
+  };
+
+  const handleSyncHr = async () => {
+    setIsSyncingHr(true);
+    setHrSyncMsg(null);
+    try {
+      const res = await fetch('/api/garmin-profile-sync', { method: 'POST' });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || 'Sync failed');
+      }
+      const newMax = json.data?.max_hr || 193;
+      const newRest = json.data?.resting_hr || 63;
+      setValue('hr_max', newMax, { shouldDirty: true });
+      setValue('hr_rest', newRest, { shouldDirty: true });
+      setHrSyncMsg(`ซิงค์ Max HR (${newMax} bpm) และ Resting HR (${newRest} bpm) จาก Garmin สำเร็จ ✨`);
+      await refreshProfile();
+      setTimeout(() => setHrSyncMsg(null), 3500);
+    } catch (err: any) {
+      setHrSyncMsg(`เกิดข้อผิดพลาด: ${err.message || 'ไม่สามารถซิงค์ได้'}`);
+      setTimeout(() => setHrSyncMsg(null), 4000);
+    } finally {
+      setIsSyncingHr(false);
     }
   };
 
@@ -1361,12 +1389,47 @@ export default function ProfilePage() {
 
           {/* HR Settings */}
           <Section title="Heart Rate" icon={<Heart size={16} color="#EF4444" />}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+              <div>
+                <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', margin: 0 }}>
+                  ค่าอัตราการเต้นของหัวใจจาก Garmin Connect • ซิงค์อัตโนมัติ
+                </p>
+                {hrSyncMsg && (
+                  <div style={{ fontSize: '0.75rem', color: '#10B981', fontWeight: 600, marginTop: 4 }}>
+                    {hrSyncMsg}
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                disabled={isSyncingHr}
+                onClick={handleSyncHr}
+                style={{
+                  padding: '0 12px',
+                  height: '32px',
+                  fontSize: '0.75rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  color: 'var(--color-primary)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 10,
+                  background: 'var(--color-bg-surface)',
+                  cursor: isSyncingHr ? 'not-allowed' : 'pointer',
+                }}
+              >
+                <ArrowsClockwise size={13} className={isSyncingHr ? 'animate-spin' : ''} />
+                {isSyncingHr ? 'กำลังซิงค์...' : 'ซิงค์จาก Garmin'}
+              </button>
+            </div>
+
             <div className="form-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
                   <label className="form-label" htmlFor="p-hrmax" style={{ margin: 0 }}>Max HR (bpm)</label>
                   {profile?.hr_max && (
-                    <span style={{ fontSize: '0.6875rem', color: '#10B981', fontWeight: 600 }}>Garmin: {profile.hr_max}</span>
+                    <span style={{ fontSize: '0.6875rem', color: '#10B981', fontWeight: 600 }}>Garmin: {profile.hr_max} bpm</span>
                   )}
                 </div>
                 <input id="p-hrmax" type="number" className="form-input" {...register('hr_max')} />
@@ -1375,7 +1438,7 @@ export default function ProfilePage() {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
                   <label className="form-label" htmlFor="p-hrrest" style={{ margin: 0 }}>Resting HR (bpm)</label>
                   {profile?.hr_rest && (
-                    <span style={{ fontSize: '0.6875rem', color: '#10B981', fontWeight: 600 }}>Garmin: {profile.hr_rest}</span>
+                    <span style={{ fontSize: '0.6875rem', color: '#10B981', fontWeight: 600 }}>Garmin: {profile.hr_rest} bpm</span>
                   )}
                 </div>
                 <input id="p-hrrest" type="number" className="form-input" {...register('hr_rest')} />

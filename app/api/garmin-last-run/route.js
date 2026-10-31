@@ -236,6 +236,26 @@ async function getUserProfileFromSupabase() {
   return { hr_max: 199, hr_rest: 64 };
 }
 
+function getProfileHrZones(userProfile) {
+  const p = userProfile?.fitness_age_data?.garmin_hr_zones;
+  if (p?.z1 && p?.z2 && p?.z3 && p?.z4 && p?.z5) {
+    return [
+      { zone_number: 1, zone_name: 'Warm Up (Zone 1)', min_bpm: Number(p.z1.min), max_bpm: Number(p.z1.max) },
+      { zone_number: 2, zone_name: 'Easy / Fat Burn (Zone 2)', min_bpm: Number(p.z2.min), max_bpm: Number(p.z2.max) },
+      { zone_number: 3, zone_name: 'Aerobic (Zone 3)', min_bpm: Number(p.z3.min), max_bpm: Number(p.z3.max) },
+      { zone_number: 4, zone_name: 'Threshold (Zone 4)', min_bpm: Number(p.z4.min), max_bpm: Number(p.z4.max) },
+      { zone_number: 5, zone_name: 'Maximum (Zone 5)', min_bpm: Number(p.z5.min), max_bpm: Number(p.z5.max || 199) },
+    ];
+  }
+  return [
+    { zone_number: 1, zone_name: 'Warm Up (Zone 1)', min_bpm: 97, max_bpm: 115 },
+    { zone_number: 2, zone_name: 'Easy / Fat Burn (Zone 2)', min_bpm: 116, max_bpm: 144 },
+    { zone_number: 3, zone_name: 'Aerobic (Zone 3)', min_bpm: 145, max_bpm: 157 },
+    { zone_number: 4, zone_name: 'Threshold (Zone 4)', min_bpm: 158, max_bpm: 173 },
+    { zone_number: 5, zone_name: 'Maximum (Zone 5)', min_bpm: 174, max_bpm: 199 },
+  ];
+}
+
 function getKarvonenZones(hrMax = 199, hrRest = 64) {
   const hrr = (hrMax || 199) - (hrRest || 64);
   const bands = [
@@ -296,6 +316,7 @@ function computeHrZonesFromMetrics(detailsData, targetZones) {
       zone_number: band.zone_number,
       zone_name: band.zone_name,
       min_bpm: band.min_bpm,
+      max_bpm: band.max_bpm,
       seconds_in_zone: secs,
       duration_formatted: fmtDuration(secs),
       percentage: pct,
@@ -475,35 +496,48 @@ async function processSingleActivity(headers, actItem, partIdx = 1, totalParts =
     };
   });
 
-  // HR Zones (Prioritize native Garmin HR Zones from activity, fallback to metrics)
+  // HR Zones: Calculate based on user's Profile HR Zones (from Profile page)
   const userProfile = await getUserProfileFromSupabase();
-  const rawHrZones = Array.isArray(hrZonesData) ? hrZonesData : [];
-  let hrZonesClean = null;
+  const targetZones = getProfileHrZones(userProfile);
+  let hrZonesClean = computeHrZonesFromMetrics(detailsData, targetZones);
 
-  if (rawHrZones.length > 0) {
-    const totZoneSecs = rawHrZones.reduce((acc, z) => acc + (z.secsInZone || 0), 0);
-    const sorted = [...rawHrZones].sort((a, b) => (a.zoneNumber || 0) - (b.zoneNumber || 0));
-    hrZonesClean = sorted.map((z, idx) => {
-      const zNum = z.zoneNumber || idx + 1;
-      const secs = Math.round((z.secsInZone || 0) * 10) / 10;
-      const pct = totZoneSecs > 0 ? Math.round((secs / totZoneSecs) * 1000) / 10 : 0;
-      const nextZ = sorted[idx + 1];
-      const maxBpm = nextZ?.zoneLowBoundary ? nextZ.zoneLowBoundary - 1 : (userProfile?.hr_max || 199);
-      return {
-        zone_number: zNum,
-        zone_name: z.zoneName || `Zone ${zNum}`,
-        min_bpm: z.zoneLowBoundary,
-        max_bpm: maxBpm,
-        seconds_in_zone: secs,
-        duration_formatted: fmtDuration(secs),
-        percentage: pct,
-      };
-    });
+  // If metrics stream not available, check rawHrZones if valid running zones (min >= 100)
+  if (!hrZonesClean) {
+    const rawHrZones = Array.isArray(hrZonesData) ? hrZonesData : [];
+    const validRaw = rawHrZones.some((z) => (z.zoneLowBoundary || 0) >= 100);
+    if (validRaw) {
+      const totZoneSecs = rawHrZones.reduce((acc, z) => acc + (z.secsInZone || 0), 0);
+      const sorted = [...rawHrZones].sort((a, b) => (a.zoneNumber || 0) - (b.zoneNumber || 0));
+      hrZonesClean = sorted.map((z, idx) => {
+        const zNum = z.zoneNumber || idx + 1;
+        const secs = Math.round((z.secsInZone || 0) * 10) / 10;
+        const pct = totZoneSecs > 0 ? Math.round((secs / totZoneSecs) * 1000) / 10 : 0;
+        const nextZ = sorted[idx + 1];
+        const maxBpm = nextZ?.zoneLowBoundary ? nextZ.zoneLowBoundary - 1 : (userProfile?.hr_max || 199);
+        return {
+          zone_number: zNum,
+          zone_name: z.zoneName || `Zone ${zNum}`,
+          min_bpm: z.zoneLowBoundary,
+          max_bpm: maxBpm,
+          seconds_in_zone: secs,
+          duration_formatted: fmtDuration(secs),
+          percentage: pct,
+        };
+      });
+    }
   }
 
+  // Fallback if no metrics or raw zones: return target zones with 0s
   if (!hrZonesClean) {
-    const targetZones = getKarvonenZones(userProfile?.hr_max || 199, userProfile?.hr_rest || 64);
-    hrZonesClean = computeHrZonesFromMetrics(detailsData, targetZones);
+    hrZonesClean = targetZones.map((z) => ({
+      zone_number: z.zone_number,
+      zone_name: z.zone_name,
+      min_bpm: z.min_bpm,
+      max_bpm: z.max_bpm,
+      seconds_in_zone: 0,
+      duration_formatted: '00:00',
+      percentage: 0,
+    }));
   }
 
   // Weather
@@ -1089,6 +1123,26 @@ async function persistToSupabase(data) {
         },
         body: JSON.stringify(payload),
       });
+
+      // Also sync hr_zone_breakdown to activities table
+      if (Array.isArray(p.hr_zones) && p.hr_zones.length >= 5) {
+        const breakdown = {};
+        for (const z of p.hr_zones) {
+          breakdown[`Z${z.zone_number}`] = Math.round(Number(z.seconds_in_zone) || 0);
+        }
+        await fetch(`${SUPABASE_URL}/rest/v1/activities?garmin_activity_id=eq.${actId}`, {
+          method: 'PATCH',
+          headers: {
+            apikey: SUPABASE_KEY,
+            Authorization: `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            hr_zone_breakdown: breakdown,
+            updated_at: new Date().toISOString(),
+          }),
+        }).catch(() => {});
+      }
     }
   } catch (e) {
     console.error('Error persisting activity details to Supabase activity_details:', e);

@@ -390,14 +390,14 @@ def process_single_activity(client, act_item: dict, part_idx: int = 1, total_par
             "calories": int(lap["calories"]) if lap.get("calories") else None,
         })
 
-    # HR Zones (Karvonen formula from user profile hr_max=199, hr_rest=64)
-    # Z1: >= 132, Z2: >= 145, Z3: >= 159, Z4: >= 172, Z5: >= 186
+        # HR Zones (Garmin Venu 3 Activity Time-in-Zones)
+    # Z1: >= 97, Z2: >= 116, Z3: >= 145, Z4: >= 158, Z5: >= 174
     target_zones = [
-        {"zone_number": 1, "zone_name": "Warm Up (Zone 1)", "min_bpm": 132},
-        {"zone_number": 2, "zone_name": "Easy / Fat Burn (Zone 2)", "min_bpm": 145},
-        {"zone_number": 3, "zone_name": "Aerobic (Zone 3)", "min_bpm": 159},
-        {"zone_number": 4, "zone_name": "Threshold (Zone 4)", "min_bpm": 172},
-        {"zone_number": 5, "zone_name": "Maximum (Zone 5)", "min_bpm": 186},
+        {"zone_number": 1, "zone_name": "Warm Up (Zone 1)", "min_bpm": 97},
+        {"zone_number": 2, "zone_name": "Easy / Fat Burn (Zone 2)", "min_bpm": 116},
+        {"zone_number": 3, "zone_name": "Aerobic (Zone 3)", "min_bpm": 145},
+        {"zone_number": 4, "zone_name": "Threshold (Zone 4)", "min_bpm": 158},
+        {"zone_number": 5, "zone_name": "Maximum (Zone 5)", "min_bpm": 174},
     ]
 
     metrics = details_data.get("activityDetailMetrics") or []
@@ -416,11 +416,11 @@ def process_single_activity(client, act_item: dict, part_idx: int = 1, total_par
                 if cur_d is not None and hr is not None:
                     delta = max(0.0, cur_d - last_d)
                     last_d = cur_d
-                    if hr >= 186: zone_secs[5] += delta
-                    elif hr >= 172: zone_secs[4] += delta
-                    elif hr >= 159: zone_secs[3] += delta
-                    elif hr >= 145: zone_secs[2] += delta
-                    elif hr >= 132: zone_secs[1] += delta
+                    if hr >= 174: zone_secs[5] += delta
+                    elif hr >= 158: zone_secs[4] += delta
+                    elif hr >= 145: zone_secs[3] += delta
+                    elif hr >= 116: zone_secs[2] += delta
+                    elif hr >= 97: zone_secs[1] += delta
         tot_secs = sum(zone_secs.values())
         hr_zones_clean = []
         for tz in target_zones:

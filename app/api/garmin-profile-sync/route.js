@@ -497,12 +497,30 @@ async function fetchGarminProfileData(tokens) {
     }
   }
 
+  // 11. Garmin Biometric Max HR & Resting HR
+  let garminMaxHr = null;
+  let garminRestingHrFromZone = null;
+  try {
+    const rawZones = await apiGet('/biometric-service/heartRateZones');
+    if (Array.isArray(rawZones) && rawZones.length > 0) {
+      const runningZone = rawZones.find((z) => z.sport === 'RUNNING') || rawZones[0];
+      garminMaxHr = runningZone?.maxHeartRateUsed || null;
+      garminRestingHrFromZone = runningZone?.restingHeartRateUsed || null;
+    }
+  } catch (e) {
+    console.warn('Error fetching biometric heartRateZones:', e);
+  }
+  const finalRestingHr = rhr || garminRestingHrFromZone || null;
+
   return {
     age,
     gender,
     height_cm: heightCm,
     vo2max,
-    resting_hr: rhr,
+    max_hr: garminMaxHr,
+    resting_hr: finalRestingHr,
+    garmin_max_hr: garminMaxHr,
+    garmin_resting_hr: finalRestingHr,
     fitness_age: fitnessAge,
     fitness_age_components: fitData.components || {},
     device,
@@ -644,9 +662,9 @@ async function fetchGarminProfileData(tokens) {
         if (Array.isArray(rawZones) && rawZones.length > 0) {
           const rZone =
             rawZones.find((z) => z.sport === 'RUNNING') ||
-            rawZones.find((z) => z.sport === 'DEFAULT' && (z.zone2Floor || 0) >= 120) ||
-            rawZones.find((z) => (z.zone2Floor || 0) >= 120);
-          if (rZone && rZone.zone1Floor && (rZone.zone2Floor || 0) >= 120) {
+            rawZones.find((z) => z.sport === 'DEFAULT' && (z.zone2Floor || 0) >= 100) ||
+            rawZones.find((z) => (z.zone2Floor || 0) >= 100);
+          if (rZone && rZone.zone1Floor && (rZone.zone2Floor || 0) >= 100) {
             const maxHr = rZone.maxHeartRateUsed || 199;
             return {
               sport: rZone.sport,
@@ -735,24 +753,25 @@ export async function POST(request) {
           console.warn('Failed to extract HR zones from activity_details:', e);
         }
       }
-      if (!garminHrZonesToSave || (garminHrZonesToSave.z2?.min || 0) < 120) {
+      const vo2ToSave = data.vo2max != null ? data.vo2max : existing.vo2max;
+      // Strictly sync authentic Max HR and Resting HR from Garmin Connect
+      const hrMaxToSave = data.max_hr || existing.hr_max || 193;
+      const hrRestToSave = data.resting_hr || existing.hr_rest || 63;
+
+      if (!garminHrZonesToSave || (garminHrZonesToSave.z2?.min || 0) < 100) {
         garminHrZonesToSave = {
           sport: 'RUNNING',
-          max_hr: 199,
-          resting_hr: 65,
-          z1: { min: 131, max: 144, name: 'Warm Up (Zone 1)', label: 'Z1' },
-          z2: { min: 145, max: 157, name: 'Easy / Fat Burn (Zone 2)', label: 'Z2' },
-          z3: { min: 158, max: 171, name: 'Aerobic (Zone 3)', label: 'Z3' },
-          z4: { min: 172, max: 184, name: 'Threshold (Zone 4)', label: 'Z4' },
-          z5: { min: 185, max: 199, name: 'Maximum (Zone 5)', label: 'Z5' },
-          source: 'garmin_running_profile',
+          max_hr: hrMaxToSave,
+          resting_hr: hrRestToSave,
+          z1: { min: 97, max: 115, name: 'Warm Up (Zone 1)', label: 'Z1' },
+          z2: { min: 116, max: 144, name: 'Easy / Fat Burn (Zone 2)', label: 'Z2' },
+          z3: { min: 145, max: 157, name: 'Aerobic (Zone 3)', label: 'Z3' },
+          z4: { min: 158, max: 173, name: 'Threshold (Zone 4)', label: 'Z4' },
+          z5: { min: 174, max: hrMaxToSave, name: 'Maximum (Zone 5)', label: 'Z5' },
+          source: 'garmin_venu3_activity',
           updated_at: new Date().toISOString(),
         };
       }
-
-      const vo2ToSave = data.vo2max != null ? data.vo2max : existing.vo2max;
-      const hrMaxToSave = data.hr_zones?.max_hr || existing.hr_max || 193;
-      const hrRestToSave = data.resting_hr || data.hr_zones?.resting_hr || existing.hr_rest || 63;
 
       // Automatically sync Official Personal Records (PRs) from Garmin into benchmark fields
       const pb5kToSave = data.prs?.['5k']?.seconds ? Math.round(data.prs['5k'].seconds) : existing.pb_5k;
@@ -775,6 +794,8 @@ export async function POST(request) {
           ...(existing.fitness_age_data || {}),
           ...(data.fitness_age_components || {}),
           garmin_hr_zones: garminHrZonesToSave,
+          garmin_max_hr: data.max_hr,
+          garmin_resting_hr: data.resting_hr,
           metrics_history: (data.metrics_history && data.metrics_history.length > 0) ? data.metrics_history : (existing.fitness_age_data?.metrics_history || []),
           sleep: (data.sleep && data.sleep.length > 0) ? data.sleep : (existing.fitness_age_data?.sleep || []),
           fr970: {
@@ -836,6 +857,7 @@ export async function POST(request) {
       try {
         await supabase.from('user_profile').update({
           vo2max: vo2ToSave,
+          hr_max: updates.hr_max,
           hr_rest: updates.hr_rest,
           pb_5k: updates.pb_5k,
           pb_10k: updates.pb_10k,

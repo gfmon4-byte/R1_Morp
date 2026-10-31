@@ -154,34 +154,28 @@ export function Zone2TrendChart({
   const [daysRange, setDaysRange] = useState<number | 'all'>(defaultDays);
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
 
-  // Zone 2 HR boundaries (calibrated for running: min >= 120 bpm)
+  // Zone 2 HR boundaries (calibrated for running: min >= 100 bpm)
   const { z2Min, z2Max } = useMemo(() => {
     // 1. Try from computeHRZones (hrZones prop)
     const z2Item = hrZones?.find((z) => z.zone === 2);
-    if (z2Item && z2Item.minBpm >= 120) {
+    if (z2Item && z2Item.minBpm >= 100) {
       return { z2Min: z2Item.minBpm, z2Max: z2Item.maxBpm };
     }
 
-    // 2. Try from profile garmin_hr_zones or hr_zones object (must be running zone >= 120 bpm)
+    // 2. Try from profile garmin_hr_zones or hr_zones object (must be running zone >= 100 bpm)
     const pZones =
       (profile as any)?.fitness_age_data?.garmin_hr_zones ||
       (profile as any)?.fitness_age_data?.hr_zones ||
       (profile as any)?.hr_zones;
-    if (pZones?.z2 && Number(pZones.z2.min) >= 120) {
+    if (pZones?.z2 && Number(pZones.z2.min) >= 100) {
       return {
         z2Min: parseInt(pZones.z2.min, 10),
         z2Max: parseInt(pZones.z2.max, 10),
       };
     }
 
-    // 3. Fallback based on profile hr_max and hr_rest (Karvonen)
-    const hrMax = profile?.hr_max ?? 199;
-    const hrRest = profile?.hr_rest ?? 65;
-    const hrr = hrMax - hrRest;
-    return {
-      z2Min: Math.round(hrr * 0.60 + hrRest),
-      z2Max: Math.round(hrr * 0.70 + hrRest),
-    };
+    // 3. Fallback based on profile hr_max and hr_rest (or default Garmin Venu 3 Activity Zone 2: 116-144)
+    return { z2Min: 116, z2Max: 144 };
   }, [hrZones, profile]);
 
   // Map of activity_id -> details
@@ -231,10 +225,17 @@ export function Zone2TrendChart({
       let z2RunningDur = 0;
       let z2Pace: number | null = null;
 
+      // Strict Zone 2 boundaries anchored to Profile Heart Rate Zone (116 - 144 bpm)
+      const targetZ2Min = z2Min;
+      const targetZ2Max = z2Max;
+
       // 1. Check HR Zones breakdown for time heart was in Z2
       if (detail?.hr_zones && Array.isArray(detail.hr_zones)) {
         const z2 = detail.hr_zones.find((z: any) => z.zone_number === 2);
-        if (z2) z2HrDuration = parseFloat(z2.seconds_in_zone || 0);
+        // Only accept seconds_in_zone if zone boundary is a real running zone (>= 100 bpm)
+        if (z2 && typeof z2.min_bpm === 'number' && z2.min_bpm >= 100) {
+          z2HrDuration = parseFloat(z2.seconds_in_zone || 0);
+        }
         const sumDur = detail.hr_zones.reduce(
           (acc: number, z: any) => acc + (parseFloat(z.seconds_in_zone) || 0),
           0
@@ -245,30 +246,14 @@ export function Zone2TrendChart({
         if (b.Z2 && b.Z2 > 0) z2HrDuration = b.Z2;
       }
 
-      // Activity-specific Garmin HR Zone 2 boundaries (running zones must be >= 120 bpm)
-      let actZ2Min = z2Min;
-      let actZ2Max = z2Max;
-      if (detail?.hr_zones && Array.isArray(detail.hr_zones)) {
-        const z2 = detail.hr_zones.find((z: any) => z.zone_number === 2);
-        const z3 = detail.hr_zones.find((z: any) => z.zone_number === 3);
-        if (z2 && typeof z2.min_bpm === 'number' && z2.min_bpm >= 120) {
-          actZ2Min = z2.min_bpm;
-          if (z3 && typeof z3.min_bpm === 'number' && z3.min_bpm > actZ2Min) {
-            actZ2Max = z3.min_bpm - 1;
-          } else if (z2 && typeof z2.max_bpm === 'number') {
-            actZ2Max = z2.max_bpm;
-          }
-        }
-      }
-
-      // 2. Check Laps breakdown for specific pace in Zone 2
+      // 2. Check Laps breakdown for specific pace in Profile Zone 2 (targetZ2Min - targetZ2Max)
       const laps = detail?.laps || (detail?.parts ? detail.parts.flatMap((p: any) => p.laps || []) : []);
       if (laps.length > 0) {
         let lapZ2Dist = 0;
         let lapZ2Dur = 0;
         laps.forEach((lap: any) => {
           const hr = parseInt(lap.avg_hr || 0, 10);
-          if (hr >= actZ2Min && hr <= actZ2Max) {
+          if (hr >= targetZ2Min && hr <= targetZ2Max) {
             lapZ2Dist += parseFloat(lap.distance_km || 0);
             lapZ2Dur += parseInt(lap.duration_seconds || 0, 10);
           }
@@ -282,7 +267,7 @@ export function Zone2TrendChart({
 
       // 3. Fallback: Entire run average HR in Zone 2
       const actHr = parseInt(String(act.avg_hr || 0), 10);
-      if (!z2Pace && actHr >= actZ2Min && actHr <= actZ2Max) {
+      if (!z2Pace && actHr >= targetZ2Min && actHr <= targetZ2Max) {
         const dist = parseFloat(String(act.distance_km || 0));
         const dur = parseInt(String(act.duration_seconds || 0), 10);
         if (dist > 0.2 && dur > 0) {
@@ -293,7 +278,7 @@ export function Zone2TrendChart({
       }
 
       // 4. Fallback: if activity has pace and duration and heart in Z2
-      if (!z2Pace && z2HrDuration > 60 && act.avg_pace_sec_per_km && actHr >= actZ2Min - 5 && actHr <= actZ2Max + 5) {
+      if (!z2Pace && z2HrDuration > 60 && act.avg_pace_sec_per_km && actHr >= targetZ2Min - 5 && actHr <= targetZ2Max + 5) {
         const paceVal = Math.round(act.avg_pace_sec_per_km);
         const dist = parseFloat(String(act.distance_km || 0));
         if (paceVal >= 200 && paceVal <= 720 && dist > 0.2) {
@@ -301,6 +286,14 @@ export function Zone2TrendChart({
           z2RunningDist = dist;
           z2RunningDur = Math.round(paceVal * dist);
         }
+      }
+
+      // Ensure z2HrDuration reflects actual running in Zone 2
+      if (z2RunningDur > z2HrDuration) {
+        z2HrDuration = z2RunningDur;
+      }
+      if (z2HrDuration === 0 && actHr >= targetZ2Min && actHr <= targetZ2Max && totalDuration > 0) {
+        z2HrDuration = totalDuration;
       }
 
       const pct = totalDuration > 0 ? Math.round((z2HrDuration / totalDuration) * 100) : 0;
@@ -485,7 +478,7 @@ export function Zone2TrendChart({
           gap: 8,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <h3
             style={{
               fontSize: '1rem',
@@ -506,6 +499,25 @@ export function Zone2TrendChart({
             }}
           >
             ({daysRange === 'all' ? 'All Time' : `${daysRange} Days`})
+          </span>
+          <span
+            style={{
+              fontSize: '0.6875rem',
+              fontWeight: 700,
+              color: '#10B981',
+              background: 'rgba(16, 185, 129, 0.1)',
+              border: '1px solid rgba(16, 185, 129, 0.25)',
+              padding: '1px 8px',
+              borderRadius: 12,
+              fontFamily: 'Barlow Condensed, sans-serif',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+            }}
+            title="Profile Heart Rate Zone 2"
+          >
+            <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#10B981' }} />
+            Z2: {z2Min}–{z2Max} bpm
           </span>
         </div>
 
@@ -862,7 +874,7 @@ export function Zone2TrendChart({
           >
             {/* Modal Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <h3
                   style={{
                     fontSize: '1.125rem',
@@ -882,6 +894,24 @@ export function Zone2TrendChart({
                   }}
                 >
                   ({daysRange === 'all' ? 'All' : `${daysRange} Days`})
+                </span>
+                <span
+                  style={{
+                    fontSize: '0.6875rem',
+                    fontWeight: 700,
+                    color: '#10B981',
+                    background: 'rgba(16, 185, 129, 0.1)',
+                    border: '1px solid rgba(16, 185, 129, 0.25)',
+                    padding: '2px 8px',
+                    borderRadius: 12,
+                    fontFamily: 'Barlow Condensed, sans-serif',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}
+                >
+                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#10B981' }} />
+                  Profile Z2: {z2Min}–{z2Max} bpm
                 </span>
               </div>
               <button
