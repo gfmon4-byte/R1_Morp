@@ -170,9 +170,9 @@ export function Zone2TrendChart({
       return { z2Min: z1Max + 1, z2Max: z2MaxVal };
     }
 
-    // 3. Fallback based on profile hr_max and hr_rest
-    const hrMax = profile?.hr_max ?? 185;
-    const hrRest = profile?.hr_rest ?? 42;
+    // 3. Fallback based on profile hr_max and hr_rest (Karvonen)
+    const hrMax = profile?.hr_max ?? 199;
+    const hrRest = profile?.hr_rest ?? 65;
     const hrr = hrMax - hrRest;
     return {
       z2Min: Math.round(hrr * 0.60 + hrRest),
@@ -221,15 +221,16 @@ export function Zone2TrendChart({
     // Helper to extract Z2 data from an activity
     const parseActZ2 = (act: Activity) => {
       const detail = detailsMap.get(String(act.garmin_activity_id || act.id));
-      let z2Duration = 0;
+      let z2HrDuration = 0;
       let totalDuration = parseInt(String(act.duration_seconds || 0), 10);
-      let z2Dist = 0;
+      let z2RunningDist = 0;
+      let z2RunningDur = 0;
       let z2Pace: number | null = null;
 
-      // 1. Check HR Zones breakdown
+      // 1. Check HR Zones breakdown for time heart was in Z2
       if (detail?.hr_zones && Array.isArray(detail.hr_zones)) {
         const z2 = detail.hr_zones.find((z: any) => z.zone_number === 2);
-        if (z2) z2Duration = parseFloat(z2.seconds_in_zone || 0);
+        if (z2) z2HrDuration = parseFloat(z2.seconds_in_zone || 0);
         const sumDur = detail.hr_zones.reduce(
           (acc: number, z: any) => acc + (parseFloat(z.seconds_in_zone) || 0),
           0
@@ -237,7 +238,7 @@ export function Zone2TrendChart({
         if (sumDur > 0) totalDuration = sumDur;
       } else if (act.hr_zone_breakdown && typeof act.hr_zone_breakdown === 'object') {
         const b = act.hr_zone_breakdown as Record<string, number>;
-        if (b.Z2 && b.Z2 > 0) z2Duration = b.Z2;
+        if (b.Z2 && b.Z2 > 0) z2HrDuration = b.Z2;
       }
 
       // 2. Check Laps breakdown for specific pace in Zone 2
@@ -253,8 +254,8 @@ export function Zone2TrendChart({
           }
         });
         if (lapZ2Dist > 0.1 && lapZ2Dur > 0) {
-          z2Dist = lapZ2Dist;
-          if (!z2Duration) z2Duration = lapZ2Dur;
+          z2RunningDist = lapZ2Dist;
+          z2RunningDur = lapZ2Dur;
           z2Pace = Math.round(lapZ2Dur / lapZ2Dist);
         }
       }
@@ -265,36 +266,45 @@ export function Zone2TrendChart({
         const dist = parseFloat(String(act.distance_km || 0));
         const dur = parseInt(String(act.duration_seconds || 0), 10);
         if (dist > 0.2 && dur > 0) {
+          z2RunningDist = dist;
+          z2RunningDur = dur;
           z2Pace = Math.round(dur / dist);
-          z2Dist = dist;
-          if (!z2Duration) z2Duration = dur;
         }
       }
 
-      // 4. Fallback: if activity has pace and duration, calculate pace
-      if (!z2Pace && z2Duration > 60 && act.avg_pace_sec_per_km) {
-        z2Pace = Math.round(act.avg_pace_sec_per_km);
+      // 4. Fallback: if activity has pace and duration and heart in Z2
+      if (!z2Pace && z2HrDuration > 60 && act.avg_pace_sec_per_km && actHr >= z2Min - 5 && actHr <= z2Max + 5) {
+        const paceVal = Math.round(act.avg_pace_sec_per_km);
+        const dist = parseFloat(String(act.distance_km || 0));
+        if (paceVal >= 200 && paceVal <= 720 && dist > 0.2) {
+          z2Pace = paceVal;
+          z2RunningDist = dist;
+          z2RunningDur = Math.round(paceVal * dist);
+        }
       }
 
-      const pct = totalDuration > 0 ? Math.round((z2Duration / totalDuration) * 100) : 0;
+      const pct = totalDuration > 0 ? Math.round((z2HrDuration / totalDuration) * 100) : 0;
       return {
         act,
-        z2Duration,
+        z2HrDuration,
         totalDuration,
-        z2Dist,
+        z2RunningDist,
+        z2RunningDur,
         z2Pace,
         pct,
         actHr,
       };
     };
 
-    let currZ2Dur = 0;
-    let currAllDur = 0;
-    let currZ2Dist = 0;
+    let currZ2RunningDur = 0;
+    let currZ2RunningDist = 0;
+    let currZ2HrDuration = 0;
+    let currTotalDuration = 0;
 
-    let prevZ2Dur = 0;
-    let prevAllDur = 0;
-    let prevZ2Dist = 0;
+    let prevZ2RunningDur = 0;
+    let prevZ2RunningDist = 0;
+    let prevZ2HrDuration = 0;
+    let prevTotalDuration = 0;
 
     const currentPoints: any[] = [];
 
@@ -308,13 +318,18 @@ export function Zone2TrendChart({
       // Current period
       if (actDate >= windowStart && actDate <= now) {
         if (parsed.totalDuration > 0) {
-          currZ2Dur += parsed.z2Duration;
-          currAllDur += parsed.totalDuration;
+          currZ2HrDuration += parsed.z2HrDuration;
+          currTotalDuration += parsed.totalDuration;
         }
-        if (parsed.z2Dist > 0 && parsed.z2Duration > 0) {
-          currZ2Dist += parsed.z2Dist;
-        }
-        if (parsed.z2Pace && parsed.z2Pace >= 200 && parsed.z2Pace <= 720) {
+        if (
+          parsed.z2Pace &&
+          parsed.z2Pace >= 200 &&
+          parsed.z2Pace <= 720 &&
+          parsed.z2RunningDist > 0 &&
+          parsed.z2RunningDur > 0
+        ) {
+          currZ2RunningDist += parsed.z2RunningDist;
+          currZ2RunningDur += parsed.z2RunningDur;
           currentPoints.push({
             date: act.date,
             dateObj: actDate,
@@ -324,7 +339,8 @@ export function Zone2TrendChart({
             paceSecs: parsed.z2Pace,
             paceStr: secondsToPace(parsed.z2Pace),
             pctZ2: parsed.pct,
-            z2Duration: parsed.z2Duration,
+            z2Duration: parsed.z2RunningDur || parsed.z2HrDuration,
+            z2Dist: parsed.z2RunningDist,
             avgHr: parsed.actHr,
           });
         }
@@ -332,11 +348,18 @@ export function Zone2TrendChart({
       // Previous period
       else if (actDate >= prevWindowStart && actDate < windowStart) {
         if (parsed.totalDuration > 0) {
-          prevZ2Dur += parsed.z2Duration;
-          prevAllDur += parsed.totalDuration;
+          prevZ2HrDuration += parsed.z2HrDuration;
+          prevTotalDuration += parsed.totalDuration;
         }
-        if (parsed.z2Dist > 0 && parsed.z2Duration > 0) {
-          prevZ2Dist += parsed.z2Dist;
+        if (
+          parsed.z2Pace &&
+          parsed.z2Pace >= 200 &&
+          parsed.z2Pace <= 720 &&
+          parsed.z2RunningDist > 0 &&
+          parsed.z2RunningDur > 0
+        ) {
+          prevZ2RunningDist += parsed.z2RunningDist;
+          prevZ2RunningDur += parsed.z2RunningDur;
         }
       }
     });
@@ -374,12 +397,19 @@ export function Zone2TrendChart({
     }
 
     // Current Summary Metrics
-    const currAvgPct = currAllDur > 0 ? Math.round((currZ2Dur / currAllDur) * 100) : 0;
-    const currAvgPace = currZ2Dist > 0 ? Math.round(currZ2Dur / currZ2Dist) : 0;
+    const currAvgPct = currTotalDuration > 0 ? Math.round((currZ2HrDuration / currTotalDuration) * 100) : 0;
+    // Accurate distance-weighted average pace in Zone 2
+    const currAvgPace = currZ2RunningDist > 0
+      ? Math.round(currZ2RunningDur / currZ2RunningDist)
+      : (currentPoints.length > 0
+          ? Math.round(currentPoints.reduce((acc, p) => acc + p.paceSecs, 0) / currentPoints.length)
+          : 0);
 
     // Previous Summary Metrics
-    const prevAvgPct = prevAllDur > 0 ? Math.round((prevZ2Dur / prevAllDur) * 100) : 0;
-    const prevAvgPace = prevZ2Dist > 0 ? Math.round(prevZ2Dur / prevZ2Dist) : 0;
+    const prevAvgPct = prevTotalDuration > 0 ? Math.round((prevZ2HrDuration / prevTotalDuration) * 100) : 0;
+    const prevAvgPace = prevZ2RunningDist > 0
+      ? Math.round(prevZ2RunningDur / prevZ2RunningDist)
+      : 0;
 
     // Deltas
     const pDelta = currAvgPct - prevAvgPct;
@@ -387,16 +417,16 @@ export function Zone2TrendChart({
     const isFaster = paceDiff >= 0;
 
     // Y Axis domain and ticks (rounded to 30-sec boundaries, inverted pace)
-    let minPace = 300;
-    let maxPace = 420;
+    let minPace = 360;
+    let maxPace = 600;
     if (currentPoints.length > 0) {
       const allVals = currentPoints.flatMap((p) => [p.paceSecs, p.trendSecs].filter(Boolean));
       minPace = Math.min(...allVals);
       maxPace = Math.max(...allVals);
     }
 
-    const niceMin = Math.max(180, Math.floor((minPace - 10) / 30) * 30);
-    const niceMax = Math.min(720, Math.ceil((maxPace + 10) / 30) * 30);
+    const niceMin = Math.max(180, Math.floor((minPace - 15) / 30) * 30);
+    const niceMax = Math.min(720, Math.ceil((maxPace + 15) / 30) * 30);
 
     const ticks: number[] = [];
     for (let t = niceMin; t <= niceMax; t += 30) {
@@ -410,7 +440,7 @@ export function Zone2TrendChart({
       pctDelta: pDelta,
       paceDeltaStr: paceDiff !== 0 ? secondsToPace(Math.abs(paceDiff)) : null,
       isPaceBetter: isFaster,
-      yTicks: ticks.length >= 2 ? ticks : [300, 330, 360, 390, 420],
+      yTicks: ticks.length >= 2 ? ticks : [360, 420, 480, 540, 600],
       yDomain: [niceMin, niceMax],
     };
   }, [activities, detailsMap, daysRange, z2Min, z2Max]);
