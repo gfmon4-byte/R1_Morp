@@ -141,7 +141,7 @@ export default function GarminLoginPage() {
     setSuccessMsg(null);
 
     try {
-      const res = await fetch('/api/garmin/login', {
+      const res = await fetch('/api/garmin-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'login', email: email.trim(), password }),
@@ -190,7 +190,7 @@ export default function GarminLoginPage() {
     setErrorMsg(null);
 
     try {
-      const res = await fetch('/api/garmin/verify-otp', {
+      const res = await fetch('/api/garmin-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
