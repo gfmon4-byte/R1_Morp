@@ -148,11 +148,15 @@ export default function GarminLoginPage() {
       });
 
       let data = {};
+      const rawText = await res.text();
       try {
-        const rawText = await res.text();
         data = JSON.parse(rawText);
       } catch {
-        throw new Error(`Server returned HTTP ${res.status}`);
+        throw new Error(
+          res.ok
+            ? 'Unexpected non-JSON response from server'
+            : `Server returned HTTP ${res.status}: ${rawText.slice(0, 150)}`
+        );
       }
 
       if (data.needs_mfa || data.needsMfa) {
@@ -203,11 +207,15 @@ export default function GarminLoginPage() {
       });
 
       let data = {};
+      const rawText = await res.text();
       try {
-        const rawText = await res.text();
         data = JSON.parse(rawText);
       } catch {
-        throw new Error(`Server returned HTTP ${res.status}`);
+        throw new Error(
+          res.ok
+            ? 'Unexpected non-JSON response from server'
+            : `Server returned HTTP ${res.status}: ${rawText.slice(0, 150)}`
+        );
       }
 
       if (data.success) {
