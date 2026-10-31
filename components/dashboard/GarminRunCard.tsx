@@ -211,7 +211,6 @@ export default function GarminRunCard({
           <div className={styles.runnerIconWrap}>
             <IconRunner size={18} />
           </div>
-          <span className={styles.headerTitle}>My Route</span>
         </div>
 
         <div className={styles.headerRight}>
