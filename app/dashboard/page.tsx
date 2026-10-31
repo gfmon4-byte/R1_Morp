@@ -38,8 +38,8 @@ async function getDashboardData() {
 export default async function DashboardPage() {
   const { profile, activities, activityDetails } = await getDashboardData();
 
-  const hrMax = profile?.hr_max ?? 195;
-  const hrRest = profile?.hr_rest ?? 49;
+  const hrMax = profile?.hr_max ?? 199;
+  const hrRest = profile?.hr_rest ?? 65;
   const hrZones = computeHRZones(hrMax, hrRest);
 
   return (
