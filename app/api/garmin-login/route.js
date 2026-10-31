@@ -1,3 +1,6 @@
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 import { spawn } from 'child_process';
 import path from 'path';
 import { getGarminTokens, saveGarminTokens, getTokenStatus } from '@/lib/garminTokens';
