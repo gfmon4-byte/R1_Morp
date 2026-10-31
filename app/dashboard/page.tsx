@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { supabase } from '@/lib/supabase';
-import type { Activity, Profile } from '@/lib/supabase';
+import type { Activity, Profile, ActivityDetail } from '@/lib/supabase';
 import { computeHRZones } from '@/lib/hrZones';
 import { DashboardClient } from '@/components/dashboard/DashboardClient';
 
@@ -16,7 +16,9 @@ async function getDashboardData() {
       .limit(500),
     supabase
       .from('activity_details')
-      .select('activity_id, session_date, details'),
+      .select('activity_id, session_date, details')
+      .order('session_date', { ascending: false })
+      .limit(500),
   ]);
 
   // Combine profile prioritizing user_profile table (Moph)
@@ -29,7 +31,7 @@ async function getDashboardData() {
   return {
     profile: mergedProfile,
     activities: (activitiesRes.data ?? []) as Activity[],
-    activityDetails: (activityDetailsRes.data ?? []) as any[],
+    activityDetails: (activityDetailsRes.data ?? []) as ActivityDetail[],
   };
 }
 
