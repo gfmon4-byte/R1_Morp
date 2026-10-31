@@ -154,20 +154,20 @@ export function Zone2TrendChart({
   const [daysRange, setDaysRange] = useState<number | 'all'>(defaultDays);
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
 
-  // Zone 2 HR boundaries
+  // Zone 2 HR boundaries (calibrated for running: min >= 120 bpm)
   const { z2Min, z2Max } = useMemo(() => {
     // 1. Try from computeHRZones (hrZones prop)
     const z2Item = hrZones?.find((z) => z.zone === 2);
-    if (z2Item) {
+    if (z2Item && z2Item.minBpm >= 120) {
       return { z2Min: z2Item.minBpm, z2Max: z2Item.maxBpm };
     }
 
-    // 2. Try from profile garmin_hr_zones or hr_zones object
+    // 2. Try from profile garmin_hr_zones or hr_zones object (must be running zone >= 120 bpm)
     const pZones =
       (profile as any)?.fitness_age_data?.garmin_hr_zones ||
       (profile as any)?.fitness_age_data?.hr_zones ||
       (profile as any)?.hr_zones;
-    if (pZones?.z2) {
+    if (pZones?.z2 && Number(pZones.z2.min) >= 120) {
       return {
         z2Min: parseInt(pZones.z2.min, 10),
         z2Max: parseInt(pZones.z2.max, 10),
@@ -245,19 +245,19 @@ export function Zone2TrendChart({
         if (b.Z2 && b.Z2 > 0) z2HrDuration = b.Z2;
       }
 
-      // Activity-specific Garmin HR Zone 2 boundaries
+      // Activity-specific Garmin HR Zone 2 boundaries (running zones must be >= 120 bpm)
       let actZ2Min = z2Min;
       let actZ2Max = z2Max;
       if (detail?.hr_zones && Array.isArray(detail.hr_zones)) {
         const z2 = detail.hr_zones.find((z: any) => z.zone_number === 2);
         const z3 = detail.hr_zones.find((z: any) => z.zone_number === 3);
-        if (z2 && typeof z2.min_bpm === 'number') {
+        if (z2 && typeof z2.min_bpm === 'number' && z2.min_bpm >= 120) {
           actZ2Min = z2.min_bpm;
-        }
-        if (z3 && typeof z3.min_bpm === 'number') {
-          actZ2Max = z3.min_bpm - 1;
-        } else if (z2 && typeof z2.max_bpm === 'number') {
-          actZ2Max = z2.max_bpm;
+          if (z3 && typeof z3.min_bpm === 'number' && z3.min_bpm > actZ2Min) {
+            actZ2Max = z3.min_bpm - 1;
+          } else if (z2 && typeof z2.max_bpm === 'number') {
+            actZ2Max = z2.max_bpm;
+          }
         }
       }
 

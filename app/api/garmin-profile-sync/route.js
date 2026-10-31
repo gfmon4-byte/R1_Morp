@@ -644,9 +644,9 @@ async function fetchGarminProfileData(tokens) {
         if (Array.isArray(rawZones) && rawZones.length > 0) {
           const rZone =
             rawZones.find((z) => z.sport === 'RUNNING') ||
-            rawZones.find((z) => z.sport === 'DEFAULT') ||
-            rawZones[0];
-          if (rZone && rZone.zone1Floor) {
+            rawZones.find((z) => z.sport === 'DEFAULT' && (z.zone2Floor || 0) >= 120) ||
+            rawZones.find((z) => (z.zone2Floor || 0) >= 120);
+          if (rZone && rZone.zone1Floor && (rZone.zone2Floor || 0) >= 120) {
             const maxHr = rZone.maxHeartRateUsed || 199;
             return {
               sport: rZone.sport,
@@ -735,7 +735,7 @@ export async function POST(request) {
           console.warn('Failed to extract HR zones from activity_details:', e);
         }
       }
-      if (!garminHrZonesToSave) {
+      if (!garminHrZonesToSave || (garminHrZonesToSave.z2?.min || 0) < 120) {
         garminHrZonesToSave = {
           sport: 'RUNNING',
           max_hr: 199,
@@ -745,7 +745,7 @@ export async function POST(request) {
           z3: { min: 158, max: 171, name: 'Aerobic (Zone 3)', label: 'Z3' },
           z4: { min: 172, max: 184, name: 'Threshold (Zone 4)', label: 'Z4' },
           z5: { min: 185, max: 199, name: 'Maximum (Zone 5)', label: 'Z5' },
-          source: 'garmin_preset',
+          source: 'garmin_running_profile',
           updated_at: new Date().toISOString(),
         };
       }

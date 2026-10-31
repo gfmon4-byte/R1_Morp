@@ -406,7 +406,7 @@ export default function ProfilePage() {
       }
       setLoading(false);
     });
-  }, [reset]);
+  }, [applyProfileToForm]);
 
   // Prevent body scroll when race modal or InBody history modal is open
   useEffect(() => {

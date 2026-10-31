@@ -1,7 +1,7 @@
 /**
  * HR Zone calculation and Garmin sync helper.
- * Prioritizes actual Garmin-synced Heart Rate Zones.
- * Falls back to Karvonen formula using hr_max and hr_rest when Garmin data is not present.
+ * Prioritizes actual Garmin-synced Running Heart Rate Zones.
+ * Falls back to Karvonen formula using hr_max and hr_rest when Garmin data is not present or invalid.
  */
 
 export interface HRZone {
@@ -31,6 +31,7 @@ const ZONE_BANDS = [
 
 /**
  * Extract Garmin HR zones from profile or custom object.
+ * Validates that Zone 2 min is at least 120 bpm (running zone, not resting/wellness).
  */
 export function extractGarminZones(profileOrZones?: any): Record<string, any> | null {
   if (!profileOrZones) return null;
@@ -43,7 +44,11 @@ export function extractGarminZones(profileOrZones?: any): Record<string, any> | 
 
   if (target && typeof target === 'object') {
     if (target.z1 && target.z2 && target.z3 && target.z4 && target.z5) {
-      return target;
+      // Validate that Z2 is a plausible running zone (>= 120 bpm)
+      const z2Min = Number(target.z2.min);
+      if (z2Min >= 120) {
+        return target;
+      }
     }
   }
   return null;
@@ -51,7 +56,7 @@ export function extractGarminZones(profileOrZones?: any): Record<string, any> | 
 
 /**
  * Compute all 5 HR zones:
- * 1. If Garmin HR zones exist in profile, use Garmin's exact thresholds.
+ * 1. If valid Garmin Running HR zones exist in profile, use Garmin's exact thresholds.
  * 2. Otherwise, calculate using Karvonen formula (hr_max and hr_rest).
  */
 export function computeHRZones(
