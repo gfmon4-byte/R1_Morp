@@ -6,32 +6,45 @@ import { computeHRZones } from '@/lib/hrZones';
 import { DashboardClient } from '@/components/dashboard/DashboardClient';
 
 async function getDashboardData() {
-  const [profileRes, activitiesRes] = await Promise.all([
-    supabase.from('profiles').select('*').eq('id', 1).single(),
+  const [userProfileRes, profileRes, activitiesRes, activityDetailsRes] = await Promise.all([
+    supabase.from('user_profile').select('*').eq('id', 1).maybeSingle(),
+    supabase.from('profiles').select('*').eq('id', 1).maybeSingle(),
     supabase
       .from('activities')
       .select('*')
       .order('date', { ascending: false })
       .limit(500),
+    supabase
+      .from('activity_details')
+      .select('activity_id, session_date, details'),
   ]);
 
+  // Combine profile prioritizing user_profile table (Moph)
+  const baseProfile = profileRes.data || {};
+  const userProfile = userProfileRes.data || {};
+  const mergedProfile = (userProfile.name || baseProfile.name)
+    ? ({ ...baseProfile, ...userProfile } as Profile)
+    : null;
+
   return {
-    profile: profileRes.data as Profile | null,
+    profile: mergedProfile,
     activities: (activitiesRes.data ?? []) as Activity[],
+    activityDetails: (activityDetailsRes.data ?? []) as any[],
   };
 }
 
 export default async function DashboardPage() {
-  const { profile, activities } = await getDashboardData();
+  const { profile, activities, activityDetails } = await getDashboardData();
 
-  const hrMax = profile?.hr_max ?? 185;
-  const hrRest = profile?.hr_rest ?? 42;
+  const hrMax = profile?.hr_max ?? 195;
+  const hrRest = profile?.hr_rest ?? 49;
   const hrZones = computeHRZones(hrMax, hrRest);
 
   return (
     <DashboardClient
       profile={profile}
       activities={activities}
+      activityDetails={activityDetails}
       hrZones={hrZones}
     />
   );

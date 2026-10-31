@@ -114,6 +114,9 @@ export interface Activity {
   avg_ground_contact_time?: number | null;
   steps?: number | null;
   body_battery_drain?: number | null;
+  aerobic_training_effect?: number | null;
+  anaerobic_training_effect?: number | null;
+  avg_pace?: string | null;
   run_type?: string | null;
   created_at: string;
   updated_at: string;

@@ -327,7 +327,7 @@ async function processSingleActivity(headers, actItem, partIdx = 1, totalParts =
     fetch(`${CONNECT_API_BASE}/gear-service/gear/filterGear?activityId=${actId}`, { headers })
       .then((r) => (r.ok ? r.json() : []))
       .catch(() => []),
-    fetch(`${CONNECT_API_BASE}/activity-service/activity/${actId}/details?maxChartSize=2000&maxPolylineSize=1`, { headers })
+    fetch(`${CONNECT_API_BASE}/activity-service/activity/${actId}/details`, { headers })
       .then((r) => (r.ok ? r.json() : {}))
       .catch(() => ({})),
   ]);
@@ -382,6 +382,7 @@ async function processSingleActivity(headers, actItem, partIdx = 1, totalParts =
   const maxElev = summaryDTO.maxElevation != null ? Math.round(summaryDTO.maxElevation * 10) / 10 : (actItem.maxElevation != null ? Math.round(actItem.maxElevation * 10) / 10 : null);
 
   const calories = summaryDTO.calories || actItem.calories ? Math.round(summaryDTO.calories || actItem.calories) : null;
+  const waterEstimated = summaryDTO.waterEstimated ?? actItem.waterEstimated ?? null;
   let bbDrain = summaryDTO.differenceBodyBattery || actItem.bodyBatteryDrainedDuringActivity;
   if (bbDrain != null) bbDrain = Math.abs(Math.round(bbDrain));
 
@@ -421,6 +422,7 @@ async function processSingleActivity(headers, actItem, partIdx = 1, totalParts =
     min_elevation_m: minElev,
     max_elevation_m: maxElev,
     calories: calories,
+    water_estimated_ml: waterEstimated != null ? Math.round(waterEstimated) : null,
     body_battery_drain: bbDrain,
     steps: steps,
     aerobic_training_effect: aerobicTe,
@@ -516,14 +518,49 @@ async function processSingleActivity(headers, actItem, partIdx = 1, totalParts =
 
   // Gear
   const gearClean = Array.isArray(gearData)
-    ? gearData.map((g) => ({
-        gear_name: g.customMakeModel || g.displayName || g.gearPk,
-        brand: g.makeName || null,
-        model: g.modelName || null,
-        gear_type: g.gearTypeName || 'Shoes',
-        total_distance_km: g.totalDistance ? Math.round((g.totalDistance / 1000.0) * 10) / 10 : null,
-      }))
+    ? gearData.map((g) => {
+        const primaryName = g.customMakeModel || g.displayName || g.gearModelName || (g.gearPk ? `Gear #${g.gearPk}` : 'Shoes');
+        return {
+          gear_name: primaryName,
+          name: primaryName,
+          displayName: g.displayName || null,
+          customMakeModel: g.customMakeModel || null,
+          brand: g.makeName || g.gearMakeName || null,
+          model: g.modelName || g.gearModelName || null,
+          gear_type: g.gearTypeName || 'Shoes',
+          gear_pk: g.gearPk || null,
+          uuid: g.uuid || null,
+          total_distance_km: g.totalDistance ? Math.round((g.totalDistance / 1000.0) * 10) / 10 : null,
+        };
+      })
     : [];
+
+  // Downsample polyline points for lightweight storage (~2KB)
+  let geoPolyline = null;
+  if (detailsData?.geoPolylineDTO?.polyline && detailsData.geoPolylineDTO.polyline.length >= 2) {
+    const rawPoly = detailsData.geoPolylineDTO.polyline;
+    const step = Math.max(1, Math.floor(rawPoly.length / 100));
+    const sampled = [];
+    for (let i = 0; i < rawPoly.length; i += step) {
+      if (rawPoly[i]?.lat != null && rawPoly[i]?.lon != null) {
+        sampled.push({
+          lat: Number(rawPoly[i].lat.toFixed(5)),
+          lon: Number(rawPoly[i].lon.toFixed(5)),
+        });
+      }
+    }
+    const last = rawPoly[rawPoly.length - 1];
+    if (last && (sampled.length === 0 || sampled[sampled.length - 1].lat !== last.lat)) {
+      sampled.push({ lat: Number(last.lat.toFixed(5)), lon: Number(last.lon.toFixed(5)) });
+    }
+    geoPolyline = {
+      minLat: detailsData.geoPolylineDTO.minLat,
+      maxLat: detailsData.geoPolylineDTO.maxLat,
+      minLon: detailsData.geoPolylineDTO.minLon,
+      maxLon: detailsData.geoPolylineDTO.maxLon,
+      polyline: sampled,
+    };
+  }
 
   const csvSummaryStr = buildCsvSummary(summaryClean, actName, startTimeLocal, actTypeName, partType);
   const csvLapsStr = buildCsvLaps(lapsClean);
@@ -544,6 +581,7 @@ async function processSingleActivity(headers, actItem, partIdx = 1, totalParts =
     hr_zones: hrZonesClean,
     weather: weatherClean,
     gear: gearClean,
+    geo_polyline: geoPolyline,
     csv_exports: {
       summary_csv: csvSummaryStr,
       laps_csv: csvLapsStr,
@@ -629,6 +667,51 @@ async function getAvailableSessionsList() {
 }
 
 /**
+ * Enrich gear item with user profile rotation data (nickname, brand_model, distance_km, wear_pct)
+ */
+function enrichGearItem(g, profileGears = []) {
+  if (!g) return null;
+  const rawName = g.customMakeModel || g.gear_name || g.displayName || g.name || g.model;
+  const uuid = g.uuid;
+
+  let matched = null;
+  if (Array.isArray(profileGears) && profileGears.length > 0) {
+    if (uuid) {
+      matched = profileGears.find((pg) => pg.uuid && pg.uuid.toLowerCase() === uuid.toLowerCase());
+    }
+    if (!matched && rawName) {
+      const lowerRaw = rawName.toLowerCase().trim();
+      matched = profileGears.find((pg) => {
+        const b = (pg.brand_model || '').toLowerCase().trim();
+        const n = (pg.name || '').toLowerCase().trim();
+        return (
+          (b && (lowerRaw.includes(b) || b.includes(lowerRaw))) ||
+          (n && (lowerRaw.includes(n) || n.includes(lowerRaw)))
+        );
+      });
+    }
+  }
+
+  const brandModel = matched?.brand_model || g.customMakeModel || g.gear_name || g.name || 'Running Shoes';
+  const nickname = matched?.name || g.displayName || null;
+  const totalKm = matched?.distance_km ?? g.total_distance_km ?? null;
+  const wearPct = matched?.wear_pct ?? null;
+
+  return {
+    ...g,
+    name: brandModel,
+    gear_name: brandModel,
+    brand_model: brandModel,
+    nickname,
+    displayName: nickname || brandModel,
+    customMakeModel: brandModel,
+    total_distance_km: totalKm,
+    wear_pct: wearPct,
+    uuid: matched?.uuid || g.uuid || null,
+  };
+}
+
+/**
  * Fetch and construct run session data directly from Supabase Database `activity_details` table
  */
 async function getSessionFromSupabase(targetDate = null) {
@@ -675,14 +758,59 @@ async function getSessionFromSupabase(targetDate = null) {
 
     if (parts.length === 0) return null;
 
+    // 1. Fetch user's garmin_gear rotation to enrich gear objects
+    let profileGears = [];
+    try {
+      const pRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.1&select=garmin_gear`, {
+        headers: {
+          apikey: SUPABASE_KEY,
+          Authorization: `Bearer ${SUPABASE_KEY}`,
+        },
+      });
+      if (pRes.ok) {
+        const pData = await pRes.json();
+        if (Array.isArray(pData) && pData[0]?.garmin_gear) {
+          profileGears = pData[0].garmin_gear;
+        }
+      }
+    } catch {
+      // non-critical
+    }
+
+    // 2. Enrich gear on each part
+    for (const p of parts) {
+      if (Array.isArray(p.gear)) {
+        p.gear = p.gear.map((g) => enrichGearItem(g, profileGears));
+      }
+    }
+
+    // Aggregate session gear across all parts
+    const allGears = [];
+    const seenGears = new Set();
+    for (const p of parts) {
+      if (Array.isArray(p.gear)) {
+        for (const g of p.gear) {
+          const key = g.uuid || g.gear_pk || g.gear_name || g.name;
+          if (key && !seenGears.has(key)) {
+            seenGears.add(key);
+            allGears.push(g);
+          }
+        }
+      }
+    }
+    const sessionGear = allGears.length > 0 ? allGears : (parts[0]?.gear || []);
+
     if (parts.length === 1) {
+      const single = parts[0];
+      const actualLocalDate = single.start_time_local ? single.start_time_local.slice(0, 10) : finalDate;
       return {
         status: 'success',
-        ...parts[0],
+        ...single,
         is_multi_session: false,
-        session_date: finalDate,
+        session_date: actualLocalDate,
         session_activities_count: 1,
         parts,
+        gear: sessionGear,
         available_sessions: availableSessions,
         source: 'supabase_activity_details',
       };
@@ -695,6 +823,7 @@ async function getSessionFromSupabase(targetDate = null) {
     const totMovingSecs = parts.reduce((sum, p) => sum + (p.summary?.moving_duration_seconds || p.summary?.duration_seconds || 0), 0);
     const totElapsedSecs = parts.reduce((sum, p) => sum + (p.summary?.elapsed_duration_seconds || p.summary?.duration_seconds || 0), 0);
     const totCalories = parts.reduce((sum, p) => sum + (p.summary?.calories || 0), 0);
+    const totWaterEstimated = parts.reduce((sum, p) => sum + (p.summary?.water_estimated_ml || p.summary?.waterEstimated || 0), 0);
     const totSteps = parts.reduce((sum, p) => sum + (p.summary?.steps || 0), 0);
     const totElevGain = parts.reduce((sum, p) => sum + (p.summary?.elevation_gain_m || 0), 0);
     const totElevLoss = parts.reduce((sum, p) => sum + (p.summary?.elevation_loss_m || 0), 0);
@@ -792,6 +921,7 @@ async function getSessionFromSupabase(targetDate = null) {
       min_elevation_m: Math.min(...parts.map((p) => p.summary?.min_elevation_m).filter((v) => v != null), 0) || null,
       max_elevation_m: Math.max(...parts.map((p) => p.summary?.max_elevation_m).filter((v) => v != null), 0) || null,
       calories: totCalories || null,
+      water_estimated_ml: totWaterEstimated > 0 ? Math.round(totWaterEstimated) : null,
       body_battery_drain: parts.reduce((s, p) => s + (p.summary?.body_battery_drain || 0), 0) || null,
       steps: totSteps || null,
       aerobic_training_effect: Math.max(...parts.map((p) => p.summary?.aerobic_training_effect || 0).filter(Boolean), 0) || null,
@@ -905,7 +1035,8 @@ async function getSessionFromSupabase(targetDate = null) {
       laps: combinedLaps,
       hr_zones: combinedHrZones,
       weather: parts[0].weather,
-      gear: parts[0].gear,
+      gear: sessionGear,
+      geo_polyline: parts.find(p => p.geo_polyline)?.geo_polyline || null,
       available_sessions: availableSessions,
       csv_exports: {
         combined_csv: fullCombinedCsv,
@@ -1202,6 +1333,7 @@ async function fetchGarminDetailsNode(targetDate = null) {
   const totMovingSecs = parts.reduce((sum, p) => sum + (p.summary?.moving_duration_seconds || p.summary?.duration_seconds || 0), 0);
   const totElapsedSecs = parts.reduce((sum, p) => sum + (p.summary?.elapsed_duration_seconds || p.summary?.duration_seconds || 0), 0);
   const totCalories = parts.reduce((sum, p) => sum + (p.summary?.calories || 0), 0);
+  const totWaterEstimated = parts.reduce((sum, p) => sum + (p.summary?.water_estimated_ml || p.summary?.waterEstimated || 0), 0);
   const totSteps = parts.reduce((sum, p) => sum + (p.summary?.steps || 0), 0);
   const totElevGain = parts.reduce((sum, p) => sum + (p.summary?.elevation_gain_m || 0), 0);
   const totElevLoss = parts.reduce((sum, p) => sum + (p.summary?.elevation_loss_m || 0), 0);
@@ -1299,6 +1431,7 @@ async function fetchGarminDetailsNode(targetDate = null) {
     min_elevation_m: Math.min(...parts.map((p) => p.summary?.min_elevation_m).filter((v) => v != null), 0) || null,
     max_elevation_m: Math.max(...parts.map((p) => p.summary?.max_elevation_m).filter((v) => v != null), 0) || null,
     calories: totCalories || null,
+    water_estimated_ml: totWaterEstimated > 0 ? Math.round(totWaterEstimated) : null,
     body_battery_drain: parts.reduce((s, p) => s + (p.summary?.body_battery_drain || 0), 0) || null,
     steps: totSteps || null,
     aerobic_training_effect: Math.max(...parts.map((p) => p.summary?.aerobic_training_effect || 0).filter(Boolean), 0) || null,
@@ -1393,6 +1526,22 @@ async function fetchGarminDetailsNode(targetDate = null) {
   const combinedLapsCsv = buildCsvLaps(combinedLaps);
   const fullCombinedCsv = `# GARMIN WORKOUT SESSION SUMMARY (${sessionDate})\n${combinedSummaryCsv}\n\n# ALL LAPS / SPLITS BREAKDOWN (WU + MAIN + CD)\n${combinedLapsCsv}`;
 
+  // Aggregate gear across all parts in the session
+  const allGears = [];
+  const seenGears = new Set();
+  for (const p of parts) {
+    if (Array.isArray(p.gear)) {
+      for (const g of p.gear) {
+        const key = g.uuid || g.gear_pk || g.gear_name || g.name;
+        if (key && !seenGears.has(key)) {
+          seenGears.add(key);
+          allGears.push(g);
+        }
+      }
+    }
+  }
+  const sessionGear = allGears.length > 0 ? allGears : (parts[0]?.gear || []);
+
   const out = {
     status: 'success',
     is_multi_session: true,
@@ -1410,7 +1559,8 @@ async function fetchGarminDetailsNode(targetDate = null) {
     laps: combinedLaps,
     hr_zones: combinedHrZones,
     weather: parts[0].weather,
-    gear: parts[0].gear,
+    gear: sessionGear,
+    geo_polyline: parts.find(p => p.geo_polyline)?.geo_polyline || null,
     available_sessions: availableSessions,
     csv_exports: {
       summary_csv: combinedSummaryCsv,

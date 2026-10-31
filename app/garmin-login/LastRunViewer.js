@@ -2,6 +2,29 @@
 
 import React, { useState } from 'react';
 import styles from './LastRunViewer.module.css';
+import {
+  IconRunner,
+  IconCalendar,
+  IconSave,
+  IconLocation,
+  IconBolt,
+  IconBarChart,
+  IconHeart,
+  IconDesktop,
+  IconFileText,
+  IconTarget,
+  IconShoe,
+  IconRuler,
+  IconFootsteps,
+  IconMountain,
+  IconFire,
+  IconBattery,
+  IconThermometer,
+  IconDroplet,
+  IconWind,
+  IconCloud,
+  IconScale,
+} from '@/components/Icons';
 
 // SVG Icons
 const IconCopy = () => (
@@ -97,10 +120,14 @@ export default function LastRunViewer({ data, onClose }) {
       <div className={styles.headerRow} style={isCollapsed ? { borderBottom: 'none', marginBottom: 0, paddingBottom: 0 } : {}}>
         <div className={styles.titleArea}>
           <div className={styles.activityBadgeRow}>
-            <span className={styles.badgeType}>🏃 {activity_type || 'Running'}</span>
-            <span className={styles.badgeDate}>📅 {formattedDate}</span>
-            <span className={styles.badgeDate} style={{ color: '#10b981', fontWeight: 600 }}>
-              💾 Saved
+            <span className={styles.badgeType} style={{ display: 'inline-flex', alignItems: 'center' }}>
+              <IconRunner size={14} style={{ marginRight: 4 }} /> {activity_type || 'Running'}
+            </span>
+            <span className={styles.badgeDate} style={{ display: 'inline-flex', alignItems: 'center' }}>
+              <IconCalendar size={13} style={{ marginRight: 4 }} /> {formattedDate}
+            </span>
+            <span className={styles.badgeDate} style={{ color: '#10b981', fontWeight: 600, display: 'inline-flex', alignItems: 'center' }}>
+              <IconSave size={13} style={{ marginRight: 4 }} /> Saved
             </span>
             {activity_id && (
               <span className={styles.badgeDate} style={{ opacity: 0.7 }}>
@@ -117,8 +144,8 @@ export default function LastRunViewer({ data, onClose }) {
             )}
           </h2>
           {!isCollapsed && location_name && (
-            <div className={styles.locationText}>
-              📍 {location_name}
+            <div className={styles.locationText} style={{ display: 'inline-flex', alignItems: 'center' }}>
+              <IconLocation size={14} style={{ marginRight: 4 }} /> {location_name}
             </div>
           )}
         </div>
@@ -151,7 +178,9 @@ export default function LastRunViewer({ data, onClose }) {
       {/* Action Bar with Quick Copy & Download */}
       <div className={styles.actionBar}>
         <div className={styles.actionBarLabel}>
-          <span>⚡ ส่งออกข้อมูล (Quick Export):</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+            <IconBolt size={14} style={{ marginRight: 4 }} /> ส่งออกข้อมูล (Quick Export):
+          </span>
         </div>
         <div className={styles.buttonGroup}>
           <button
@@ -173,31 +202,31 @@ export default function LastRunViewer({ data, onClose }) {
           className={`${styles.tabBtn} ${activeTab === 'overview' ? styles.tabBtnActive : ''}`}
           onClick={() => setActiveTab('overview')}
         >
-          📊 ภาพรวม & ตัวชี้วัด (Overview)
+          <IconBarChart size={14} style={{ marginRight: 5 }} /> ภาพรวม & ตัวชี้วัด (Overview)
         </button>
         <button
           className={`${styles.tabBtn} ${activeTab === 'laps' ? styles.tabBtnActive : ''}`}
           onClick={() => setActiveTab('laps')}
         >
-          ⏱️ สปลิทรายกิโล ({laps.length} Laps)
+          สปลิทรายกิโล ({laps.length} Laps)
         </button>
         <button
           className={`${styles.tabBtn} ${activeTab === 'hr' ? styles.tabBtnActive : ''}`}
           onClick={() => setActiveTab('hr')}
         >
-          ❤️ โซนหัวใจ (HR Zones)
+          <IconHeart size={14} color="#EF4444" fill="#EF4444" style={{ marginRight: 5 }} /> โซนหัวใจ (HR Zones)
         </button>
         <button
           className={`${styles.tabBtn} ${activeTab === 'raw_json' ? styles.tabBtnActive : ''}`}
           onClick={() => setActiveTab('raw_json')}
         >
-          💻 Raw JSON Code
+          <IconDesktop size={14} style={{ marginRight: 5 }} /> Raw JSON Code
         </button>
         <button
           className={`${styles.tabBtn} ${activeTab === 'raw_csv' ? styles.tabBtnActive : ''}`}
           onClick={() => setActiveTab('raw_csv')}
         >
-          📄 Raw CSV Preview
+          <IconFileText size={14} style={{ marginRight: 5 }} /> Raw CSV Preview
         </button>
       </div>
 
@@ -206,7 +235,9 @@ export default function LastRunViewer({ data, onClose }) {
         <div>
           <div className={styles.metricsGrid}>
             <div className={`${styles.metricCard} ${styles.metricCardHighlight}`}>
-              <div className={styles.metricLabel}>🎯 ระยะทาง (Distance)</div>
+              <div className={styles.metricLabel} style={{ display: 'inline-flex', alignItems: 'center' }}>
+                <IconTarget size={14} color="#10B981" style={{ marginRight: 5 }} /> ระยะทาง (Distance)
+              </div>
               <div className={styles.metricValue}>
                 {summary.distance_km ?? '--'}
                 <span className={styles.metricUnit}>km</span>
@@ -217,7 +248,7 @@ export default function LastRunViewer({ data, onClose }) {
             </div>
 
             <div className={`${styles.metricCard} ${styles.metricCardHighlight}`}>
-              <div className={styles.metricLabel}>⏱️ เวลา (Duration)</div>
+              <div className={styles.metricLabel}>เวลา (Duration)</div>
               <div className={styles.metricValue}>{summary.duration_formatted ?? '--'}</div>
               <div className={styles.metricSubtext}>
                 Moving: {summary.moving_duration_formatted ?? '--'}
@@ -225,7 +256,9 @@ export default function LastRunViewer({ data, onClose }) {
             </div>
 
             <div className={`${styles.metricCard} ${styles.metricCardHighlight}`}>
-              <div className={styles.metricLabel}>⚡ เพซเฉลี่ย (Avg Pace)</div>
+              <div className={styles.metricLabel} style={{ display: 'inline-flex', alignItems: 'center' }}>
+                <IconBolt size={14} color="#F59E0B" style={{ marginRight: 5 }} /> เพซเฉลี่ย (Avg Pace)
+              </div>
               <div className={styles.metricValue}>
                 {summary.avg_pace ?? '--'}
                 <span className={styles.metricUnit}>/km</span>
@@ -236,7 +269,9 @@ export default function LastRunViewer({ data, onClose }) {
             </div>
 
             <div className={styles.metricCard}>
-              <div className={styles.metricLabel}>❤️ อัตราการเต้นหัวใจ (HR)</div>
+              <div className={styles.metricLabel} style={{ display: 'inline-flex', alignItems: 'center' }}>
+                <IconHeart size={14} color="#EF4444" fill="#EF4444" style={{ marginRight: 5 }} /> อัตราการเต้นหัวใจ (HR)
+              </div>
               <div className={styles.metricValue}>
                 {summary.avg_hr ?? '--'}
                 <span className={styles.metricUnit}>bpm</span>
@@ -247,7 +282,9 @@ export default function LastRunViewer({ data, onClose }) {
             </div>
 
             <div className={styles.metricCard}>
-              <div className={styles.metricLabel}>👟 รอบขา (Cadence)</div>
+              <div className={styles.metricLabel} style={{ display: 'inline-flex', alignItems: 'center' }}>
+                <IconShoe size={14} color="#38BDF8" style={{ marginRight: 5 }} /> รอบขา (Cadence)
+              </div>
               <div className={styles.metricValue}>
                 {summary.avg_cadence ?? '--'}
                 <span className={styles.metricUnit}>spm</span>
@@ -258,7 +295,9 @@ export default function LastRunViewer({ data, onClose }) {
             </div>
 
             <div className={styles.metricCard}>
-              <div className={styles.metricLabel}>📏 ความยาวก้าว (Stride)</div>
+              <div className={styles.metricLabel} style={{ display: 'inline-flex', alignItems: 'center' }}>
+                <IconRuler size={14} color="#10B981" style={{ marginRight: 5 }} /> ความยาวก้าว (Stride)
+              </div>
               <div className={styles.metricValue}>
                 {summary.avg_stride_length_m ?? '--'}
                 <span className={styles.metricUnit}>m</span>
@@ -267,7 +306,9 @@ export default function LastRunViewer({ data, onClose }) {
             </div>
 
             <div className={styles.metricCard}>
-              <div className={styles.metricLabel}>🦶 สัมผัสพื้น (GCT)</div>
+              <div className={styles.metricLabel} style={{ display: 'inline-flex', alignItems: 'center' }}>
+                <IconFootsteps size={14} color="#F59E0B" style={{ marginRight: 5 }} /> สัมผัสพื้น (GCT)
+              </div>
               <div className={styles.metricValue}>
                 {summary.avg_ground_contact_time_ms ?? '--'}
                 <span className={styles.metricUnit}>ms</span>
@@ -276,7 +317,9 @@ export default function LastRunViewer({ data, onClose }) {
             </div>
 
             <div className={styles.metricCard}>
-              <div className={styles.metricLabel}>📐 การเด้งตัว (Vert Osc)</div>
+              <div className={styles.metricLabel} style={{ display: 'inline-flex', alignItems: 'center' }}>
+                <IconScale size={14} color="#A855F7" style={{ marginRight: 5 }} /> การเด้งตัว (Vert Osc)
+              </div>
               <div className={styles.metricValue}>
                 {summary.avg_vertical_oscillation_cm ?? '--'}
                 <span className={styles.metricUnit}>cm</span>
@@ -287,7 +330,9 @@ export default function LastRunViewer({ data, onClose }) {
             </div>
 
             <div className={styles.metricCard}>
-              <div className={styles.metricLabel}>⛰️ ความชัน (Elevation)</div>
+              <div className={styles.metricLabel} style={{ display: 'inline-flex', alignItems: 'center' }}>
+                <IconMountain size={14} color="#10B981" style={{ marginRight: 5 }} /> ความชัน (Elevation)
+              </div>
               <div className={styles.metricValue}>
                 +{summary.elevation_gain_m ?? 0}
                 <span className={styles.metricUnit}>m</span>
@@ -298,29 +343,39 @@ export default function LastRunViewer({ data, onClose }) {
             </div>
 
             <div className={styles.metricCard}>
-              <div className={styles.metricLabel}>🔥 พลังงาน (Calories)</div>
+              <div className={styles.metricLabel} style={{ display: 'inline-flex', alignItems: 'center' }}>
+                <IconFire size={14} color="#EF4444" style={{ marginRight: 5 }} /> พลังงาน (Calories)
+              </div>
               <div className={styles.metricValue}>
                 {summary.calories?.toLocaleString() ?? '--'}
                 <span className={styles.metricUnit}>kcal</span>
               </div>
               <div className={styles.metricSubtext}>
-                Drain BB: {summary.body_battery_drain ? `-${summary.body_battery_drain}` : '--'}
+                Drain BB: {summary.body_battery_drain != null && summary.body_battery_drain !== '' && !isNaN(Number(summary.body_battery_drain)) ? `-${Number(summary.body_battery_drain).toFixed(2)}` : '--'}
               </div>
             </div>
 
             <div className={styles.metricCard}>
-              <div className={styles.metricLabel}>🔋 ผลการฝึกซ้อม (TE)</div>
+              <div className={styles.metricLabel} style={{ display: 'inline-flex', alignItems: 'center' }}>
+                <IconBattery size={14} color="#10B981" style={{ marginRight: 5 }} /> ผลการฝึกซ้อม (TE)
+              </div>
               <div className={styles.metricValue}>
-                {summary.aerobic_training_effect ?? '--'}
+                {summary.aerobic_training_effect != null && summary.aerobic_training_effect !== '' && !isNaN(Number(summary.aerobic_training_effect))
+                  ? Number(summary.aerobic_training_effect).toFixed(2)
+                  : '--'}
                 <span className={styles.metricUnit}>Aerobic</span>
               </div>
               <div className={styles.metricSubtext}>
-                Anaerobic: {summary.anaerobic_training_effect ?? '0.0'} ({summary.training_effect_label || 'Fitness'})
+                Anaerobic: {summary.anaerobic_training_effect != null && summary.anaerobic_training_effect !== '' && !isNaN(Number(summary.anaerobic_training_effect))
+                  ? Number(summary.anaerobic_training_effect).toFixed(2)
+                  : '0.00'} ({summary.training_effect_label || 'Fitness'})
               </div>
             </div>
 
             <div className={styles.metricCard}>
-              <div className={styles.metricLabel}>👣 จำนวนก้าว (Steps)</div>
+              <div className={styles.metricLabel} style={{ display: 'inline-flex', alignItems: 'center' }}>
+                <IconFootsteps size={14} color="#00D4FF" style={{ marginRight: 5 }} /> จำนวนก้าว (Steps)
+              </div>
               <div className={styles.metricValue}>
                 {summary.steps?.toLocaleString() ?? '--'}
                 <span className={styles.metricUnit}>steps</span>
@@ -336,7 +391,9 @@ export default function LastRunViewer({ data, onClose }) {
             <div className={styles.weatherCard}>
               {weather?.temperature_c !== undefined && (
                 <div className={styles.weatherItem}>
-                  <span className={styles.weatherLabel}>🌡️ อุณหภูมิ (Temp)</span>
+                  <span className={styles.weatherLabel} style={{ display: 'inline-flex', alignItems: 'center' }}>
+                    <IconThermometer size={14} style={{ marginRight: 5 }} /> อุณหภูมิ (Temp)
+                  </span>
                   <span className={styles.weatherValue}>
                     {weather.temperature_c} °C
                     {weather.apparent_temperature_c && (
@@ -350,14 +407,18 @@ export default function LastRunViewer({ data, onClose }) {
 
               {weather?.relative_humidity_percent !== undefined && (
                 <div className={styles.weatherItem}>
-                  <span className={styles.weatherLabel}>💧 ความชื้น (Humidity)</span>
+                  <span className={styles.weatherLabel} style={{ display: 'inline-flex', alignItems: 'center' }}>
+                    <IconDroplet size={14} style={{ marginRight: 5 }} /> ความชื้น (Humidity)
+                  </span>
                   <span className={styles.weatherValue}>{weather.relative_humidity_percent}%</span>
                 </div>
               )}
 
               {weather?.wind_speed_kph !== undefined && (
                 <div className={styles.weatherItem}>
-                  <span className={styles.weatherLabel}>💨 กระแสลม (Wind)</span>
+                  <span className={styles.weatherLabel} style={{ display: 'inline-flex', alignItems: 'center' }}>
+                    <IconWind size={14} style={{ marginRight: 5 }} /> กระแสลม (Wind)
+                  </span>
                   <span className={styles.weatherValue}>
                     {weather.wind_speed_kph} km/h {weather.wind_direction_compass}
                   </span>
@@ -366,14 +427,18 @@ export default function LastRunViewer({ data, onClose }) {
 
               {weather?.condition && (
                 <div className={styles.weatherItem}>
-                  <span className={styles.weatherLabel}>⛅ สภาพอากาศ</span>
+                  <span className={styles.weatherLabel} style={{ display: 'inline-flex', alignItems: 'center' }}>
+                    <IconCloud size={14} style={{ marginRight: 5 }} /> สภาพอากาศ
+                  </span>
                   <span className={styles.weatherValue}>{weather.condition}</span>
                 </div>
               )}
 
               {gear && gear.length > 0 && (
                 <div className={styles.weatherItem} style={{ gridColumn: 'span 2' }}>
-                  <span className={styles.weatherLabel}>👟 รองเท้า / อุปกรณ์ (Gear)</span>
+                  <span className={styles.weatherLabel} style={{ display: 'inline-flex', alignItems: 'center' }}>
+                    <IconShoe size={14} style={{ marginRight: 5 }} /> รองเท้า / อุปกรณ์ (Gear)
+                  </span>
                   <span className={styles.weatherValue}>
                     {gear.map((g) => `${g.gear_name} (${g.total_distance_km} km)`).join(', ')}
                   </span>

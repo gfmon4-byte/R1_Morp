@@ -8,8 +8,9 @@ import {
 } from 'recharts';
 import { Heart } from '@phosphor-icons/react';
 import { formatDuration } from '@/lib/utils';
-import type { Activity } from '@/lib/supabase';
+import type { Activity, Profile } from '@/lib/supabase';
 import type { HRZone } from '@/lib/hrZones';
+import { Zone2TrendChart } from './Zone2TrendChart';
 import {
   format,
   parseISO,
@@ -24,6 +25,8 @@ import {
 interface Props {
   activities: Activity[];
   allActivities?: Activity[];
+  activityDetails?: any[];
+  profile?: Profile | null;
   hrZones: HRZone[];
 }
 
@@ -41,7 +44,13 @@ const CustomTooltipStyle = {
   color: '#F8FAFC',
 };
 
-export function DashboardCharts({ activities, allActivities, hrZones }: Props) {
+export function DashboardCharts({
+  activities,
+  allActivities,
+  activityDetails = [],
+  profile = null,
+  hrZones,
+}: Props) {
   const [paceHrFilter, setPaceHrFilter] = useState<string>('All');
   const sourceActivities = allActivities ?? activities;
 
@@ -173,6 +182,15 @@ export function DashboardCharts({ activities, allActivities, hrZones }: Props) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Zone 2 Trend Chart (ก่อน Weekly Distance) */}
+      <Zone2TrendChart
+        activities={sourceActivities}
+        activityDetails={activityDetails}
+        profile={profile}
+        hrZones={hrZones}
+        defaultDays={30}
+      />
+
       {/* Weekly Distance */}
       <ChartCard title="Weekly Distance" unit="km">
         <ResponsiveContainer width="100%" height={180}>

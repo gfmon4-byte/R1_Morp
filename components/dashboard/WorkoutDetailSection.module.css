@@ -1,0 +1,795 @@
+/* ── WorkoutDetailSection.module.css ──────────────────────────────────────────
+   RunMorp Theme - Candy Pastel / Dark Pink
+   Fonts: 'Baloo 2', 'Mali', sans-serif
+───────────────────────────────────────────────────────────────────────────── */
+
+.container {
+  margin-top: 24px;
+  margin-bottom: 28px;
+}
+
+/* ── Section Header ──────────────────────────────────────────────────────── */
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.sectionHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sectionIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: var(--color-primary-soft, rgba(255, 143, 163, 0.15));
+  border: 1px solid var(--color-border, rgba(255, 143, 163, 0.28));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary, #FF8FA3);
+  font-size: 18px;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-sm, 0 2px 6px rgba(255, 143, 163, 0.15));
+}
+
+.sectionTitle {
+  font-family: 'Baloo 2', sans-serif;
+  font-size: 1.125rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--color-foreground, #4A3B52);
+  line-height: 1.2;
+}
+
+.sectionSubtitle {
+  font-family: 'Mali', sans-serif;
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #7C6B84);
+  margin: 2px 0 0;
+}
+
+.sectionHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.toastBadge {
+  font-family: 'Baloo 2', sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--color-primary, #FF8FA3);
+  background: var(--color-primary-soft, rgba(255, 143, 163, 0.15));
+  padding: 4px 10px;
+  border-radius: 99px;
+  border: 1px solid var(--color-border, rgba(255, 143, 163, 0.3));
+}
+
+.syncBtnPrimary {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 99px;
+  font-family: 'Baloo 2', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--color-primary, #FF8FA3);
+  color: #FFFFFF;
+  border: none;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm, 0 2px 6px rgba(255, 143, 163, 0.15));
+  transition: all 0.15s ease;
+}
+
+.syncBtnPrimary:hover:not(:disabled) {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+.syncBtnPrimary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.latestBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 99px;
+  font-family: 'Baloo 2', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--color-primary-soft, rgba(255, 143, 163, 0.15));
+  border: 1px solid var(--color-border, rgba(255, 143, 163, 0.3));
+  color: var(--color-primary, #FF8FA3);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.latestBtn:hover {
+  background: rgba(255, 143, 163, 0.22);
+}
+
+/* ── Main Card ───────────────────────────────────────────────────────────── */
+.mainCard {
+  position: relative;
+  background: var(--color-bg-surface, #FFFFFF);
+  border: 1px solid var(--color-border, rgba(255, 143, 163, 0.25));
+  border-radius: 20px;
+  padding: 18px 20px;
+  box-shadow: var(--shadow-sm, 0 2px 6px rgba(255, 143, 163, 0.15));
+  overflow: hidden;
+  transition: border-color 0.25s ease;
+}
+
+/* ── Calendar Controls ───────────────────────────────────────────────────── */
+.calendarSectionWrap {
+  margin-bottom: 16px;
+}
+
+.calendarMonthRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--color-border-muted, rgba(255, 143, 163, 0.12));
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.calendarMonthTitle {
+  font-family: 'Baloo 2', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-foreground, #4A3B52);
+}
+
+.calendarRunsBadge {
+  font-family: 'Baloo 2', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-primary, #FF8FA3);
+  margin-left: 6px;
+}
+
+.calendarNavBtns {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.navArrowBtn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border-muted, rgba(255, 143, 163, 0.15));
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--color-foreground, #4A3B52);
+  transition: all 0.15s ease;
+}
+
+.navArrowBtn:hover {
+  background: var(--color-primary-soft, rgba(255, 143, 163, 0.15));
+  border-color: var(--color-primary, #FF8FA3);
+}
+
+.todayBtn {
+  padding: 3px 10px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border-muted, rgba(255, 143, 163, 0.15));
+  background: transparent;
+  font-family: 'Baloo 2', sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--color-text-muted, #7C6B84);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.todayBtn:hover {
+  background: var(--color-primary-soft, rgba(255, 143, 163, 0.15));
+  color: var(--color-primary, #FF8FA3);
+}
+
+/* ── Calendar Grid ───────────────────────────────────────────────────────── */
+.weekdayHeaderRow {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+.weekdayLabel {
+  font-family: 'Baloo 2', sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--color-text-muted, #7C6B84);
+}
+
+.calendarGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.dayCell {
+  height: 44px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--color-foreground, #4A3B52);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.15s ease;
+  padding: 2px;
+  font-family: 'Baloo 2', sans-serif;
+}
+
+.emptyDayCell {
+  height: 44px;
+}
+
+.dayCell:hover {
+  background: var(--color-primary-soft, rgba(255, 143, 163, 0.1));
+}
+
+.dayCellWithRun {
+  background: rgba(255, 143, 163, 0.08);
+  border-color: rgba(255, 143, 163, 0.25);
+}
+
+.dayCellToday {
+  border-color: var(--color-accent, #7FDBB6);
+  color: var(--color-primary, #FF8FA3);
+}
+
+.dayCellSelected {
+  background: var(--color-primary, #FF8FA3) !important;
+  border: 2px solid var(--color-primary, #FF8FA3) !important;
+  color: #FFFFFF !important;
+  box-shadow: var(--shadow-sm, 0 2px 6px rgba(255, 143, 163, 0.2)) !important;
+}
+
+.dayCellSelected .dayDistance,
+.dayCellSelected .dayRunDot {
+  color: #FFFFFF !important;
+  background-color: #FFFFFF !important;
+}
+
+.dayNumber {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.dayRunMeta {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 2px;
+}
+
+.dayRunDot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dayDistance {
+  font-size: 0.5625rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--color-primary, #FF8FA3);
+}
+
+/* ── Recent Runs Row ─────────────────────────────────────────────────────── */
+.recentRunsRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding-top: 10px;
+  padding-bottom: 4px;
+  border-top: 1px solid var(--color-border-muted, rgba(255, 143, 163, 0.12));
+  margin-top: 10px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.recentRunsLabel {
+  font-family: 'Baloo 2', sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--color-text-muted, #7C6B84);
+  white-space: nowrap;
+}
+
+.recentChip {
+  padding: 3px 9px;
+  border-radius: 99px;
+  font-family: 'Baloo 2', sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  border: 1px solid rgba(255, 143, 163, 0.2);
+  background: transparent;
+  color: var(--color-text-muted, #7C6B84);
+  transition: all 0.15s ease;
+}
+
+.recentChip:hover {
+  background: var(--color-primary-soft, rgba(255, 143, 163, 0.15));
+  color: var(--color-primary, #FF8FA3);
+}
+
+.recentChipActive {
+  background: var(--color-primary-soft, rgba(255, 143, 163, 0.15)) !important;
+  border-color: var(--color-primary, #FF8FA3) !important;
+  color: var(--color-primary, #FF8FA3) !important;
+  font-weight: 700 !important;
+}
+
+/* ── Multi-Part Session Bar ──────────────────────────────────────────────── */
+.partsBar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  margin-bottom: 14px;
+  background: var(--color-bg-elevated, #FFF0F5);
+  border: 1px solid var(--color-border-muted, rgba(255, 143, 163, 0.15));
+  border-radius: 12px;
+}
+
+.partsLabel {
+  font-family: 'Baloo 2', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-text-muted, #7C6B84);
+  margin-right: 4px;
+}
+
+.partPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-family: 'Baloo 2', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-muted, #7C6B84);
+  background: var(--color-bg-surface, #FFFFFF);
+  border: 1px solid var(--color-border-muted, rgba(255, 143, 163, 0.18));
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.partPill:hover {
+  background: var(--color-primary-soft, rgba(255, 143, 163, 0.15));
+  color: var(--color-primary, #FF8FA3);
+}
+
+.partPillActive {
+  background: var(--color-primary, #FF8FA3) !important;
+  color: #FFFFFF !important;
+  border-color: var(--color-primary, #FF8FA3) !important;
+  font-weight: 700 !important;
+}
+
+/* ── Tabs Bar ────────────────────────────────────────────────────────────── */
+.tabsBar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--color-border-muted, rgba(255, 143, 163, 0.12));
+  padding-bottom: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tabBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 99px;
+  font-family: 'Baloo 2', sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  background: rgba(255, 143, 163, 0.08);
+  color: var(--color-text-muted, #7C6B84);
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.tabBtn:hover {
+  background: var(--color-primary-soft, rgba(255, 143, 163, 0.15));
+  color: var(--color-primary, #FF8FA3);
+}
+
+.tabBtnActive {
+  background: var(--color-primary, #FF8FA3) !important;
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+  box-shadow: var(--shadow-sm, 0 2px 6px rgba(255, 143, 163, 0.2)) !important;
+}
+
+/* ── Analytics Sub-cards Grid (Overview Tab) ─────────────────────────────── */
+.subCardsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.subCard {
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--color-bg-elevated, #FFF0F5);
+  border: 1px solid var(--color-border-muted, rgba(255, 143, 163, 0.15));
+}
+
+.subCardTitle {
+  font-family: 'Baloo 2', sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--color-foreground, #4A3B52);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.detailRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: 'Mali', sans-serif;
+  font-size: 0.75rem;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--color-border-muted, rgba(255, 143, 163, 0.08));
+}
+
+.detailRow:last-child {
+  border-bottom: none;
+}
+
+.detailLabel {
+  color: var(--color-text-muted, #7C6B84);
+}
+
+.detailValue {
+  font-family: 'Baloo 2', sans-serif;
+  font-weight: 700;
+  font-size: 0.875rem;
+  color: var(--color-foreground, #4A3B52);
+  text-align: right;
+}
+
+.detailSub {
+  font-family: 'Mali', sans-serif;
+  font-size: 0.6875rem;
+  color: var(--color-text-subtle, #B09CB8);
+  display: block;
+}
+
+/* ── Splits Tab & Bar Mode ───────────────────────────────────────────────── */
+.splitsSummaryHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--color-bg-elevated, #FFF0F5);
+  border: 1px solid var(--color-border-muted, rgba(255, 143, 163, 0.15));
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.splitsViewSwitch {
+  display: inline-flex;
+  background: var(--color-bg-surface, #FFFFFF);
+  border: 1px solid var(--color-border-muted, rgba(255, 143, 163, 0.2));
+  border-radius: 8px;
+  padding: 2px;
+}
+
+.splitsSwitchBtn {
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted, #7C6B84);
+  font-family: 'Baloo 2', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.splitsSwitchBtn:hover {
+  color: var(--color-foreground, #4A3B52);
+}
+
+.splitsSwitchBtnActive {
+  background: var(--color-primary, #FF8FA3);
+  color: #FFFFFF;
+}
+
+.actionBtnSecondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-family: 'Baloo 2', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-muted, #7C6B84);
+  border: 1px solid var(--color-border-muted, rgba(255, 143, 163, 0.2));
+  background: var(--color-bg-surface, #FFFFFF);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.actionBtnSecondary:hover {
+  background: var(--color-primary-soft, rgba(255, 143, 163, 0.15));
+  color: var(--color-primary, #FF8FA3);
+}
+
+.actionBtnSuccess {
+  color: #059669 !important;
+  border-color: rgba(127, 219, 182, 0.4) !important;
+  background: rgba(127, 219, 182, 0.2) !important;
+}
+
+/* Strava-Style Splits Bar List */
+.splitsBarListWrap {
+  width: 100%;
+  background: var(--color-bg-elevated, #FFF0F5);
+  border: 1px solid var(--color-border-muted, rgba(255, 143, 163, 0.15));
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.splitsBarHeaderRow {
+  display: grid;
+  grid-template-columns: 32px 56px 1fr 48px 46px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px 6px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--color-border-muted, rgba(255, 143, 163, 0.15));
+  font-family: 'Baloo 2', sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--color-text-muted, #7C6B84);
+  text-transform: uppercase;
+}
+
+.splitsColKm { text-align: left; }
+.splitsColPace { text-align: left; }
+.splitsColBar { display: block; }
+.splitsColElev { text-align: right; }
+.splitsColHr { text-align: right; }
+
+.splitsBarRows {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.splitsBarRow {
+  display: grid;
+  grid-template-columns: 32px 56px 1fr 48px 46px;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  font-family: 'Baloo 2', sans-serif;
+  font-size: 0.8125rem;
+  color: var(--color-foreground, #4A3B52);
+  transition: background 0.12s ease;
+}
+
+.splitsBarRow:hover {
+  background: rgba(255, 143, 163, 0.1);
+}
+
+.splitsBarRowFastest {
+  background: var(--color-primary-soft, rgba(255, 143, 163, 0.18));
+}
+
+.splitsBarKm {
+  text-align: left;
+  color: var(--color-text-muted, #7C6B84);
+  font-weight: 600;
+  font-size: 0.75rem;
+}
+
+.splitsBarPace {
+  text-align: left;
+  font-weight: 700;
+  color: var(--color-foreground, #4A3B52);
+}
+
+.splitsBarTrack {
+  width: 100%;
+  height: 12px;
+  display: flex;
+  align-items: center;
+}
+
+.splitsBarFill {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--color-primary, #FF8FA3);
+  opacity: 0.75;
+  transition: width 0.25s ease;
+}
+
+.splitsBarFillFastest {
+  background: var(--color-primary, #FF8FA3);
+  opacity: 1;
+  box-shadow: 0 0 8px rgba(255, 143, 163, 0.5);
+}
+
+.splitsColElev,
+.splitsBarElev {
+  text-align: right;
+  color: var(--color-text-muted, #7C6B84);
+  font-weight: 600;
+  font-size: 0.75rem;
+}
+
+.splitsColHr,
+.splitsBarHr {
+  text-align: right;
+  font-weight: 700;
+  font-size: 0.75rem;
+}
+
+/* ── Splits Table View ───────────────────────────────────────────────────── */
+.tableContainer {
+  position: relative;
+  border-radius: 12px;
+  border: 1px solid var(--color-border-muted, rgba(255, 143, 163, 0.18));
+  background: var(--color-bg-elevated, #FFF0F5);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm, 0 2px 6px rgba(255, 143, 163, 0.1));
+}
+
+.tableScrollWrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.lapsTable {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
+.lapsTable th {
+  padding: 6px 8px;
+  background: var(--color-bg-surface, #FFFFFF);
+  border-bottom: 1px solid var(--color-border-muted, rgba(255, 143, 163, 0.2));
+  color: var(--color-text-muted, #7C6B84);
+  font-family: 'Baloo 2', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.lapsTable td {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--color-border-muted, rgba(255, 143, 163, 0.1));
+  color: var(--color-foreground, #4A3B52);
+  text-align: center;
+  vertical-align: middle;
+  font-family: 'Baloo 2', sans-serif;
+}
+
+.lapsTable tbody tr:hover td {
+  background: rgba(255, 143, 163, 0.08);
+}
+
+.stickyLapCell {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--color-bg-surface, #FFFFFF) !important;
+  font-family: 'Baloo 2', sans-serif;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05);
+}
+
+.fastestRow td {
+  background: rgba(127, 219, 182, 0.12) !important;
+}
+
+.fastestLapBadge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(127, 219, 182, 0.3);
+  border: 1px solid rgba(127, 219, 182, 0.6);
+  color: #059669;
+  font-weight: 700;
+  font-size: 0.75rem;
+}
+
+.lapBadge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--color-bg-elevated, #FFF0F5);
+  border: 1px solid var(--color-border-muted, rgba(255, 143, 163, 0.2));
+  color: var(--color-text-muted, #7C6B84);
+  font-weight: 600;
+  font-size: 0.75rem;
+}
+
+.cellNum {
+  font-family: 'Baloo 2', sans-serif;
+  font-weight: 700;
+  color: var(--color-foreground, #4A3B52);
+}
+
+.cellUnit {
+  font-size: 0.6875rem;
+  color: var(--color-text-muted, #7C6B84);
+  font-weight: 500;
+  margin-left: 2px;
+}
+
+.cellPace {
+  font-family: 'Baloo 2', sans-serif;
+  font-weight: 700;
+  color: var(--color-primary, #FF8FA3);
+}
+
+.tableFoot td {
+  background: var(--color-bg-surface, #FFFFFF) !important;
+  border-top: 1px solid var(--color-border, rgba(255, 143, 163, 0.25)) !important;
+  font-weight: 700;
+  font-family: 'Baloo 2', sans-serif;
+  color: var(--color-foreground, #4A3B52);
+  padding: 7px 8px;
+}
+
+.tableFoot .stickyLapCell {
+  color: var(--color-primary, #FF8FA3) !important;
+  font-weight: 800 !important;
+}

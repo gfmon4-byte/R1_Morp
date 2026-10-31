@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { Lightning, CalendarBlank } from '@phosphor-icons/react';
 import { DashboardCharts } from './DashboardCharts';
 import { WorkoutDetailSection } from './WorkoutDetailSection';
+import { ThirtyDayBaselineCard } from './ThirtyDayBaselineCard';
 import { formatPace, thaiToday } from '@/lib/utils';
 import type { Activity, Profile } from '@/lib/supabase';
 import type { HRZone } from '@/lib/hrZones';
@@ -12,6 +13,7 @@ import { parseISO, differenceInCalendarDays } from 'date-fns';
 interface Props {
   profile: Profile | null;
   activities: Activity[];
+  activityDetails?: any[];
   hrZones: HRZone[];
 }
 
@@ -20,7 +22,7 @@ const MONTHS = [
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ];
 
-export function DashboardClient({ profile, activities, hrZones }: Props) {
+export function DashboardClient({ profile, activities, activityDetails = [], hrZones }: Props) {
   // Load races (merging database and local storage fallback)
   const races = useMemo(() => {
     const localRacesStr = typeof window !== 'undefined' ? localStorage.getItem('profile_races') : null;
@@ -251,11 +253,20 @@ export function DashboardClient({ profile, activities, hrZones }: Props) {
           <StatCard label={periodLabel} value={`${periodKm.toFixed(1)}`} unit="km" color="#60A5FA" />
         </div>
 
-        {/* Workout Details & Interactive Calendar (Overview, Splits/Lap, HR Zones) */}
-        <WorkoutDetailSection activities={activities} hrZones={hrZones} />
+        {/* 30-Day Baseline Card (Garmin 30-Day Average Vitality & Health) */}
+        <ThirtyDayBaselineCard profile={profile} />
 
-        {/* Charts */}
-        <DashboardCharts activities={filtered} allActivities={activities} hrZones={hrZones} />
+        {/* Workout Details & Interactive Calendar (Overview, Splits/Lap, HR Zones) */}
+        <WorkoutDetailSection activities={activities} hrZones={hrZones} garminGear={profile?.garmin_gear} />
+
+        {/* Charts Section with Zone 2 Trend, Weekly Distance, Monthly Volume, etc. */}
+        <DashboardCharts
+          activities={filtered}
+          allActivities={activities}
+          activityDetails={activityDetails}
+          profile={profile}
+          hrZones={hrZones}
+        />
 
         <div style={{ height: 16 }} />
       </div>
