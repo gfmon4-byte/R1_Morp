@@ -469,7 +469,7 @@ export default function ProfilePage() {
     return parseFloat(bmi.toFixed(1));
   }, [watchWeightKg, watchHeightCm]);
 
-  const hrZones = computeHRZones(watchHrMax, watchHrRest);
+  const hrZones = computeHRZones(watchHrMax, watchHrRest, profile);
 
   const getCountdownText = (raceDateStr: string | null | undefined) => {
     if (!raceDateStr) return null;
@@ -1295,11 +1295,41 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* HR Zones — read-only, live computed */}
-            <p style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <ArrowsClockwise size={13} />
-              Live HR Zones (Karvonen)
-            </p>
+            {/* HR Zones — synced from Garmin / live computed */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <p style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: 6, margin: 0 }}>
+                <ArrowsClockwise size={13} />
+                Heart Rate Zones (Garmin)
+              </p>
+              {profile?.fitness_age_data?.garmin_hr_zones ? (
+                <span style={{
+                  fontSize: '0.6875rem',
+                  fontWeight: 600,
+                  color: '#10B981',
+                  background: 'rgba(16, 185, 129, 0.1)',
+                  padding: '2px 8px',
+                  borderRadius: 12,
+                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4
+                }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10B981' }} />
+                  Garmin Synced
+                </span>
+              ) : (
+                <span style={{
+                  fontSize: '0.6875rem',
+                  fontWeight: 600,
+                  color: 'var(--color-text-muted)',
+                  background: 'var(--color-bg-elevated)',
+                  padding: '2px 8px',
+                  borderRadius: 12,
+                }}>
+                  Auto / Karvonen
+                </span>
+              )}
+            </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {hrZones.map((z) => (
                 <div key={z.zone} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

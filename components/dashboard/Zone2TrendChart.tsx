@@ -162,12 +162,16 @@ export function Zone2TrendChart({
       return { z2Min: z2Item.minBpm, z2Max: z2Item.maxBpm };
     }
 
-    // 2. Try from profile hr_zones object if present
-    const pZones = (profile as any)?.hr_zones;
-    if (pZones) {
-      const z1Max = parseInt(pZones.z1?.max ?? '138', 10);
-      const z2MaxVal = parseInt(pZones.z2?.max ?? '151', 10);
-      return { z2Min: z1Max + 1, z2Max: z2MaxVal };
+    // 2. Try from profile garmin_hr_zones or hr_zones object
+    const pZones =
+      (profile as any)?.fitness_age_data?.garmin_hr_zones ||
+      (profile as any)?.fitness_age_data?.hr_zones ||
+      (profile as any)?.hr_zones;
+    if (pZones?.z2) {
+      return {
+        z2Min: parseInt(pZones.z2.min, 10),
+        z2Max: parseInt(pZones.z2.max, 10),
+      };
     }
 
     // 3. Fallback based on profile hr_max and hr_rest (Karvonen)
@@ -241,6 +245,22 @@ export function Zone2TrendChart({
         if (b.Z2 && b.Z2 > 0) z2HrDuration = b.Z2;
       }
 
+      // Activity-specific Garmin HR Zone 2 boundaries
+      let actZ2Min = z2Min;
+      let actZ2Max = z2Max;
+      if (detail?.hr_zones && Array.isArray(detail.hr_zones)) {
+        const z2 = detail.hr_zones.find((z: any) => z.zone_number === 2);
+        const z3 = detail.hr_zones.find((z: any) => z.zone_number === 3);
+        if (z2 && typeof z2.min_bpm === 'number') {
+          actZ2Min = z2.min_bpm;
+        }
+        if (z3 && typeof z3.min_bpm === 'number') {
+          actZ2Max = z3.min_bpm - 1;
+        } else if (z2 && typeof z2.max_bpm === 'number') {
+          actZ2Max = z2.max_bpm;
+        }
+      }
+
       // 2. Check Laps breakdown for specific pace in Zone 2
       const laps = detail?.laps || (detail?.parts ? detail.parts.flatMap((p: any) => p.laps || []) : []);
       if (laps.length > 0) {
@@ -248,7 +268,7 @@ export function Zone2TrendChart({
         let lapZ2Dur = 0;
         laps.forEach((lap: any) => {
           const hr = parseInt(lap.avg_hr || 0, 10);
-          if (hr >= z2Min && hr <= z2Max) {
+          if (hr >= actZ2Min && hr <= actZ2Max) {
             lapZ2Dist += parseFloat(lap.distance_km || 0);
             lapZ2Dur += parseInt(lap.duration_seconds || 0, 10);
           }
@@ -262,7 +282,7 @@ export function Zone2TrendChart({
 
       // 3. Fallback: Entire run average HR in Zone 2
       const actHr = parseInt(String(act.avg_hr || 0), 10);
-      if (!z2Pace && actHr >= z2Min && actHr <= z2Max) {
+      if (!z2Pace && actHr >= actZ2Min && actHr <= actZ2Max) {
         const dist = parseFloat(String(act.distance_km || 0));
         const dur = parseInt(String(act.duration_seconds || 0), 10);
         if (dist > 0.2 && dur > 0) {
@@ -273,7 +293,7 @@ export function Zone2TrendChart({
       }
 
       // 4. Fallback: if activity has pace and duration and heart in Z2
-      if (!z2Pace && z2HrDuration > 60 && act.avg_pace_sec_per_km && actHr >= z2Min - 5 && actHr <= z2Max + 5) {
+      if (!z2Pace && z2HrDuration > 60 && act.avg_pace_sec_per_km && actHr >= actZ2Min - 5 && actHr <= actZ2Max + 5) {
         const paceVal = Math.round(act.avg_pace_sec_per_km);
         const dist = parseFloat(String(act.distance_km || 0));
         if (paceVal >= 200 && paceVal <= 720 && dist > 0.2) {

@@ -40,7 +40,7 @@ export default async function DashboardPage() {
 
   const hrMax = profile?.hr_max ?? 199;
   const hrRest = profile?.hr_rest ?? 65;
-  const hrZones = computeHRZones(hrMax, hrRest);
+  const hrZones = computeHRZones(hrMax, hrRest, profile);
 
   return (
     <DashboardClient

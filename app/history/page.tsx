@@ -43,7 +43,7 @@ export default function HistoryPage() {
     return () => window.removeEventListener('garmin-synced-all', handleGlobalSync);
   }, [fetchData]);
 
-  const hrZones = computeHRZones(profile?.hr_max ?? 185, profile?.hr_rest ?? 42);
+  const hrZones = computeHRZones(profile?.hr_max ?? 199, profile?.hr_rest ?? 65, profile);
 
   const filtered = activities.filter((a) => {
     if (filterType !== 'All' && a.session_type !== filterType) return false;
@@ -326,8 +326,8 @@ function ActivityCard({
   deleting: boolean;
 }) {
   const color = getSessionColor(activity.session_type);
-  const hrZone = activity.avg_hr ? getHRZoneForBpm(activity.avg_hr, 185, 42) : null;
-  const zoneInfo = hrZone ? hrZones[hrZone - 1] : null;
+  const zoneInfo = activity.avg_hr ? hrZones.slice().reverse().find((z) => (activity.avg_hr as number) >= z.minBpm) : null;
+  const hrZone = zoneInfo ? zoneInfo.zone : null;
 
   return (
     <div className="card animate-fade-in" style={{ padding: '14px 16px' }}>

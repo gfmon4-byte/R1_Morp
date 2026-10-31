@@ -475,31 +475,35 @@ async function processSingleActivity(headers, actItem, partIdx = 1, totalParts =
     };
   });
 
-  // HR Zones (calculated using Karvonen formula from user profile and activity metrics)
+  // HR Zones (Prioritize native Garmin HR Zones from activity, fallback to metrics)
   const userProfile = await getUserProfileFromSupabase();
-  const targetZones = getKarvonenZones(userProfile?.hr_max || 199, userProfile?.hr_rest || 64);
-  let hrZonesClean = computeHrZonesFromMetrics(detailsData, targetZones);
+  const rawHrZones = Array.isArray(hrZonesData) ? hrZonesData : [];
+  let hrZonesClean = null;
 
-  if (!hrZonesClean) {
-    const rawHrZones = Array.isArray(hrZonesData) ? hrZonesData : [];
-    const isCorrupted =
-      rawHrZones.some((z) => (z.zoneLowBoundary || 0) < 100 && (z.zoneNumber || 0) === 1) ||
-      rawHrZones.some((z) => (z.zoneLowBoundary || 0) < 150 && (z.zoneNumber || 0) === 5);
-
+  if (rawHrZones.length > 0) {
     const totZoneSecs = rawHrZones.reduce((acc, z) => acc + (z.secsInZone || 0), 0);
-    hrZonesClean = targetZones.map((tz) => {
-      const rawZ = rawHrZones.find((z) => (z.zoneNumber || 0) === tz.zone_number);
-      const secs = rawZ ? Math.round((rawZ.secsInZone || 0) * 10) / 10 : 0;
+    const sorted = [...rawHrZones].sort((a, b) => (a.zoneNumber || 0) - (b.zoneNumber || 0));
+    hrZonesClean = sorted.map((z, idx) => {
+      const zNum = z.zoneNumber || idx + 1;
+      const secs = Math.round((z.secsInZone || 0) * 10) / 10;
       const pct = totZoneSecs > 0 ? Math.round((secs / totZoneSecs) * 1000) / 10 : 0;
+      const nextZ = sorted[idx + 1];
+      const maxBpm = nextZ?.zoneLowBoundary ? nextZ.zoneLowBoundary - 1 : (userProfile?.hr_max || 199);
       return {
-        zone_number: tz.zone_number,
-        zone_name: tz.zone_name,
-        min_bpm: isCorrupted ? tz.min_bpm : (rawZ?.zoneLowBoundary || tz.min_bpm),
+        zone_number: zNum,
+        zone_name: z.zoneName || `Zone ${zNum}`,
+        min_bpm: z.zoneLowBoundary,
+        max_bpm: maxBpm,
         seconds_in_zone: secs,
         duration_formatted: fmtDuration(secs),
         percentage: pct,
       };
     });
+  }
+
+  if (!hrZonesClean) {
+    const targetZones = getKarvonenZones(userProfile?.hr_max || 199, userProfile?.hr_rest || 64);
+    hrZonesClean = computeHrZonesFromMetrics(detailsData, targetZones);
   }
 
   // Weather

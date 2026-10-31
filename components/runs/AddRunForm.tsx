@@ -209,8 +209,8 @@ export function AddRunForm({ activity, onClose, onSaved, hrZones, defaultDate }:
 
   // Live HR zone
   const hrNum = Number(watchAvgHr) || 0;
-  const hrZoneNum = hrNum > 0 ? getHRZoneForBpm(hrNum, 185, 42) : null;
-  const hrZoneInfo = hrZoneNum ? hrZones[hrZoneNum - 1] : null;
+  const hrZoneInfo = hrNum > 0 ? hrZones.slice().reverse().find((z) => hrNum >= z.minBpm) || null : null;
+  const hrZoneNum = hrZoneInfo ? hrZoneInfo.zone : null;
 
   const onSubmit = async (data: FormValues) => {
     setSaving(true);

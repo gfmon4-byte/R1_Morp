@@ -637,6 +637,35 @@ async function fetchGarminProfileData(tokens) {
         };
       } catch { return null; }
     })(),
+    
+    hr_zones: await (async () => {
+      try {
+        const rawZones = await apiGet('/biometric-service/heartRateZones');
+        if (Array.isArray(rawZones) && rawZones.length > 0) {
+          const rZone =
+            rawZones.find((z) => z.sport === 'RUNNING') ||
+            rawZones.find((z) => z.sport === 'DEFAULT') ||
+            rawZones[0];
+          if (rZone && rZone.zone1Floor) {
+            const maxHr = rZone.maxHeartRateUsed || 199;
+            return {
+              sport: rZone.sport,
+              training_method: rZone.trainingMethod,
+              max_hr: maxHr,
+              resting_hr: rZone.restingHeartRateUsed || 65,
+              z1: { min: rZone.zone1Floor, max: rZone.zone2Floor - 1, name: 'Warm Up (Zone 1)', label: 'Z1' },
+              z2: { min: rZone.zone2Floor, max: rZone.zone3Floor - 1, name: 'Easy / Fat Burn (Zone 2)', label: 'Z2' },
+              z3: { min: rZone.zone3Floor, max: rZone.zone4Floor - 1, name: 'Aerobic (Zone 3)', label: 'Z3' },
+              z4: { min: rZone.zone4Floor, max: rZone.zone5Floor - 1, name: 'Threshold (Zone 4)', label: 'Z4' },
+              z5: { min: rZone.zone5Floor, max: maxHr, name: 'Maximum (Zone 5)', label: 'Z5' },
+              source: 'garmin_api',
+              updated_at: new Date().toISOString(),
+            };
+          }
+        }
+      } catch { return null; }
+      return null;
+    })(),
     synced_at: new Date().toISOString(),
   };
 }
@@ -675,6 +704,52 @@ export async function POST(request) {
         .limit(1);
 
       const existing = (existingProfiles && existingProfiles[0]) || {};
+
+      // Ensure Garmin HR zones: if not from API, extract from latest Garmin activity
+      let garminHrZonesToSave = data.hr_zones || existing.fitness_age_data?.garmin_hr_zones || null;
+      if (!garminHrZonesToSave) {
+        try {
+          const { data: latestDetail } = await supabase
+            .from('activity_details')
+            .select('details')
+            .order('session_date', { ascending: false })
+            .limit(1)
+            .single();
+          const actZones = latestDetail?.details?.hr_zones;
+          if (Array.isArray(actZones) && actZones.length >= 5) {
+            const sorted = [...actZones].sort((a, b) => a.zone_number - b.zone_number);
+            garminHrZonesToSave = {
+              sport: 'RUNNING',
+              max_hr: 199,
+              resting_hr: 65,
+              z1: { min: sorted[0].min_bpm, max: sorted[1].min_bpm - 1, name: sorted[0].zone_name, label: 'Z1' },
+              z2: { min: sorted[1].min_bpm, max: sorted[2].min_bpm - 1, name: sorted[1].zone_name, label: 'Z2' },
+              z3: { min: sorted[2].min_bpm, max: sorted[3].min_bpm - 1, name: sorted[2].zone_name, label: 'Z3' },
+              z4: { min: sorted[3].min_bpm, max: sorted[4].min_bpm - 1, name: sorted[3].zone_name, label: 'Z4' },
+              z5: { min: sorted[4].min_bpm, max: 199, name: sorted[4].zone_name, label: 'Z5' },
+              source: 'garmin_activity_details',
+              updated_at: new Date().toISOString(),
+            };
+          }
+        } catch (e) {
+          console.warn('Failed to extract HR zones from activity_details:', e);
+        }
+      }
+      if (!garminHrZonesToSave) {
+        garminHrZonesToSave = {
+          sport: 'RUNNING',
+          max_hr: 199,
+          resting_hr: 65,
+          z1: { min: 131, max: 144, name: 'Warm Up (Zone 1)', label: 'Z1' },
+          z2: { min: 145, max: 157, name: 'Easy / Fat Burn (Zone 2)', label: 'Z2' },
+          z3: { min: 158, max: 171, name: 'Aerobic (Zone 3)', label: 'Z3' },
+          z4: { min: 172, max: 184, name: 'Threshold (Zone 4)', label: 'Z4' },
+          z5: { min: 185, max: 199, name: 'Maximum (Zone 5)', label: 'Z5' },
+          source: 'garmin_preset',
+          updated_at: new Date().toISOString(),
+        };
+      }
+
       const vo2ToSave = data.vo2max != null ? data.vo2max : existing.vo2max;
 
       // Prepare updates - strictly preserve weight, inbody and custom settings
@@ -737,6 +812,26 @@ export async function POST(request) {
         }
       }
     }
+
+    
+      // Sync user_profile table as well
+      try {
+        await supabase.from('user_profile').update({
+          vo2max: vo2ToSave,
+          hr_rest: updates.hr_rest,
+          fitness_age: updates.fitness_age,
+          fitness_age_data: updates.fitness_age_data,
+          garmin_device: updates.garmin_device,
+          garmin_prs: updates.garmin_prs,
+          garmin_gear: updates.garmin_gear,
+          garmin_daily_steps: updates.garmin_daily_steps,
+          garmin_body_battery: updates.garmin_body_battery,
+          last_garmin_sync: updates.last_garmin_sync,
+          updated_at: updates.updated_at,
+        }).eq('id', 1);
+      } catch (upErr) {
+        console.warn('user_profile sync error:', upErr);
+      }
 
     return Response.json({
       success: true,
