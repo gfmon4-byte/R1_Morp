@@ -44,8 +44,27 @@ export const GARMIN_HR_ZONE_CONFIG: Record<number, { name: string; color: string
 function getZoneForBpm(bpm: number, garminHrZones?: any[], profileHrZones?: any[]) {
   if (!bpm) return null;
 
+  // 1. ALWAYS prioritize Profile HR Zones (Garmin Venu 3 running zones from user profile)
+  if (Array.isArray(profileHrZones) && profileHrZones.length > 0) {
+    const sorted = [...profileHrZones].sort((a, b) => (b.minBpm ?? b.min_bpm ?? 0) - (a.minBpm ?? a.min_bpm ?? 0));
+    for (const z of sorted) {
+      const threshold = z.minBpm ?? z.min_bpm;
+      if (threshold != null && bpm >= threshold) {
+        const zNum = z.zone ?? z.zoneNumber ?? 1;
+        const conf = GARMIN_HR_ZONE_CONFIG[zNum] || GARMIN_HR_ZONE_CONFIG[1];
+        return {
+          zoneNumber: zNum,
+          name: conf.name,
+          color: conf.color,
+          label: conf.label,
+        };
+      }
+    }
+  }
+
+  // 2. Fallback to valid Garmin Activity HR zones (>= 90 bpm running zones)
   if (Array.isArray(garminHrZones) && garminHrZones.length > 0) {
-    const valid = garminHrZones.filter((z) => z.min_bpm != null || z.zoneLowBoundary != null);
+    const valid = garminHrZones.filter((z) => (z.min_bpm != null && z.min_bpm >= 90) || (z.zoneLowBoundary != null && z.zoneLowBoundary >= 90));
     if (valid.length > 0) {
       const sorted = [...valid].sort(
         (a, b) => (b.min_bpm ?? b.zoneLowBoundary ?? 0) - (a.min_bpm ?? a.zoneLowBoundary ?? 0)
@@ -62,23 +81,6 @@ function getZoneForBpm(bpm: number, garminHrZones?: any[], profileHrZones?: any[
             label: conf.label,
           };
         }
-      }
-    }
-  }
-
-  if (Array.isArray(profileHrZones) && profileHrZones.length > 0) {
-    const sorted = [...profileHrZones].sort((a, b) => (b.minBpm ?? b.min_bpm ?? 0) - (a.minBpm ?? a.min_bpm ?? 0));
-    for (const z of sorted) {
-      const threshold = z.minBpm ?? z.min_bpm;
-      if (threshold != null && bpm >= threshold) {
-        const zNum = z.zone ?? z.zoneNumber ?? 1;
-        const conf = GARMIN_HR_ZONE_CONFIG[zNum] || GARMIN_HR_ZONE_CONFIG[1];
-        return {
-          zoneNumber: zNum,
-          name: conf.name,
-          color: conf.color,
-          label: conf.label,
-        };
       }
     }
   }
@@ -604,7 +606,25 @@ export function WorkoutDetailSection({ activities, hrZones, data = null, garminG
   }, [workoutData, selectedPart]);
 
   const summary = activeData?.summary || {};
-  const hrZonesData = activeData?.hr_zones || [];
+  const rawHrZonesData = activeData?.hr_zones || [];
+  const hrZonesData = useMemo(() => {
+    if (!Array.isArray(hrZones) || hrZones.length === 0) return rawHrZonesData;
+    const pMap = new Map(hrZones.map((z) => [z.zone, z]));
+    return rawHrZonesData.map((z: any) => {
+      const zNum = Number(z.zone_number ?? z.zoneNumber);
+      const p = pMap.get(zNum);
+      if (p) {
+        return {
+          ...z,
+          min_bpm: p.minBpm,
+          max_bpm: p.maxBpm,
+          minBpm: p.minBpm,
+          maxBpm: p.maxBpm,
+        };
+      }
+      return z;
+    });
+  }, [rawHrZonesData, hrZones]);
   const laps: any[] = activeData?.laps || [];
   const weather = activeData?.weather || workoutData?.weather;
 

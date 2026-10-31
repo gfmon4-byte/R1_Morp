@@ -9,7 +9,7 @@ import {
 import { Heart } from '@phosphor-icons/react';
 import { formatDuration } from '@/lib/utils';
 import type { Activity, Profile, ActivityDetail } from '@/lib/supabase';
-import type { HRZone } from '@/lib/hrZones';
+import { computeHRZones, type HRZone } from '@/lib/hrZones';
 import { Zone2TrendChart } from './Zone2TrendChart';
 import {
   format,
@@ -162,13 +162,21 @@ export function DashboardCharts({
       }));
   }, [sourceActivities, paceHrFilter]);
 
-  // Helper: map heart rate bpm to Karvonen HR Zone (1-5)
+  // Helper: map heart rate bpm to HR Zone (1-5) strictly using active HR Zones
   const getZoneForBpm = (bpm: number, zones: HRZone[]): number => {
     for (let i = zones.length - 1; i >= 0; i--) {
       if (bpm >= zones[i].minBpm) return zones[i].zone;
     }
     return 1;
   };
+
+  // Active HR Zones strictly derived from Profile (Garmin Venu 3 Running Zones)
+  const activeHrZones: HRZone[] = useMemo(() => {
+    if (profile) {
+      return computeHRZones(profile.hr_max ?? 199, profile.hr_rest ?? 65, profile);
+    }
+    return hrZones && hrZones.length > 0 ? hrZones : computeHRZones(199, 63, null);
+  }, [profile, hrZones]);
 
   // ---- HR Zone Distribution Stats (supports details_hr and avg_hr modes) ----
   const zoneStats = useMemo(() => {
@@ -182,19 +190,24 @@ export function DashboardCharts({
       if (hrCalcMode === 'avg_hr') {
         // Mode: avg_hr — attribute total duration to the zone matching overall avg_hr
         if (a.avg_hr && a.avg_hr > 0 && a.duration_seconds > 0) {
-          const z = getZoneForBpm(a.avg_hr, hrZones);
+          const z = getZoneForBpm(a.avg_hr, activeHrZones);
           rawTotals[`Z${z}`] = (rawTotals[`Z${z}`] || 0) + a.duration_seconds;
           avgRunsCount++;
         }
       } else {
-        // Mode: details_hr — calculate from detailed per-km laps where each km has its own avg_hr
+        // Mode: details_hr — calculate from detailed per-km laps where each km has its own avg_hr using Profile Zones
         const dateKey = a.date ? a.date.split('T')[0] : '';
         const detail =
           (a.garmin_activity_id ? detailsById.get(String(a.garmin_activity_id)) : null) ||
           (a.id ? detailsById.get(String(a.id)) : null) ||
           (dateKey ? detailsByDate.get(dateKey) : null);
 
-        const laps = detail?.details?.laps;
+        const laps =
+          detail?.details?.laps ||
+          (detail?.details?.parts
+            ? detail.details.parts.flatMap((p: any) => p.laps || [])
+            : []);
+
         if (Array.isArray(laps) && laps.length > 0) {
           let hasLapHr = false;
           laps.forEach((lap) => {
@@ -202,7 +215,7 @@ export function DashboardCharts({
             const lapDur = lap.duration_seconds ?? lap.moving_duration_seconds ?? 0;
             if (typeof lapHr === 'number' && lapHr > 0 && typeof lapDur === 'number' && lapDur > 0) {
               hasLapHr = true;
-              const z = getZoneForBpm(lapHr, hrZones);
+              const z = getZoneForBpm(lapHr, activeHrZones);
               rawTotals[`Z${z}`] = (rawTotals[`Z${z}`] || 0) + lapDur;
             }
           });
@@ -230,7 +243,7 @@ export function DashboardCharts({
 
         // Fallback 2: overall avg_hr if no detailed laps or breakdown exists
         if (a.avg_hr && a.avg_hr > 0 && a.duration_seconds > 0) {
-          const z = getZoneForBpm(a.avg_hr, hrZones);
+          const z = getZoneForBpm(a.avg_hr, activeHrZones);
           rawTotals[`Z${z}`] = (rawTotals[`Z${z}`] || 0) + a.duration_seconds;
           avgRunsCount++;
         }
@@ -239,7 +252,7 @@ export function DashboardCharts({
 
     const totalSeconds = Object.values(rawTotals).reduce((sum, s) => sum + s, 0);
 
-    const zones = hrZones.map((z) => {
+    const zones = activeHrZones.map((z) => {
       const seconds = rawTotals[`Z${z.zone}`] || 0;
       const pct = totalSeconds > 0 ? (seconds / totalSeconds) * 100 : 0;
       return {
@@ -248,7 +261,7 @@ export function DashboardCharts({
         description: z.description,
         minBpm: z.minBpm,
         maxBpm: z.maxBpm,
-        bpm: `${z.minBpm}–${z.maxBpm}`,
+        bpm: `${z.minBpm}–${z.maxBpm} bpm`,
         color: z.color,
         seconds,
         formattedTime: formatDuration(seconds),
@@ -275,7 +288,7 @@ export function DashboardCharts({
       detailedRunsCount,
       avgRunsCount,
     };
-  }, [activities, sourceActivities, hrZones, hrCalcMode, detailsByDate, detailsById]);
+  }, [activities, sourceActivities, activeHrZones, hrCalcMode, detailsByDate, detailsById]);
 
   const runTypes = ['All', 'Easy Run', 'Long Run', 'Tempo', 'Intervals', 'Recovery Run'];
 
@@ -455,7 +468,7 @@ export function DashboardCharts({
             justifyContent: 'space-between',
             flexWrap: 'wrap',
             gap: 6,
-            padding: '6px 10px',
+            padding: '7px 12px',
             borderRadius: 8,
             marginBottom: 12,
             background: hrCalcMode === 'details_hr' ? 'rgba(127, 219, 182, 0.12)' : 'rgba(255, 143, 163, 0.1)',
@@ -465,14 +478,31 @@ export function DashboardCharts({
             fontFamily: "'Mali', sans-serif",
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             <span style={{ fontWeight: 700, fontFamily: "'Baloo 2', sans-serif" }}>
               {hrCalcMode === 'details_hr' ? '⚡ details_hr' : '📊 avg_hr'}:
             </span>
             <span>
               {hrCalcMode === 'details_hr'
-                ? 'คิดจากข้อมูล HR ละเอียดแต่ละ km (Laps / Splits)'
-                : 'คิดจาก Heart Rate เฉลี่ยรวมของการวิ่งแต่ละครั้ง'}
+                ? 'คิดจากข้อมูล HR ละเอียดแต่ละ km (Laps / Splits) ตามโซนหน้า Profile'
+                : 'คิดจาก Heart Rate เฉลี่ยรวมของการวิ่งแต่ละครั้ง ตามโซนหน้า Profile'}
+            </span>
+            <span
+              style={{
+                fontSize: '0.6875rem',
+                fontWeight: 600,
+                padding: '1px 7px',
+                borderRadius: 999,
+                background: hrCalcMode === 'details_hr' ? 'rgba(5, 150, 105, 0.12)' : 'rgba(255, 143, 163, 0.15)',
+                color: hrCalcMode === 'details_hr' ? '#047857' : 'var(--color-primary)',
+                border: `1px solid ${hrCalcMode === 'details_hr' ? 'rgba(5, 150, 105, 0.25)' : 'rgba(255, 143, 163, 0.25)'}`,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+              }}
+            >
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: hrCalcMode === 'details_hr' ? '#059669' : 'var(--color-primary)' }} />
+              Profile Zones (Z2: 116–144 bpm)
             </span>
           </div>
           <span style={{ fontSize: '0.6875rem', opacity: 0.85, fontWeight: 600 }}>
@@ -531,7 +561,7 @@ export function DashboardCharts({
               }}
             >
               <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                โซนเป้าหมายของคุณ (Karvonen HRR)
+                โซนหัวใจของคุณ (Profile HR Zones - Garmin Venu 3)
               </span>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 6 }}>
                 {zoneStats.zones.map((z) => (

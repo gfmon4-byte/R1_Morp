@@ -18,7 +18,7 @@ export const DEFAULT_GARMIN_HR_ZONES = {
   z2: { min: 116, max: 144, name: 'Easy / Fat Burn (Zone 2)', label: 'Z2' },
   z3: { min: 145, max: 157, name: 'Aerobic (Zone 3)', label: 'Z3' },
   z4: { min: 158, max: 173, name: 'Threshold (Zone 4)', label: 'Z4' },
-  z5: { min: 174, max: 193, name: 'Maximum (Zone 5)', label: 'Z5' },
+  z5: { min: 174, max: 199, name: 'Maximum (Zone 5)', label: 'Z5' },
 };
 
 const ZONE_BANDS = [
@@ -60,7 +60,7 @@ export function extractGarminZones(profileOrZones?: any): Record<string, any> | 
  * 2. Otherwise, fall back to default Garmin Venu 3 activity HR zones (Option 3).
  */
 export function computeHRZones(
-  hrMax: number = 193,
+  hrMax: number = 199,
   hrRest: number = 63,
   profileOrZones?: any
 ): HRZone[] {

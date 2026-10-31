@@ -332,7 +332,7 @@
 
 .zoneRow {
   display: grid;
-  grid-template-columns: 26px 1fr 40px 48px;
+  grid-template-columns: minmax(110px, auto) 1fr 40px 48px;
   align-items: center;
   gap: 8px;
   font-family: 'Baloo 2', sans-serif;
@@ -439,7 +439,7 @@
   }
 
   .zoneRow {
-    grid-template-columns: 24px 1fr 34px 42px;
+    grid-template-columns: minmax(95px, auto) 1fr 34px 42px;
     font-size: 11px;
     gap: 6px;
   }

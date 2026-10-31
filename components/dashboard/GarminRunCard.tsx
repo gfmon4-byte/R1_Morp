@@ -136,26 +136,30 @@ export default function GarminRunCard({
     return null;
   }, [geoPolyline]);
 
-  // HR Zones mapped and sorted Z5 down to Z1
+  // HR Zones mapped and sorted Z5 down to Z1 (Profile Zones: Garmin Venu 3)
   const zonesList = useMemo(() => {
-    const config: Record<number, { label: string; color: string }> = {
-      5: { label: 'Z5', color: '#A855F7' },
-      4: { label: 'Z4', color: '#EF4444' },
-      3: { label: 'Z3', color: '#F59E0B' },
-      2: { label: 'Z2', color: '#10B981' },
-      1: { label: 'Z1', color: '#0284C7' },
+    const config: Record<number, { label: string; color: string; defaultBpm: string }> = {
+      5: { label: 'Z5', color: '#A855F7', defaultBpm: '174–199 bpm' },
+      4: { label: 'Z4', color: '#EF4444', defaultBpm: '158–173 bpm' },
+      3: { label: 'Z3', color: '#F59E0B', defaultBpm: '145–157 bpm' },
+      2: { label: 'Z2', color: '#10B981', defaultBpm: '116–144 bpm' },
+      1: { label: 'Z1', color: '#0284C7', defaultBpm: '97–115 bpm' },
     };
 
     const zoneMap: Record<number, any> = {};
     (hrZones || []).forEach((z: any) => {
       const num = Number(z.zone_number ?? z.zoneNumber);
       if (num >= 1 && num <= 5) {
+        const minB = z.min_bpm ?? z.minBpm ?? z.zoneLowBoundary;
+        const maxB = z.max_bpm ?? z.maxBpm ?? z.zoneHighBoundary;
+        const bpmRange = (minB && maxB) ? `${minB}–${maxB} bpm` : (minB ? `≥ ${minB} bpm` : config[num]?.defaultBpm);
         zoneMap[num] = {
           number: num,
           label: `Z${num}`,
           color: config[num]?.color || '#64748B',
           percentage: Number(z.percentage) || 0,
           durationFormatted: z.duration_formatted || (z.seconds_in_zone ? formatDurationSec(z.seconds_in_zone) : '0:00'),
+          bpmRange,
         };
       }
     });
@@ -168,6 +172,7 @@ export default function GarminRunCard({
         color: config[n]?.color || '#64748B',
         percentage: 0,
         durationFormatted: '0:00',
+        bpmRange: config[n]?.defaultBpm || '',
       };
     });
 
@@ -432,11 +437,21 @@ export default function GarminRunCard({
 
       {/* ── 5. Heart Rate Zones (Z5 down to Z1) ───────────────────────── */}
       <div className={styles.hrZonesSection}>
-        <div className={styles.hrZonesTitle}>HR Zones</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 4 }}>
+          <span className={styles.hrZonesTitle} style={{ margin: 0 }}>HR Zones</span>
+          <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>
+            Profile Zones (Garmin Venu 3)
+          </span>
+        </div>
         <div className={styles.hrZonesList}>
           {zonesList.map((z) => (
             <div key={z.number} className={styles.zoneRow}>
-              <span className={styles.zoneLabel}>{z.label}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                <span className={styles.zoneLabel}>{z.label}</span>
+                <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>
+                  {z.bpmRange}
+                </span>
+              </div>
               <div className={styles.zoneTrack}>
                 <div
                   className={styles.zoneFill}
