@@ -6,6 +6,7 @@ import { BottomNav } from '@/components/layout/BottomNav';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { InstallBanner } from '@/components/layout/InstallBanner';
 import { ThemeProvider } from '@/components/layout/ThemeProvider';
+import { GlobalTopSyncBar } from '@/components/layout/GlobalTopSyncBar';
 
 const baloo2 = Baloo_2({
   subsets: ['latin'],
@@ -104,6 +105,7 @@ export default function RootLayout({
 
           {/* Main content area */}
           <div className="app-shell">
+            <GlobalTopSyncBar />
             <div className="page-container">
               {children}
             </div>

@@ -34,6 +34,15 @@ export default function HistoryPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  // Listen for global sync events (from GlobalTopSyncBar)
+  useEffect(() => {
+    const handleGlobalSync = () => {
+      fetchData();
+    };
+    window.addEventListener('garmin-synced-all', handleGlobalSync);
+    return () => window.removeEventListener('garmin-synced-all', handleGlobalSync);
+  }, [fetchData]);
+
   const hrZones = computeHRZones(profile?.hr_max ?? 185, profile?.hr_rest ?? 42);
 
   const filtered = activities.filter((a) => {
@@ -59,6 +68,9 @@ export default function HistoryPage() {
 
   const handleSyncGarmin = async (range: '7' | '30' | 'all' = syncDays) => {
     try {
+      if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+        navigator.vibrate?.(15);
+      }
       setSyncing(true);
       setSyncToast(null);
 
@@ -123,10 +135,11 @@ export default function HistoryPage() {
                 display: 'inline-flex',
                 alignItems: 'center',
                 background: 'var(--color-bg-card, #FFFFFF)',
-                border: '1px solid var(--color-border)',
-                borderRadius: 10,
-                padding: '2px 4px',
+                border: '1.5px solid var(--color-border)',
+                borderRadius: 999,
+                padding: '3px 6px',
                 boxShadow: 'var(--shadow-sm)',
+                minHeight: 44,
               }}
             >
               <select
@@ -138,9 +151,10 @@ export default function HistoryPage() {
                   background: 'transparent',
                   border: 'none',
                   fontSize: '0.8125rem',
-                  fontWeight: 600,
+                  fontWeight: 700,
+                  fontFamily: "'Baloo 2', sans-serif",
                   color: 'var(--color-text)',
-                  padding: '4px 6px',
+                  padding: '4px 8px',
                   cursor: 'pointer',
                   outline: 'none',
                 }}
@@ -149,27 +163,27 @@ export default function HistoryPage() {
                 <option value="30">30 วัน</option>
                 <option value="all">ทั้งหมด (All)</option>
               </select>
-              <div style={{ width: 1, height: 16, background: 'var(--color-border)', margin: '0 2px' }} />
+              <div style={{ width: 1, height: 20, background: 'var(--color-border)', margin: '0 4px' }} />
               <button
-                className="btn btn-secondary btn-sm"
+                type="button"
+                className="mobile-sync-btn"
                 onClick={() => handleSyncGarmin(syncDays)}
                 disabled={syncing}
                 title={`Sync runs from Garmin Connect (${syncDays === 'all' ? 'All-time' : syncDays + ' days'})`}
                 style={{
-                  border: 'none',
-                  background: 'transparent',
-                  padding: '5px 10px',
+                  minHeight: 38,
+                  padding: '0 14px',
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 6,
-                  fontSize: '0.8125rem',
-                  color: 'var(--color-primary)',
-                  fontWeight: 600,
-                  boxShadow: 'none',
+                  fontSize: '0.875rem',
+                  fontWeight: 700,
+                  fontFamily: "'Baloo 2', sans-serif",
+                  borderRadius: 999,
                 }}
               >
-                <ArrowsClockwise size={15} weight="bold" className={syncing ? 'spin' : ''} />
-                <span>{syncing ? 'Syncing…' : 'Sync Garmin'}</span>
+                <ArrowsClockwise size={16} weight="bold" className={syncing ? 'animate-spin' : ''} />
+                <span>{syncing ? 'กำลังซิงค์…' : 'Sync Garmin'}</span>
               </button>
             </div>
 

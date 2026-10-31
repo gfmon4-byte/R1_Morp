@@ -59,6 +59,15 @@ export default function PlanPage() {
 
   useEffect(() => { setLoading(true); fetchData(); }, [fetchData]);
 
+  // Listen for global sync events (from GlobalTopSyncBar)
+  useEffect(() => {
+    const handleGlobalSync = () => {
+      fetchData();
+    };
+    window.addEventListener('garmin-synced-all', handleGlobalSync);
+    return () => window.removeEventListener('garmin-synced-all', handleGlobalSync);
+  }, [fetchData]);
+
   // Index by date
   const planByDate = useMemo(() => {
     const map: Record<string, TrainingPlan> = {};

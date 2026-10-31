@@ -418,6 +418,15 @@ export default function ProfilePage() {
     };
   }, [isRaceModalOpen, isInbodyHistoryModalOpen]);
 
+  // Listen for global sync events (from GlobalTopSyncBar)
+  useEffect(() => {
+    const handleGlobalSync = () => {
+      refreshProfile();
+    };
+    window.addEventListener('garmin-synced-all', handleGlobalSync);
+    return () => window.removeEventListener('garmin-synced-all', handleGlobalSync);
+  }, [refreshProfile]);
+
   const watchHrMax = Number(watch('hr_max') || 185);
   const watchHrRest = Number(watch('hr_rest') || 42);
   const watchVo2 = Number(watch('vo2max') || 0);
