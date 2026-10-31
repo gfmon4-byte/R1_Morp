@@ -260,7 +260,9 @@ export function DailySleepMonitor({ sleepRecords = [], onRefresh, lastSyncTime }
     setSyncMsg(null);
     try {
       const res = await fetch('/api/garmin-profile-sync', { method: 'POST' });
-      const json = await res.json();
+      const raw = await res.text();
+      let json: any = {};
+      try { json = JSON.parse(raw); } catch { throw new Error(res.status === 504 ? 'ซิงค์ข้อมูลการนอนใช้เวลานานเกินกำหนด (504 Timeout)' : `HTTP ${res.status}`); }
       if (!res.ok || !json.success) {
         throw new Error(json.error || 'Sync failed');
       }

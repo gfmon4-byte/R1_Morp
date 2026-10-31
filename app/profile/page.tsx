@@ -367,7 +367,9 @@ export default function ProfilePage() {
     setPrSyncMsg(null);
     try {
       const res = await fetch('/api/garmin-profile-sync', { method: 'POST' });
-      const json = await res.json();
+      const raw = await res.text();
+      let json: any = {};
+      try { json = JSON.parse(raw); } catch { throw new Error(res.status === 504 ? 'ซิงค์ข้อมูลโปรไฟล์ใช้เวลานานเกินกำหนด (504 Timeout)' : `HTTP ${res.status}`); }
       if (!res.ok || !json.success) {
         throw new Error(json.error || 'Sync failed');
       }
@@ -387,7 +389,9 @@ export default function ProfilePage() {
     setHrSyncMsg(null);
     try {
       const res = await fetch('/api/garmin-profile-sync', { method: 'POST' });
-      const json = await res.json();
+      const raw = await res.text();
+      let json: any = {};
+      try { json = JSON.parse(raw); } catch { throw new Error(res.status === 504 ? 'ซิงค์ข้อมูลโปรไฟล์ใช้เวลานานเกินกำหนด (504 Timeout)' : `HTTP ${res.status}`); }
       if (!res.ok || !json.success) {
         throw new Error(json.error || 'Sync failed');
       }

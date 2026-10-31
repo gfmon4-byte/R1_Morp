@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+export const maxDuration = 60;
 
 import { createClient } from '@supabase/supabase-js';
 import { getGarminTokens, saveGarminTokens } from '@/lib/garminTokens';
@@ -130,7 +131,7 @@ async function fetchGarminProfileData(tokens) {
     }
   }
 
-  async function apiGet(endpoint, params = {}, timeoutMs = 6000) {
+  async function apiGet(endpoint, params = {}, timeoutMs = 8000) {
     let url = `${CONNECT_API_BASE}${endpoint}`;
     const search = new URLSearchParams(params).toString();
     if (search) url += `?${search}`;
@@ -145,7 +146,6 @@ async function fetchGarminProfileData(tokens) {
         signal: AbortSignal.timeout(timeoutMs),
       });
     } catch (e) {
-      // Timeout or network error
       return null;
     }
 
@@ -176,24 +176,54 @@ async function fetchGarminProfileData(tokens) {
   weekAgoDate.setDate(weekAgoDate.getDate() - 7);
   const weekAgoStr = weekAgoDate.toISOString().slice(0, 10);
 
-  // 1. User Profile & Biometrics
-  const profileData = (await apiGet('/userprofile-service/userprofile/user-settings')) || {};
+  const sixtyDaysAgoDate = new Date();
+  sixtyDaysAgoDate.setDate(sixtyDaysAgoDate.getDate() - 60);
+  const sixtyDaysAgoStr = sixtyDaysAgoDate.toISOString().slice(0, 10);
+
+  // ── Parallel Batch 1: All independent endpoints (Executes concurrently in ~500ms) ──
+  const [
+    profileDataRaw,
+    rawMaxMet,
+    socialProfileRaw,
+    fitDataRaw,
+    rawRhrDataRaw,
+    devInfoRaw,
+    rawStepsRaw,
+    rawBbRaw,
+    rawZonesRaw,
+    rawTrainingReadiness,
+    rawHrv,
+    speedAndHrRaw,
+    powerRawData,
+    rawTrainingStatus,
+  ] = await Promise.all([
+    apiGet('/userprofile-service/userprofile/user-settings'),
+    apiGet(`/metrics-service/metrics/maxmet/daily/${sixtyDaysAgoStr}/${todayStr}`),
+    apiGet('/userprofile-service/socialProfile'),
+    apiGet(`/fitnessage-service/fitnessage/${todayStr}`),
+    apiGet(`/usersummary-service/stats/heartRate/daily/${sixtyDaysAgoStr}/${todayStr}`),
+    apiGet('/device-service/deviceservice/mylastused').catch(() => ({})),
+    apiGet(`/usersummary-service/stats/steps/daily/${weekAgoStr}/${todayStr}`).catch(() => []),
+    apiGet('/wellness-service/wellness/bodyBattery/reports/daily', { startDate: weekAgoStr, endDate: todayStr }).catch(() => []),
+    apiGet('/biometric-service/heartRateZones').catch(() => null),
+    apiGet(`/metrics-service/metrics/trainingreadiness/${todayStr}`).catch(() => null),
+    apiGet(`/hrv-service/hrv/${todayStr}`).catch(() => null),
+    apiGet('/biometric-service/biometric/latestLactateThreshold').catch(() => null),
+    apiGet(`/biometric-service/biometric/powerToWeight/latest/${todayStr}?sport=Running`).catch(() => null),
+    apiGet(`/metrics-service/metrics/trainingstatus/aggregated/${todayStr}`).catch(() => null),
+  ]);
+
+  const profileData = profileDataRaw || {};
   const userData = profileData.userData || {};
   const userNum = userData.userProfileNumber || 116707114;
   const age = calcAge(userData.birthDate);
   const heightCm = userData.height || null;
   const gender = userData.gender === 'MALE' ? 'M' : userData.gender === 'FEMALE' ? 'F' : 'M';
 
-  // 2. VO2 Max History (60 Days for fast, reliable response)
-  const sixtyDaysAgoDate = new Date();
-  sixtyDaysAgoDate.setDate(sixtyDaysAgoDate.getDate() - 60);
-  const sixtyDaysAgoStr = sixtyDaysAgoDate.toISOString().slice(0, 10);
-
-  const rawMaxMet = (await apiGet(`/metrics-service/metrics/maxmet/daily/${sixtyDaysAgoStr}/${todayStr}`, {}, 6000)) || [];
+  // VO2 Max Map
   const dailyVo2Map = {};
   let latestVo2Precise = null;
   let latestVo2Date = null;
-
   if (Array.isArray(rawMaxMet)) {
     for (const item of rawMaxMet) {
       const cDate = item.generic?.calendarDate;
@@ -208,19 +238,17 @@ async function fetchGarminProfileData(tokens) {
       }
     }
   }
-
   const vo2max = latestVo2Precise ?? (userData.vo2MaxRunning ? Math.round(userData.vo2MaxRunning * 10) / 10 : null);
 
-  // 3. Social Profile for Display Name
-  const socialProfile = (await apiGet('/userprofile-service/socialProfile')) || {};
+  const socialProfile = socialProfileRaw || {};
   const displayName = socialProfile.displayName || '';
 
-  // 4. Fitness Age & Resting HR History (60 Days)
-  const fitData = (await apiGet(`/fitnessage-service/fitnessage/${todayStr}`)) || {};
+  // Fitness Age & Resting HR
+  const fitData = fitDataRaw || {};
   const fitnessAge = fitData.fitnessAge ? Math.round(fitData.fitnessAge * 10) / 10 : null;
   let rhr = fitData.components?.rhr?.value || null;
 
-  const rawRhrData = (await apiGet(`/usersummary-service/stats/heartRate/daily/${sixtyDaysAgoStr}/${todayStr}`, {}, 6000)) || {};
+  const rawRhrData = rawRhrDataRaw || {};
   const rhrMetricsList = rawRhrData?.allMetrics?.metricsMap?.WELLNESS_RESTING_HEART_RATE || [];
   const dailyRhrMap = {};
   if (Array.isArray(rhrMetricsList)) {
@@ -230,24 +258,48 @@ async function fetchGarminProfileData(tokens) {
       }
     }
   }
-
   if (!rhr) {
     rhr = dailyRhrMap[todayStr] || null;
   }
 
-  // 4. Device Info
-  const devInfo = await apiGet('/device-service/deviceservice/mylastused').catch(() => ({}));
+  // Device Info
+  const devInfo = devInfoRaw || {};
   const device = {
     name: devInfo.lastUsedDeviceName || 'Garmin Watch',
     image_url: devInfo.imageUrl || '',
     last_upload: devInfo.lastUsedDeviceUploadTime || null,
   };
 
-  // 5. Official Personal Records (PRs)
-  let rawPrs = [];
-  if (displayName) {
-    rawPrs = await apiGet(`/personalrecord-service/personalrecord/prs/${encodeURIComponent(displayName)}`).catch(() => []);
+  // ── Parallel Batch 2: Queries requiring displayName / userNum + 20-day sleep ──
+  const sleepDates = [];
+  for (let i = 0; i < 20; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    sleepDates.push(d.toISOString().slice(0, 10));
   }
+
+  const [rawPrs, gearsRaw, rawRacePred, ...rawSleepResults] = await Promise.all([
+    displayName ? apiGet(`/personalrecord-service/personalrecord/prs/${encodeURIComponent(displayName)}`).catch(() => []) : [],
+    apiGet('/gear-service/gear/filterGear', { userProfilePk: userNum }).catch(() => []),
+    displayName
+      ? apiGet(`/metrics-service/metrics/racepredictions/latest/${encodeURIComponent(displayName)}`).catch(() => null)
+      : apiGet('/metrics-service/metrics/racepredictions').catch(() => null),
+    ...sleepDates.map(async (cdate) => {
+      if (!displayName) return null;
+      try {
+        const res = await apiGet(
+          `/wellness-service/wellness/dailySleepData/${encodeURIComponent(displayName)}`,
+          { date: cdate, nonSleepBufferMinutes: 60 },
+          4000
+        );
+        return res ? { date: cdate, data: res } : null;
+      } catch {
+        return null;
+      }
+    }),
+  ]);
+
+  // PRs
   const prs = {};
   if (Array.isArray(rawPrs)) {
     for (const p of rawPrs) {
@@ -281,32 +333,31 @@ async function fetchGarminProfileData(tokens) {
     }
   }
 
-  // 6. Gear (Running Shoes)
-  const gearsRaw = await apiGet('/gear-service/gear/filterGear', { userProfilePk: userNum }).catch(() => []);
+  // Gear (Shoes) + stats in parallel
   const shoes = [];
   if (Array.isArray(gearsRaw)) {
-    for (const g of gearsRaw) {
-      if (g.gearTypeName === 'Shoes' || g.customMakeModel || g.displayName) {
-        const uuid = g.uuid;
-        let stats = {};
-        if (uuid) {
-          stats = await apiGet(`/gear-service/gear/stats/${uuid}`).catch(() => ({}));
-        }
-        const distKm = Math.round(((stats.totalDistance || 0) / 1000.0) * 10) / 10;
-        const maxKm = Math.round(((g.maximumMeters || 0) / 1000.0) * 10) / 10;
-        const wearPct = maxKm > 0 ? Math.round((distKm / maxKm * 100) * 10) / 10 : 0;
-        shoes.push({
-          uuid,
-          name: g.displayName || g.customMakeModel || 'Running Shoes',
-          brand_model: g.customMakeModel || g.gearModelName || '',
-          distance_km: distKm,
-          max_distance_km: maxKm,
-          wear_pct: wearPct,
-          status: g.gearStatusName || 'active',
-          date_begin: (g.dateBegin || '').slice(0, 10),
-        });
-      }
-    }
+    const shoeGears = gearsRaw.filter(g => g.gearTypeName === 'Shoes' || g.customMakeModel || g.displayName);
+    const shoeStats = await Promise.all(
+      shoeGears.map(g => (g.uuid ? apiGet(`/gear-service/gear/stats/${g.uuid}`).catch(() => ({})) : Promise.resolve({})))
+    );
+
+    shoeGears.forEach((g, idx) => {
+      const stats = shoeStats[idx] || {};
+      const distKm = Math.round(((stats.totalDistance || 0) / 1000.0) * 10) / 10;
+      const maxKm = Math.round(((g.maximumMeters || 0) / 1000.0) * 10) / 10;
+      const wearPct = maxKm > 0 ? Math.round((distKm / maxKm * 100) * 10) / 10 : 0;
+      shoes.push({
+        uuid: g.uuid,
+        name: g.displayName || g.customMakeModel || 'Running Shoes',
+        brand_model: g.customMakeModel || g.gearModelName || '',
+        distance_km: distKm,
+        max_distance_km: maxKm,
+        wear_pct: wearPct,
+        status: g.gearStatusName || 'active',
+        date_begin: (g.dateBegin || '').slice(0, 10),
+      });
+    });
+
     shoes.sort((a, b) => {
       const aStat = a.status === 'active' ? 0 : 1;
       const bStat = b.status === 'active' ? 0 : 1;
@@ -315,8 +366,8 @@ async function fetchGarminProfileData(tokens) {
     });
   }
 
-  // 7. Daily Steps (Last 7 Days)
-  const rawSteps = await apiGet(`/usersummary-service/stats/steps/daily/${weekAgoStr}/${todayStr}`).catch(() => []);
+  // Daily Steps
+  const rawSteps = rawStepsRaw || [];
   const dailySteps = [];
   if (Array.isArray(rawSteps)) {
     for (const s of rawSteps) {
@@ -337,11 +388,8 @@ async function fetchGarminProfileData(tokens) {
     }
   }
 
-  // 8. Body Battery Balance (Last 7 Days)
-  const rawBb = await apiGet('/wellness-service/wellness/bodyBattery/reports/daily', {
-    startDate: weekAgoStr,
-    endDate: todayStr,
-  }).catch(() => []);
+  // Body Battery
+  const rawBb = rawBbRaw || [];
   const bodyBattery = [];
   if (Array.isArray(rawBb)) {
     for (const b of rawBb) {
@@ -375,39 +423,9 @@ async function fetchGarminProfileData(tokens) {
     }
   }
 
-  // 9. Sleep Tracking Data (Last 30 Days)
-  const sleepDates = [];
-  for (let i = 0; i < 30; i++) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    sleepDates.push(d.toISOString().slice(0, 10));
-  }
-
-  const rawSleepResults = [];
-  const sleepBatchSize = 10;
-  if (displayName) {
-    for (let i = 0; i < sleepDates.length; i += sleepBatchSize) {
-      const batch = sleepDates.slice(i, i + sleepBatchSize);
-      const batchRes = await Promise.all(
-        batch.map(async (cdate) => {
-          try {
-            const res = await apiGet(
-              `/wellness-service/wellness/dailySleepData/${encodeURIComponent(displayName)}`,
-              { date: cdate, nonSleepBufferMinutes: 60 },
-              4000
-            );
-            return res ? { date: cdate, data: res } : null;
-          } catch (e) {
-            return null;
-          }
-        })
-      );
-      rawSleepResults.push(...batchRes.filter(Boolean));
-    }
-  }
-
+  // Sleep Records
   const sleepRecords = [];
-  for (const item of rawSleepResults) {
+  for (const item of rawSleepResults.filter(Boolean)) {
     const sleepJson = item?.data;
     const dto = sleepJson?.dailySleepDTO;
     if (dto && (dto.sleepTimeSeconds > 0 || dto.sleepStartTimestampLocal)) {
@@ -445,18 +463,14 @@ async function fetchGarminProfileData(tokens) {
       });
     }
   }
-
-  // Sort chronological ascending (oldest -> newest)
   sleepRecords.sort((a, b) => a.date.localeCompare(b.date));
 
-  // 10. Fitness Metrics History (VO2 Max, Resting HR & Fitness Age - Up to 1 Year)
+  // Fitness Metrics History
   const allMetricDateSet = new Set();
-  // Include past 365 days keys where we have any data
   Object.keys(dailyRhrMap).forEach(d => allMetricDateSet.add(d));
   Object.keys(dailyVo2Map).forEach(d => allMetricDateSet.add(d));
   sleepRecords.forEach(s => { if (s.date) allMetricDateSet.add(s.date); });
-  // Also ensure recent 30 days are included
-  for (let i = 29; i >= 0; i--) {
+  for (let i = 20; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
     allMetricDateSet.add(d.toISOString().slice(0, 10));
@@ -477,7 +491,6 @@ async function fetchGarminProfileData(tokens) {
 
     const dayVo2 = dailyVo2Map[dateKey] ?? (dateKey === todayStr && vo2max ? vo2max : null);
 
-    // Calculate historical fitness age based on VO2 Max and RHR progression
     let dayFitAge = fitnessAge || null;
     if (fitnessAge && (dayVo2 != null || dayRhr != null)) {
       if (dateKey === todayStr) {
@@ -500,20 +513,166 @@ async function fetchGarminProfileData(tokens) {
     }
   }
 
-  // 11. Garmin Biometric Max HR & Resting HR
+  // Biometric Max HR & Resting HR from zones
   let garminMaxHr = null;
   let garminRestingHrFromZone = null;
-  try {
-    const rawZones = await apiGet('/biometric-service/heartRateZones');
-    if (Array.isArray(rawZones) && rawZones.length > 0) {
-      const runningZone = rawZones.find((z) => z.sport === 'RUNNING') || rawZones[0];
-      garminMaxHr = runningZone?.maxHeartRateUsed || null;
-      garminRestingHrFromZone = runningZone?.restingHeartRateUsed || null;
-    }
-  } catch (e) {
-    console.warn('Error fetching biometric heartRateZones:', e);
+  const rawZones = rawZonesRaw;
+  if (Array.isArray(rawZones) && rawZones.length > 0) {
+    const runningZone = rawZones.find((z) => z.sport === 'RUNNING') || rawZones[0];
+    garminMaxHr = runningZone?.maxHeartRateUsed || null;
+    garminRestingHrFromZone = runningZone?.restingHeartRateUsed || null;
   }
   const finalRestingHr = rhr || garminRestingHrFromZone || null;
+
+  // Process training readiness
+  let training_readiness = null;
+  try {
+    const trList = Array.isArray(rawTrainingReadiness) ? rawTrainingReadiness : (rawTrainingReadiness?.trainingReadinessDTOList || []);
+    const tr = trList[0] || (rawTrainingReadiness && !Array.isArray(rawTrainingReadiness) && rawTrainingReadiness.score != null ? rawTrainingReadiness : null);
+    if (tr) {
+      training_readiness = {
+        score: tr.score ?? null,
+        level: tr.level ?? null,
+        feedback_short: tr.feedbackShort ?? null,
+        feedback_long: tr.feedbackLong ?? null,
+        sleep_score: tr.sleepScore ?? null,
+        recovery_time: tr.recoveryTime ?? null,
+        hrv_weekly_avg: tr.hrvWeeklyAverage ?? null,
+        acute_load: tr.acuteLoad ?? null,
+        date: tr.calendarDate ?? null,
+      };
+    }
+  } catch {}
+
+  // Process HRV summary
+  let hrv_summary = null;
+  try {
+    const hrv = rawHrv?.hrvSummary;
+    if (hrv) {
+      hrv_summary = {
+        weekly_avg: hrv.weeklyAvg ?? null,
+        last_night_avg: hrv.lastNightAvg ?? null,
+        last_night_5min_high: hrv.lastNight5MinHigh ?? null,
+        status: hrv.status ?? null,
+        feedback: hrv.feedbackPhrase ?? null,
+        baseline_low: hrv.baseline?.lowUpper ?? null,
+        baseline_balanced_low: hrv.baseline?.balancedLow ?? null,
+        baseline_balanced_high: hrv.baseline?.balancedUpper ?? null,
+        date: hrv.calendarDate ?? null,
+      };
+    }
+  } catch {}
+
+  // Process race predictions
+  let race_predictions = null;
+  try {
+    if (rawRacePred) {
+      const f = (s) => {
+        if (!s) return null;
+        const sec = Math.round(s);
+        const h = Math.floor(sec / 3600);
+        const m = Math.floor((sec % 3600) / 60);
+        const sc = sec % 60;
+        return h > 0
+          ? `${h}:${m.toString().padStart(2, '0')}:${sc.toString().padStart(2, '0')}`
+          : `${m}:${sc.toString().padStart(2, '0')}`;
+      };
+      race_predictions = {
+        '5k_seconds': rawRacePred.time5K ?? null,
+        '5k_time': f(rawRacePred.time5K),
+        '10k_seconds': rawRacePred.time10K ?? null,
+        '10k_time': f(rawRacePred.time10K),
+        hm_seconds: rawRacePred.timeHalfMarathon ?? null,
+        hm_time: f(rawRacePred.timeHalfMarathon),
+        fm_seconds: rawRacePred.timeMarathon ?? null,
+        fm_time: f(rawRacePred.timeMarathon),
+        date: rawRacePred.calendarDate ?? null,
+      };
+    }
+  } catch {}
+
+  // Process running FTP
+  let running_ftp = null;
+  try {
+    let speedVal = null;
+    let heartRateVal = null;
+    if (Array.isArray(speedAndHrRaw)) {
+      for (const entry of speedAndHrRaw) {
+        if (entry.speed != null) speedVal = entry.speed;
+        if (entry.heartRate != null || entry.hearRate != null) {
+          heartRateVal = entry.heartRate || entry.hearRate;
+        }
+      }
+    } else if (speedAndHrRaw && typeof speedAndHrRaw === 'object') {
+      speedVal = speedAndHrRaw.speed;
+      heartRateVal = speedAndHrRaw.heartRate || speedAndHrRaw.hearRate;
+    }
+
+    const power = Array.isArray(powerRawData) ? (powerRawData[0] || {}) : (powerRawData || {});
+    let ltPace = null;
+    if (speedVal && speedVal > 0) {
+      const speedMps = speedVal < 1.0 ? speedVal * 10.0 : speedVal;
+      const paceSecs = 1000.0 / speedMps;
+      const m = Math.floor(paceSecs / 60);
+      const s = Math.round(paceSecs % 60);
+      ltPace = `${m}:${s.toString().padStart(2, '0')}`;
+    }
+    running_ftp = {
+      ftp_watts: power.functionalThresholdPower ?? null,
+      power_to_weight: power.powerToWeight ? Math.round(power.powerToWeight * 100) / 100 : null,
+      lt_heart_rate: heartRateVal ?? null,
+      lt_pace: ltPace,
+      date: (power.calendarDate || '').slice(0, 10),
+    };
+  } catch {}
+
+  // Process training load balance
+  let training_load_balance = null;
+  try {
+    const lbMap = rawTrainingStatus?.mostRecentTrainingLoadBalance?.metricsTrainingLoadBalanceDTOMap || {};
+    const lb = Object.values(lbMap)[0] || null;
+    if (lb) {
+      training_load_balance = {
+        aerobic_low: Math.round(lb.monthlyLoadAerobicLow || 0),
+        aerobic_high: Math.round(lb.monthlyLoadAerobicHigh || 0),
+        anaerobic: Math.round(lb.monthlyLoadAnaerobic || 0),
+        aerobic_low_min: lb.monthlyLoadAerobicLowTargetMin ?? null,
+        aerobic_low_max: lb.monthlyLoadAerobicLowTargetMax ?? null,
+        aerobic_high_min: lb.monthlyLoadAerobicHighTargetMin ?? null,
+        aerobic_high_max: lb.monthlyLoadAerobicHighTargetMax ?? null,
+        anaerobic_min: lb.monthlyLoadAnaerobicTargetMin ?? null,
+        anaerobic_max: lb.monthlyLoadAnaerobicTargetMax ?? null,
+        feedback: lb.trainingBalanceFeedbackPhrase ?? null,
+      };
+    }
+  } catch {}
+
+  // Process HR Zones
+  let hr_zones = null;
+  try {
+    if (Array.isArray(rawZones) && rawZones.length > 0) {
+      const rZone =
+        rawZones.find((z) => z.sport === 'RUNNING') ||
+        rawZones.find((z) => z.sport === 'DEFAULT' && (z.zone2Floor || 0) >= 100) ||
+        rawZones.find((z) => (z.zone2Floor || 0) >= 100);
+      if (rZone && rZone.zone1Floor && (rZone.zone2Floor || 0) >= 100) {
+        const maxHr = rZone.maxHeartRateUsed || 199;
+        hr_zones = {
+          sport: rZone.sport,
+          training_method: rZone.trainingMethod,
+          max_hr: maxHr,
+          resting_hr: rZone.restingHeartRateUsed || 65,
+          z1: { min: rZone.zone1Floor, max: rZone.zone2Floor - 1, name: 'Warm Up (Zone 1)', label: 'Z1' },
+          z2: { min: rZone.zone2Floor, max: rZone.zone3Floor - 1, name: 'Easy / Fat Burn (Zone 2)', label: 'Z2' },
+          z3: { min: rZone.zone3Floor, max: rZone.zone4Floor - 1, name: 'Aerobic (Zone 3)', label: 'Z3' },
+          z4: { min: rZone.zone4Floor, max: rZone.zone5Floor - 1, name: 'Threshold (Zone 4)', label: 'Z4' },
+          z5: { min: rZone.zone5Floor, max: maxHr, name: 'Maximum (Zone 5)', label: 'Z5' },
+          source: 'garmin_api',
+          updated_at: new Date().toISOString(),
+        };
+      }
+    }
+  } catch {}
 
   return {
     age,
@@ -533,160 +692,12 @@ async function fetchGarminProfileData(tokens) {
     body_battery: bodyBattery,
     sleep: sleepRecords,
     metrics_history: fitnessMetricsHistory,
-    // Garmin 970+ new fields (fetched via native API)
-    training_readiness: await (async () => {
-      try {
-        const raw = await apiGet(`/metrics-service/metrics/trainingreadiness/${todayStr}`);
-        const trList = Array.isArray(raw) ? raw : (raw?.trainingReadinessDTOList || []);
-        const tr = trList[0] || (raw && !Array.isArray(raw) && raw.score != null ? raw : null);
-        if (!tr) return null;
-        return {
-          score: tr.score ?? null,
-          level: tr.level ?? null,
-          feedback_short: tr.feedbackShort ?? null,
-          feedback_long: tr.feedbackLong ?? null,
-          sleep_score: tr.sleepScore ?? null,
-          recovery_time: tr.recoveryTime ?? null,
-          hrv_weekly_avg: tr.hrvWeeklyAverage ?? null,
-          acute_load: tr.acuteLoad ?? null,
-          date: tr.calendarDate ?? null,
-        };
-      } catch { return null; }
-    })(),
-    hrv_summary: await (async () => {
-      try {
-        const raw = await apiGet(`/hrv-service/hrv/${todayStr}`);
-        const hrv = raw?.hrvSummary;
-        if (!hrv) return null;
-        return {
-          weekly_avg: hrv.weeklyAvg ?? null,
-          last_night_avg: hrv.lastNightAvg ?? null,
-          last_night_5min_high: hrv.lastNight5MinHigh ?? null,
-          status: hrv.status ?? null,
-          feedback: hrv.feedbackPhrase ?? null,
-          baseline_low: hrv.baseline?.lowUpper ?? null,
-          baseline_balanced_low: hrv.baseline?.balancedLow ?? null,
-          baseline_balanced_high: hrv.baseline?.balancedUpper ?? null,
-          date: hrv.calendarDate ?? null,
-        };
-      } catch { return null; }
-    })(),
-    race_predictions: await (async () => {
-      try {
-        const url = displayName
-          ? `/metrics-service/metrics/racepredictions/latest/${encodeURIComponent(displayName)}`
-          : '/metrics-service/metrics/racepredictions';
-        const raw = await apiGet(url);
-        if (!raw) return null;
-        const f = (s) => {
-          if (!s) return null;
-          const sec = Math.round(s);
-          const h = Math.floor(sec / 3600);
-          const m = Math.floor((sec % 3600) / 60);
-          const sc = sec % 60;
-          return h > 0
-            ? `${h}:${m.toString().padStart(2, '0')}:${sc.toString().padStart(2, '0')}`
-            : `${m}:${sc.toString().padStart(2, '0')}`;
-        };
-        return {
-          '5k_seconds': raw.time5K ?? null,
-          '5k_time': f(raw.time5K),
-          '10k_seconds': raw.time10K ?? null,
-          '10k_time': f(raw.time10K),
-          hm_seconds: raw.timeHalfMarathon ?? null,
-          hm_time: f(raw.timeHalfMarathon),
-          fm_seconds: raw.timeMarathon ?? null,
-          fm_time: f(raw.timeMarathon),
-          date: raw.calendarDate ?? null,
-        };
-      } catch { return null; }
-    })(),
-    running_ftp: await (async () => {
-      try {
-        const speedAndHr = await apiGet('/biometric-service/biometric/latestLactateThreshold').catch(() => null);
-        const powerRaw = await apiGet(`/biometric-service/biometric/powerToWeight/latest/${todayStr}?sport=Running`).catch(() => null);
-
-        let speedVal = null;
-        let heartRateVal = null;
-        if (Array.isArray(speedAndHr)) {
-          for (const entry of speedAndHr) {
-            if (entry.speed != null) speedVal = entry.speed;
-            if (entry.heartRate != null || entry.hearRate != null) {
-              heartRateVal = entry.heartRate || entry.hearRate;
-            }
-          }
-        } else if (speedAndHr && typeof speedAndHr === 'object') {
-          speedVal = speedAndHr.speed;
-          heartRateVal = speedAndHr.heartRate || speedAndHr.hearRate;
-        }
-
-        const power = Array.isArray(powerRaw) ? (powerRaw[0] || {}) : (powerRaw || {});
-        let ltPace = null;
-        if (speedVal && speedVal > 0) {
-          const speedMps = speedVal < 1.0 ? speedVal * 10.0 : speedVal;
-          const paceSecs = 1000.0 / speedMps;
-          const m = Math.floor(paceSecs / 60);
-          const s = Math.round(paceSecs % 60);
-          ltPace = `${m}:${s.toString().padStart(2, '0')}`;
-        }
-        return {
-          ftp_watts: power.functionalThresholdPower ?? null,
-          power_to_weight: power.powerToWeight ? Math.round(power.powerToWeight * 100) / 100 : null,
-          lt_heart_rate: heartRateVal ?? null,
-          lt_pace: ltPace,
-          date: (power.calendarDate || '').slice(0, 10),
-        };
-      } catch { return null; }
-    })(),
-    training_load_balance: await (async () => {
-      try {
-        const raw = await apiGet(`/metrics-service/metrics/trainingstatus/aggregated/${todayStr}`);
-        const lbMap = raw?.mostRecentTrainingLoadBalance?.metricsTrainingLoadBalanceDTOMap || {};
-        const lb = Object.values(lbMap)[0] || null;
-        if (!lb) return null;
-        return {
-          aerobic_low: Math.round(lb.monthlyLoadAerobicLow || 0),
-          aerobic_high: Math.round(lb.monthlyLoadAerobicHigh || 0),
-          anaerobic: Math.round(lb.monthlyLoadAnaerobic || 0),
-          aerobic_low_min: lb.monthlyLoadAerobicLowTargetMin ?? null,
-          aerobic_low_max: lb.monthlyLoadAerobicLowTargetMax ?? null,
-          aerobic_high_min: lb.monthlyLoadAerobicHighTargetMin ?? null,
-          aerobic_high_max: lb.monthlyLoadAerobicHighTargetMax ?? null,
-          anaerobic_min: lb.monthlyLoadAnaerobicTargetMin ?? null,
-          anaerobic_max: lb.monthlyLoadAnaerobicTargetMax ?? null,
-          feedback: lb.trainingBalanceFeedbackPhrase ?? null,
-        };
-      } catch { return null; }
-    })(),
-    
-    hr_zones: await (async () => {
-      try {
-        const rawZones = await apiGet('/biometric-service/heartRateZones');
-        if (Array.isArray(rawZones) && rawZones.length > 0) {
-          const rZone =
-            rawZones.find((z) => z.sport === 'RUNNING') ||
-            rawZones.find((z) => z.sport === 'DEFAULT' && (z.zone2Floor || 0) >= 100) ||
-            rawZones.find((z) => (z.zone2Floor || 0) >= 100);
-          if (rZone && rZone.zone1Floor && (rZone.zone2Floor || 0) >= 100) {
-            const maxHr = rZone.maxHeartRateUsed || 199;
-            return {
-              sport: rZone.sport,
-              training_method: rZone.trainingMethod,
-              max_hr: maxHr,
-              resting_hr: rZone.restingHeartRateUsed || 65,
-              z1: { min: rZone.zone1Floor, max: rZone.zone2Floor - 1, name: 'Warm Up (Zone 1)', label: 'Z1' },
-              z2: { min: rZone.zone2Floor, max: rZone.zone3Floor - 1, name: 'Easy / Fat Burn (Zone 2)', label: 'Z2' },
-              z3: { min: rZone.zone3Floor, max: rZone.zone4Floor - 1, name: 'Aerobic (Zone 3)', label: 'Z3' },
-              z4: { min: rZone.zone4Floor, max: rZone.zone5Floor - 1, name: 'Threshold (Zone 4)', label: 'Z4' },
-              z5: { min: rZone.zone5Floor, max: maxHr, name: 'Maximum (Zone 5)', label: 'Z5' },
-              source: 'garmin_api',
-              updated_at: new Date().toISOString(),
-            };
-          }
-        }
-      } catch { return null; }
-      return null;
-    })(),
+    training_readiness,
+    hrv_summary,
+    race_predictions,
+    running_ftp,
+    training_load_balance,
+    hr_zones,
     synced_at: new Date().toISOString(),
   };
 }
@@ -707,9 +718,9 @@ export async function POST(request) {
       return Response.json(
         {
           success: false,
-          error: 'Garmin tokens are missing. Please authenticate with: python scripts/login_garmin.py',
+          error: 'Garmin tokens are missing or expired. Please re-authenticate on the Garmin tab.',
         },
-        { status: 500 }
+        { status: 401 }
       );
     }
 
@@ -717,7 +728,6 @@ export async function POST(request) {
     const supabase = getServerSupabase();
 
     if (supabase) {
-      // 1. Fetch current profile from profiles table (R1_Morp)
       const { data: existingProfiles } = await supabase
         .from('profiles')
         .select('*')
@@ -726,7 +736,6 @@ export async function POST(request) {
 
       const existing = (existingProfiles && existingProfiles[0]) || {};
 
-      // Ensure Garmin HR zones: if not from API, extract from latest Garmin activity
       let garminHrZonesToSave = data.hr_zones || existing.fitness_age_data?.garmin_hr_zones || null;
       if (!garminHrZonesToSave) {
         try {
@@ -757,7 +766,6 @@ export async function POST(request) {
         }
       }
       const vo2ToSave = data.vo2max != null ? data.vo2max : existing.vo2max;
-      // Strictly sync authentic Max HR and Resting HR from Garmin Connect
       const hrMaxToSave = data.max_hr || existing.hr_max || 193;
       const hrRestToSave = data.resting_hr || existing.hr_rest || 63;
 
@@ -776,13 +784,11 @@ export async function POST(request) {
         };
       }
 
-      // Automatically sync Official Personal Records (PRs) from Garmin into benchmark fields
       const pb5kToSave = data.prs?.['5k']?.seconds ? Math.round(data.prs['5k'].seconds) : existing.pb_5k;
       const pb10kToSave = data.prs?.['10k']?.seconds ? Math.round(data.prs['10k'].seconds) : existing.pb_10k;
       const pbHalfToSave = data.prs?.['hm']?.seconds ? Math.round(data.prs['hm'].seconds) : existing.pb_half;
       const pbFullToSave = data.prs?.['full']?.seconds ? Math.round(data.prs['full'].seconds) : existing.pb_marathon;
 
-      // Prepare updates - strictly preserve weight, inbody and custom settings
       const updates = {
         id: 1,
         vo2max: vo2ToSave,
@@ -799,6 +805,11 @@ export async function POST(request) {
           garmin_hr_zones: garminHrZonesToSave,
           garmin_max_hr: data.max_hr,
           garmin_resting_hr: data.resting_hr,
+          shoes: data.shoes,
+          device: data.device,
+          prs: data.prs,
+          daily_steps: data.daily_steps,
+          body_battery: data.body_battery,
           metrics_history: (data.metrics_history && data.metrics_history.length > 0) ? data.metrics_history : (existing.fitness_age_data?.metrics_history || []),
           sleep: (data.sleep && data.sleep.length > 0) ? data.sleep : (existing.fitness_age_data?.sleep || []),
           fr970: {
@@ -807,6 +818,7 @@ export async function POST(request) {
             race_predictions: data.race_predictions,
             running_ftp: data.running_ftp,
             training_load_balance: data.training_load_balance,
+            training_status: data.training_status,
             synced_at: data.synced_at,
           },
         },
@@ -819,12 +831,12 @@ export async function POST(request) {
         updated_at: new Date().toISOString(),
       };
 
-      let { error: upsertErr } = await supabase
+      let { error: updateErr } = await supabase
         .from('profiles')
         .upsert(updates, { onConflict: 'id' });
 
-      if (upsertErr) {
-        console.warn('Supabase upsert to profiles failed, trying basic columns:', upsertErr.message);
+      if (updateErr) {
+        console.warn('Supabase upsert to profiles with extended columns failed, trying basic columns:', updateErr.message);
         const basicUpdates = {
           id: 1,
           vo2max: data.vo2max || existing.vo2max,
@@ -856,7 +868,7 @@ export async function POST(request) {
         }
       }
 
-      // Sync user_profile table as well
+      // Sync user_profile table as well if it exists
       try {
         await supabase.from('user_profile').update({
           vo2max: vo2ToSave,
@@ -877,20 +889,17 @@ export async function POST(request) {
           updated_at: updates.updated_at,
         }).eq('id', 1);
       } catch (upErr) {
-        console.warn('user_profile sync error:', upErr);
+        // Ignored if user_profile table doesn't have these columns
       }
     }
 
     return Response.json({
       success: true,
       data,
-      message: 'Garmin profile successfully synchronized (weight excluded).',
+      message: 'Garmin profile successfully synchronized.',
     });
   } catch (err) {
-    console.error('[garmin-profile-sync error]', err);
-    return Response.json(
-      { success: false, error: err.message || 'Internal error during Garmin profile sync' },
-      { status: 500 }
-    );
+    console.error('[garmin-profile-sync]', err);
+    return Response.json({ success: false, error: err.message }, { status: 500 });
   }
 }

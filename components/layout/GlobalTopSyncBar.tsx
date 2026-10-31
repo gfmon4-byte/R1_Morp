@@ -93,10 +93,22 @@ export function GlobalTopSyncBar() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ days: 30 }),
       });
-      const actData = await actRes.json();
+      const actRaw = await actRes.text();
+      let actData: any = {};
+      try {
+        actData = JSON.parse(actRaw);
+      } catch {
+        if (actRes.status === 504) {
+          throw new Error('การซิงค์กิจกรรมใช้เวลาเกินกำหนด (504 Timeout) กรุณากดซิงค์อีกครั้ง');
+        }
+        throw new Error(`การซิงค์กิจกรรมล้มเหลว (HTTP ${actRes.status})`);
+      }
 
-      if (!actData.success && actData.error && actData.error.toLowerCase().includes('token')) {
-        throw new Error('โทเค็น Garmin หมดอายุหรือยังไม่ได้เชื่อมต่อ กรุณาเข้าสู่ระบบใหม่ที่แท็บ Garmin');
+      if (!actData.success && actData.error) {
+        if (actData.error.toLowerCase().includes('token')) {
+          throw new Error('โทเค็น Garmin หมดอายุหรือยังไม่ได้เชื่อมต่อ กรุณาเข้าสู่ระบบใหม่ที่แท็บ Garmin');
+        }
+        throw new Error(actData.error);
       }
 
       setSyncStage('profile');
@@ -105,7 +117,23 @@ export function GlobalTopSyncBar() {
       const profRes = await fetch('/api/garmin-profile-sync', {
         method: 'POST',
       });
-      const profData = await profRes.json();
+      const profRaw = await profRes.text();
+      let profData: any = {};
+      try {
+        profData = JSON.parse(profRaw);
+      } catch {
+        if (profRes.status === 504) {
+          throw new Error('การซิงค์ข้อมูลสุขภาพ/โปรไฟล์ใช้เวลาเกินกำหนด (504 Timeout) กรุณากดซิงค์อีกครั้ง');
+        }
+        throw new Error(`การซิงค์โปรไฟล์ล้มเหลว (HTTP ${profRes.status})`);
+      }
+
+      if (!profData.success && profData.error) {
+        if (profData.error.toLowerCase().includes('token')) {
+          throw new Error('โทเค็น Garmin หมดอายุหรือยังไม่ได้เชื่อมต่อ กรุณาเข้าสู่ระบบใหม่ที่แท็บ Garmin');
+        }
+        throw new Error(profData.error);
+      }
 
       // 3. Warm latest run cache if runs were retrieved
       try {
