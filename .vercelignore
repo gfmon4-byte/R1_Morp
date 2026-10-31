@@ -1,4 +1,4 @@
 # Ignore root python api directory so Vercel only deploys Next.js App Router routes
-api/
-requirements.txt
-garmin_requirements.txt
+/api/
+/requirements.txt
+/garmin_requirements.txt
