@@ -28,7 +28,7 @@ export const metadata: Metadata = {
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'default',
+    statusBarStyle: 'black-translucent',
     title: 'RunMorp',
   },
   formatDetection: { telephone: false },
@@ -46,7 +46,7 @@ export const viewport = {
   viewportFit: 'cover',
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#FF8FA3' },
-    { media: '(prefers-color-scheme: dark)',  color: '#FF2D78' },
+    { media: '(prefers-color-scheme: dark)',  color: '#0F0F1A' },
   ],
 };
 
@@ -60,10 +60,10 @@ export default function RootLayout({
       <head>
         {/* PWA meta tags */}
         <link rel="manifest" href="/manifest.json" />
-        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.jpg" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="RunMorp" />
         <meta name="application-name" content="RunMorp" />
         {/* Service Worker registration */}
