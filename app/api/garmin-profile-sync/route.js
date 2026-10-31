@@ -816,9 +816,7 @@ export async function POST(request) {
           console.warn('fitness_metrics_history table upsert error:', e);
         }
       }
-    }
 
-    
       // Sync user_profile table as well
       try {
         await supabase.from('user_profile').update({
@@ -837,6 +835,7 @@ export async function POST(request) {
       } catch (upErr) {
         console.warn('user_profile sync error:', upErr);
       }
+    }
 
     return Response.json({
       success: true,
