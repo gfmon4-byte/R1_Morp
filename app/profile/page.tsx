@@ -25,7 +25,6 @@ const schema = z.object({
   gender: z.enum(['male', 'female', 'other']).optional().nullable(),
   birth_date: z.string().optional().nullable(),
   vo2max: z.coerce.number().min(20).max(100).optional().nullable(),
-  vt2_percent: z.coerce.number().min(50).max(100).optional().nullable(),
   weight_kg: z.coerce.number().min(30).max(200).optional().nullable(),
   height_cm: z.coerce.number().min(100).max(250).optional().nullable(),
   pb_5k: z.string().optional(),
@@ -293,62 +292,65 @@ export default function ProfilePage() {
     defaultValues: { pace_zone_mode: 'auto', hr_max: 185, hr_rest: 42 },
   });
 
+  const applyProfileToForm = useCallback((data: Profile) => {
+    setProfile(data);
+
+    // Load fallback InBody from localStorage if it exists
+    const localInbody = typeof window !== 'undefined' ? localStorage.getItem('profile_inbody') : null;
+    let parsedInbody: any = {};
+    if (localInbody) {
+      try {
+        parsedInbody = JSON.parse(localInbody);
+      } catch (e) {
+        parsedInbody = {};
+      }
+    }
+
+    reset({
+      name: data.name,
+      gender: data.gender,
+      birth_date: data.birth_date,
+      vo2max: data.vo2max,
+      weight_kg: data.weight_kg,
+      height_cm: data.height_cm,
+      pb_5k: pbToMMSS(data.pb_5k),
+      pb_10k: pbToMMSS(data.pb_10k),
+      pb_half: pbToMMSS(data.pb_half),
+      pb_marathon: pbToMMSS(data.pb_marathon),
+      hr_max: data.hr_max ?? 193,
+      hr_rest: data.hr_rest ?? 63,
+      pace_zone_mode: data.pace_zone_mode,
+      pace_zone_1_min: data.pace_zone_1_min,
+      pace_zone_1_max: data.pace_zone_1_max,
+      pace_zone_2_min: data.pace_zone_2_min,
+      pace_zone_2_max: data.pace_zone_2_max,
+      pace_zone_3_min: data.pace_zone_3_min,
+      pace_zone_3_max: data.pace_zone_3_max,
+      pace_zone_4_min: data.pace_zone_4_min,
+      pace_zone_4_max: data.pace_zone_4_max,
+      pace_zone_5_min: data.pace_zone_5_min,
+      pace_zone_5_max: data.pace_zone_5_max,
+      inbody_weight: data.inbody_weight ?? parsedInbody.inbody_weight,
+      inbody_smm: data.inbody_smm ?? parsedInbody.inbody_smm,
+      inbody_bfm: data.inbody_bfm ?? parsedInbody.inbody_bfm,
+      inbody_tbw: data.inbody_tbw ?? parsedInbody.inbody_tbw,
+      inbody_protein: data.inbody_protein ?? parsedInbody.inbody_protein,
+      inbody_mineral: data.inbody_mineral ?? parsedInbody.inbody_mineral,
+      inbody_date: data.inbody_date ?? parsedInbody.inbody_date,
+    });
+  }, [reset]);
+
   const refreshProfile = useCallback(async () => {
     const { data } = await supabase.from('profiles').select('*').eq('id', 1).single();
     if (data) {
-      setProfile(data as Profile);
+      applyProfileToForm(data as Profile);
     }
-  }, []);
+  }, [applyProfileToForm]);
 
   useEffect(() => {
     supabase.from('profiles').select('*').eq('id', 1).single().then(({ data }) => {
       if (data) {
-        setProfile(data as Profile);
-
-        // Load fallback InBody from localStorage if it exists
-        const localInbody = typeof window !== 'undefined' ? localStorage.getItem('profile_inbody') : null;
-        let parsedInbody: any = {};
-        if (localInbody) {
-          try {
-            parsedInbody = JSON.parse(localInbody);
-          } catch (e) {
-            parsedInbody = {};
-          }
-        }
-
-        reset({
-          name: data.name,
-          gender: data.gender,
-          birth_date: data.birth_date,
-          vo2max: data.vo2max,
-          vt2_percent: data.vt2_percent ?? 85,
-          weight_kg: data.weight_kg,
-          height_cm: data.height_cm,
-          pb_5k: pbToMMSS(data.pb_5k),
-          pb_10k: pbToMMSS(data.pb_10k),
-          pb_half: pbToMMSS(data.pb_half),
-          pb_marathon: pbToMMSS(data.pb_marathon),
-          hr_max: data.hr_max,
-          hr_rest: data.hr_rest,
-          pace_zone_mode: data.pace_zone_mode,
-          pace_zone_1_min: data.pace_zone_1_min,
-          pace_zone_1_max: data.pace_zone_1_max,
-          pace_zone_2_min: data.pace_zone_2_min,
-          pace_zone_2_max: data.pace_zone_2_max,
-          pace_zone_3_min: data.pace_zone_3_min,
-          pace_zone_3_max: data.pace_zone_3_max,
-          pace_zone_4_min: data.pace_zone_4_min,
-          pace_zone_4_max: data.pace_zone_4_max,
-          pace_zone_5_min: data.pace_zone_5_min,
-          pace_zone_5_max: data.pace_zone_5_max,
-          inbody_weight: data.inbody_weight ?? parsedInbody.inbody_weight,
-          inbody_smm: data.inbody_smm ?? parsedInbody.inbody_smm,
-          inbody_bfm: data.inbody_bfm ?? parsedInbody.inbody_bfm,
-          inbody_tbw: data.inbody_tbw ?? parsedInbody.inbody_tbw,
-          inbody_protein: data.inbody_protein ?? parsedInbody.inbody_protein,
-          inbody_mineral: data.inbody_mineral ?? parsedInbody.inbody_mineral,
-          inbody_date: data.inbody_date ?? parsedInbody.inbody_date,
-        });
+        applyProfileToForm(data as Profile);
 
         const localRaces = typeof window !== 'undefined' ? localStorage.getItem('profile_races') : null;
         let loadedRaces: any[] = [];
@@ -430,7 +432,6 @@ export default function ProfilePage() {
   const watchHrMax = Number(watch('hr_max') || 185);
   const watchHrRest = Number(watch('hr_rest') || 42);
   const watchVo2 = Number(watch('vo2max') || 0);
-  const watchVt2 = Number(watch('vt2_percent') || 85);
   const watchPaceMode = watch('pace_zone_mode');
   const watchPb10k = watch('pb_10k');
   const watchPbHalf = watch('pb_half');
@@ -527,7 +528,6 @@ export default function ProfilePage() {
       gender: data.gender || null,
       birth_date: data.birth_date || null,
       vo2max: data.vo2max || null,
-      vt2_percent: data.vt2_percent || null,
       weight_kg: data.weight_kg || null,
       height_cm: data.height_cm || null,
       pb_5k: data.pb_5k ? mmssToSeconds(data.pb_5k) : null,
@@ -574,7 +574,6 @@ export default function ProfilePage() {
         gender: data.gender || null,
         birth_date: data.birth_date || null,
         vo2max: data.vo2max || null,
-        vt2_percent: data.vt2_percent || null,
         weight_kg: data.weight_kg || null,
         height_cm: data.height_cm || null,
         pb_5k: data.pb_5k ? mmssToSeconds(data.pb_5k) : null,
@@ -1055,17 +1054,16 @@ export default function ProfilePage() {
             )}
           </Section>
 
-          {/* VO2max / VT2 */}
+                    {/* VO2max */}
           <Section title="Performance Metrics" icon={<Gauge size={16} color="var(--color-primary)" />}>
-            <div className="form-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <div>
-                <label className="form-label" htmlFor="p-vo2">VO₂max (ml/kg/min)</label>
-                <input id="p-vo2" type="number" step="0.1" className="form-input" {...register('vo2max')} placeholder="e.g. 72" />
+            <div style={{ maxWidth: 280 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                <label className="form-label" htmlFor="p-vo2" style={{ margin: 0 }}>VO₂max (ml/kg/min)</label>
+                {profile?.vo2max && (
+                  <span style={{ fontSize: '0.6875rem', color: '#10B981', fontWeight: 600 }}>Garmin: {profile.vo2max}</span>
+                )}
               </div>
-              <div>
-                <label className="form-label" htmlFor="p-vt2">VT2 (% VO₂max)</label>
-                <input id="p-vt2" type="number" step="0.5" className="form-input" {...register('vt2_percent')} placeholder="e.g. 85" />
-              </div>
+              <input id="p-vo2" type="number" step="0.1" className="form-input" {...register('vo2max')} placeholder="e.g. 45" />
             </div>
 
             {/* VO2max benchmark bar */}
@@ -1076,7 +1074,6 @@ export default function ProfilePage() {
                   <span style={{ fontWeight: 700, color: 'var(--color-primary)', fontFamily: 'Barlow Condensed' }}>{watchVo2.toFixed(1)} ml/kg/min</span>
                 </div>
                 <div style={{ height: 8, background: 'var(--color-bg-elevated)', borderRadius: 4, overflow: 'hidden', position: 'relative' }}>
-                  {/* Elite range band 85-90 → but we normalize against 85 ml/kg/min max */}
                   <div style={{ position: 'absolute', left: `${(80 / 90) * 100}%`, width: `${(5 / 90) * 100}%`, height: '100%', background: 'rgba(5,150,105,0.3)', borderRadius: 2 }} title="Elite 80–85" />
                   <div style={{
                     height: '100%',
@@ -1091,15 +1088,6 @@ export default function ProfilePage() {
                   <span style={{ color: '#059669' }}>Elite 75–90+</span>
                   <span>90 ml/kg/min</span>
                 </div>
-                {/* VT2 indicator */}
-                {watchVt2 > 0 && (
-                  <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>VT2 performance threshold:</span>
-                    <span style={{ fontSize: '0.875rem', fontWeight: 700, color: watchVt2 >= 85 ? '#059669' : '#FBBF24', fontFamily: 'Barlow Condensed' }}>
-                      {watchVt2}% {watchVt2 >= 85 ? '🏆 Elite range' : watchVt2 >= 80 ? '↑ Good' : 'Build target'}
-                    </span>
-                  </div>
-                )}
               </div>
             )}
           </Section>
@@ -1286,11 +1274,21 @@ export default function ProfilePage() {
           <Section title="Heart Rate" icon={<Heart size={16} color="#EF4444" />}>
             <div className="form-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
               <div>
-                <label className="form-label" htmlFor="p-hrmax">Max HR (bpm)</label>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <label className="form-label" htmlFor="p-hrmax" style={{ margin: 0 }}>Max HR (bpm)</label>
+                  {profile?.hr_max && (
+                    <span style={{ fontSize: '0.6875rem', color: '#10B981', fontWeight: 600 }}>Garmin: {profile.hr_max}</span>
+                  )}
+                </div>
                 <input id="p-hrmax" type="number" className="form-input" {...register('hr_max')} />
               </div>
               <div>
-                <label className="form-label" htmlFor="p-hrrest">Resting HR (bpm)</label>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <label className="form-label" htmlFor="p-hrrest" style={{ margin: 0 }}>Resting HR (bpm)</label>
+                  {profile?.hr_rest && (
+                    <span style={{ fontSize: '0.6875rem', color: '#10B981', fontWeight: 600 }}>Garmin: {profile.hr_rest}</span>
+                  )}
+                </div>
                 <input id="p-hrrest" type="number" className="form-input" {...register('hr_rest')} />
               </div>
             </div>

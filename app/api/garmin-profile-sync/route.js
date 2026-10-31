@@ -751,16 +751,20 @@ export async function POST(request) {
       }
 
       const vo2ToSave = data.vo2max != null ? data.vo2max : existing.vo2max;
+      const hrMaxToSave = data.hr_zones?.max_hr || existing.hr_max || 193;
+      const hrRestToSave = data.resting_hr || data.hr_zones?.resting_hr || existing.hr_rest || 63;
 
       // Prepare updates - strictly preserve weight, inbody and custom settings
       const updates = {
         id: 1,
         vo2max: vo2ToSave,
-        hr_rest: data.resting_hr || existing.hr_rest || existing.resting_hr,
+        hr_max: hrMaxToSave,
+        hr_rest: hrRestToSave,
         fitness_age: data.fitness_age || existing.fitness_age,
         fitness_age_data: {
           ...(existing.fitness_age_data || {}),
           ...(data.fitness_age_components || {}),
+          garmin_hr_zones: garminHrZonesToSave,
           sleep: (data.sleep && data.sleep.length > 0) ? data.sleep : (existing.fitness_age_data?.sleep || []),
           fr970: {
             training_readiness: data.training_readiness,
@@ -789,7 +793,8 @@ export async function POST(request) {
         const basicUpdates = {
           id: 1,
           vo2max: data.vo2max || existing.vo2max,
-          hr_rest: data.resting_hr || existing.hr_rest,
+          hr_max: hrMaxToSave,
+          hr_rest: hrRestToSave,
           updated_at: new Date().toISOString(),
         };
         const { error: fallbackErr } = await supabase.from('profiles').upsert(basicUpdates, { onConflict: 'id' });
