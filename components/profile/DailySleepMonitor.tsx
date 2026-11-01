@@ -28,8 +28,8 @@ import {
   Lightning,
   CaretLeft,
   CaretRight,
-  CaretDown,
-  CaretUp,
+
+
   Pulse,
   ChartBar,
   Trophy,
@@ -77,12 +77,30 @@ function formatShortDuration(hours?: number | null): string {
 function formatBedtimeParts(start?: number | string | null, end?: number | string | null): { startStr: string; endStr: string } | null {
   if (!start || !end) return null;
   try {
-    const sDate = typeof start === 'number' ? new Date(start) : new Date(String(start));
-    const eDate = typeof end === 'number' ? new Date(end) : new Date(String(end));
+    const sNum = typeof start === 'number' ? start : Number(start);
+    const eNum = typeof end === 'number' ? end : Number(end);
+
+    if (!isNaN(sNum) && !isNaN(eNum) && sNum > 0 && eNum > 0) {
+      const sDate = new Date(sNum);
+      const eDate = new Date(eNum);
+      // Garmin Connect stores sleepStartTimestampLocal / sleepEndTimestampLocal
+      // where the UTC components already represent the local wall-clock time.
+      // Using toLocaleTimeString() causes JavaScript to add the browser's timezone (+7h) twice!
+      const sH = String(sDate.getUTCHours()).padStart(2, '0');
+      const sM = String(sDate.getUTCMinutes()).padStart(2, '0');
+      const eH = String(eDate.getUTCHours()).padStart(2, '0');
+      const eM = String(eDate.getUTCMinutes()).padStart(2, '0');
+      return { startStr: `${sH}:${sM}`, endStr: `${eH}:${eM}` };
+    }
+
+    const sDate = new Date(String(start));
+    const eDate = new Date(String(end));
     if (isNaN(sDate.getTime()) || isNaN(eDate.getTime())) return null;
-    const startStr = sDate.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false });
-    const endStr = eDate.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false });
-    return { startStr, endStr };
+    const sH = String(sDate.getHours()).padStart(2, '0');
+    const sM = String(sDate.getMinutes()).padStart(2, '0');
+    const eH = String(eDate.getHours()).padStart(2, '0');
+    const eM = String(eDate.getMinutes()).padStart(2, '0');
+    return { startStr: `${sH}:${sM}`, endStr: `${eH}:${eM}` };
   } catch {
     return null;
   }
@@ -149,7 +167,6 @@ export function DailySleepMonitor({ sleepRecords = [], onRefresh, lastSyncTime }
   const [timeframe, setTimeframe] = useState<'7' | '14' | '30'>('7');
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
-  const [showAllHistory, setShowAllHistory] = useState(false);
 
   // Sort chronological (oldest -> newest)
   const sortedRecords = useMemo(() => {
@@ -316,14 +333,6 @@ export function DailySleepMonitor({ sleepRecords = [], onRefresh, lastSyncTime }
     } catch {}
   }
 
-  
-
-  const reversedHistory = useMemo(() => {
-    return [...sortedRecords].reverse();
-  }, [sortedRecords]);
-
-  const visibleHistory = showAllHistory ? reversedHistory : reversedHistory.slice(0, 5);
-
   // Radial gauge parameters
   const ringSize = 92;
   const strokeWidth = 8;
@@ -437,39 +446,7 @@ export function DailySleepMonitor({ sleepRecords = [], onRefresh, lastSyncTime }
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={handleManualSync}
-          disabled={syncing}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            fontSize: '0.75rem',
-            fontWeight: 700,
-            fontFamily: "'Baloo 2', sans-serif",
-            padding: '8px 14px',
-            borderRadius: 999,
-            background: 'var(--color-bg-elevated)',
-            color: 'var(--color-foreground)',
-            border: '1.5px solid var(--color-border)',
-            cursor: syncing ? 'not-allowed' : 'pointer',
-            flexShrink: 0,
-            transition: 'all 0.2s ease',
-            boxShadow: 'var(--shadow-sm)',
-          }}
-          title="ซิงค์ข้อมูลจาก Garmin Connect"
-        >
-          <ArrowsClockwise
-            size={14}
-            weight="bold"
-            color="var(--color-primary)"
-            style={{
-              animation: syncing ? 'spin 1s linear infinite' : 'none',
-            }}
-          />
-          <span>{syncing ? 'กำลังซิงค์...' : 'Sync'}</span>
-        </button>
+        
       </div>
 
       {/* Sync Toast Message */}
@@ -528,16 +505,7 @@ export function DailySleepMonitor({ sleepRecords = [], onRefresh, lastSyncTime }
           <p style={{ margin: '0 0 4px', fontWeight: 700, fontSize: '0.95rem', fontFamily: "'Baloo 2', sans-serif" }}>
             ยังไม่มีข้อมูลการนอน
           </p>
-          <button
-            type="button"
-            onClick={handleManualSync}
-            disabled={syncing}
-            className="btn btn-primary btn-sm"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-          >
-            <ArrowsClockwise size={14} className={syncing ? 'spin' : ''} />
-            {syncing ? 'กำลังซิงค์...' : 'ซิงค์ข้อมูลการนอน'}
-          </button>
+          
         </div>
       ) : (
         <>
@@ -1801,218 +1769,7 @@ export function DailySleepMonitor({ sleepRecords = [], onRefresh, lastSyncTime }
             </div>
           </div>
 
-          {/* ========================================================
-              5. COLLAPSIBLE RECENT NIGHTS TIMELINE
-             ======================================================== */}
-          <div>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: 10,
-              }}
-            >
-              <span
-                style={{
-                  fontSize: '0.85rem',
-                  fontWeight: 800,
-                  fontFamily: "'Baloo 2', sans-serif",
-                  color: 'var(--color-foreground)',
-                }}
-              >
-                บันทึกการนอนย้อนหลัง ({sortedRecords.length} คืน)
-              </span>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {visibleHistory.map((record) => {
-                const isSelected = record.date === activeDate;
-                const totalH = record.duration_hours || 0;
-                const dPct = totalH > 0 ? Math.round(((record.deep_hours || 0) / totalH) * 100) : 0;
-                const rPct = totalH > 0 ? Math.round(((record.rem_hours || 0) / totalH) * 100) : 0;
-                const lPct = totalH > 0 ? Math.max(0, 100 - dPct - rPct) : 0;
-                const st = getScoreTheme(record.score, record.qualifier);
-                const bt = formatBedtimeParts(record.start_time, record.end_time);
-
-                let formattedDay = record.date;
-                try {
-                  formattedDay = format(parseISO(record.date), 'EEE d MMM', { locale: th });
-                } catch {}
-
-                return (
-                  <div
-                    key={record.date}
-                    onClick={() => setSelectedDate(record.date)}
-                    style={{
-                      padding: '10px 12px',
-                      borderRadius: 16,
-                      background: isSelected ? 'var(--color-bg-card)' : 'var(--color-bg-elevated)',
-                      border: isSelected ? '2px solid #A855F7' : '1px solid var(--color-border)',
-                      cursor: 'pointer',
-                      transition: 'all 0.18s ease',
-                      boxShadow: isSelected ? '0 4px 12px rgba(168, 85, 247, 0.12)' : 'none',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 12,
-                    }}
-                  >
-                    {/* Mini Score Circle */}
-                    <div
-                      style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: 12,
-                        background: st.bg,
-                        border: `1.5px solid ${st.border}`,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontSize: '0.9rem',
-                          fontWeight: 800,
-                          fontFamily: "'Baloo 2', sans-serif",
-                          color: st.color,
-                          lineHeight: 1,
-                        }}
-                      >
-                        {record.score ?? '-'}
-                      </span>
-                      <span style={{ fontSize: '0.5rem', fontWeight: 700, color: st.color }}>SCORE</span>
-                    </div>
-
-                    {/* Main Row Content */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          gap: 6,
-                          marginBottom: 4,
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                          <span
-                            style={{
-                              fontSize: '0.8rem',
-                              fontWeight: 700,
-                              color: 'var(--color-foreground)',
-                              fontFamily: "'Baloo 2', sans-serif",
-                            }}
-                          >
-                            {formattedDay}
-                          </span>
-                          {bt && (
-                            <span style={{ fontSize: '0.64rem', color: 'var(--color-text-muted)' }}>
-                              {bt.startStr}–{bt.endStr}
-                            </span>
-                          )}
-                        </div>
-
-                        <span
-                          style={{
-                            fontSize: '0.88rem',
-                            fontWeight: 800,
-                            fontFamily: "'Baloo 2', sans-serif",
-                            color: 'var(--color-foreground)',
-                          }}
-                        >
-                          {formatShortDuration(totalH)}
-                        </span>
-                      </div>
-
-                      {/* Mini Stage Bar */}
-                      <div
-                        style={{
-                          height: 5,
-                          borderRadius: 999,
-                          background: 'var(--color-border-muted)',
-                          display: 'flex',
-                          overflow: 'hidden',
-                          gap: 1.5,
-                          marginBottom: 5,
-                        }}
-                      >
-                        <div style={{ width: `${dPct}%`, background: STAGE_COLORS.deep }} />
-                        <div style={{ width: `${rPct}%`, background: STAGE_COLORS.rem }} />
-                        <div style={{ width: `${lPct}%`, background: STAGE_COLORS.light }} />
-                      </div>
-
-                      {/* Micro Vitals Row */}
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          fontSize: '0.63rem',
-                          color: 'var(--color-text-muted)',
-                        }}
-                      >
-                        <div style={{ display: 'flex', gap: 8 }}>
-                          <span>หลับลึก {formatShortDuration(record.deep_hours)}</span>
-                          <span>REM {formatShortDuration(record.rem_hours)}</span>
-                        </div>
-                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                          {record.avg_hrv != null && (
-                            <span style={{ color: '#A855F7', fontWeight: 600 }}>HRV {record.avg_hrv}</span>
-                          )}
-                          {record.body_battery_change != null && (
-                            <span style={{ color: '#059669', fontWeight: 700 }}>
-                              ⚡ +{record.body_battery_change}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Show More / Collapse Button */}
-            {reversedHistory.length > 5 && (
-              <button
-                type="button"
-                onClick={() => setShowAllHistory((prev) => !prev)}
-                style={{
-                  width: '100%',
-                  marginTop: 10,
-                  padding: '9px 12px',
-                  borderRadius: 12,
-                  border: '1px solid var(--color-border)',
-                  background: 'var(--color-bg-elevated)',
-                  color: 'var(--color-foreground)',
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  fontFamily: "'Baloo 2', sans-serif",
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 6,
-                  cursor: 'pointer',
-                }}
-              >
-                {showAllHistory ? (
-                  <>
-                    <CaretUp size={14} weight="bold" />
-                    <span>ย่อรายการประวัติ</span>
                   </>
-                ) : (
-                  <>
-                    <CaretDown size={14} weight="bold" />
-                    <span>ดูประวัติทั้งหมด ({reversedHistory.length} คืน)</span>
-                  </>
-                )}
-              </button>
-            )}
-          </div>
-        </>
       )}
     </div>
   );

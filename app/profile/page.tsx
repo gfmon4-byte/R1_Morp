@@ -1114,37 +1114,6 @@ export default function ProfilePage() {
             title="Official Personal Records"
             icon={<Trophy size={16} color="#F59E0B" weight="fill" />}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: prSyncMsg ? 'space-between' : 'flex-end', marginBottom: 12, gap: 8 }}>
-              {prSyncMsg && (
-                <div style={{ fontSize: '0.6875rem', color: '#10B981', fontWeight: 600 }}>
-                  {prSyncMsg}
-                </div>
-              )}
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                disabled={isSyncingPrs}
-                onClick={handleSyncPrs}
-                style={{
-                  height: 30,
-                  padding: '0 10px',
-                  fontSize: '0.75rem',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 5,
-                  color: 'var(--color-primary)',
-                  border: '1px solid var(--color-border)',
-                  borderRadius: 8,
-                  background: 'var(--color-bg-surface)',
-                  cursor: isSyncingPrs ? 'not-allowed' : 'pointer',
-                  flexShrink: 0,
-                }}
-              >
-                <ArrowsClockwise size={13} className={isSyncingPrs ? 'animate-spin' : ''} />
-                <span>{isSyncingPrs ? 'กำลังซิงค์...' : 'ซิงค์ Garmin'}</span>
-              </button>
-            </div>
-
             {/* Official Garmin PR Showcase Cards */}
             {garminPrsList.length > 0 && (
               <div style={{
@@ -1391,38 +1360,6 @@ export default function ProfilePage() {
 
           {/* HR Settings */}
           <Section title="Heart Rate" icon={<Heart size={16} color="#EF4444" weight="fill" />}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: hrSyncMsg ? 'space-between' : 'flex-end', gap: 8, marginBottom: 12 }}>
-              {hrSyncMsg && (
-                <div style={{ fontSize: '0.6875rem', color: '#10B981', fontWeight: 600 }}>
-                  {hrSyncMsg}
-                </div>
-              )}
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                disabled={isSyncingHr}
-                onClick={handleSyncHr}
-                style={{
-                  padding: '0 10px',
-                  height: '30px',
-                  fontSize: '0.75rem',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 5,
-                  color: 'var(--color-primary)',
-                  border: '1px solid var(--color-border)',
-                  borderRadius: 8,
-                  background: 'var(--color-bg-surface)',
-                  cursor: isSyncingHr ? 'not-allowed' : 'pointer',
-                  whiteSpace: 'nowrap',
-                  flexShrink: 0,
-                }}
-              >
-                <ArrowsClockwise size={13} className={isSyncingHr ? 'animate-spin' : ''} />
-                <span>{isSyncingHr ? 'กำลังซิงค์...' : 'ซิงค์ Garmin'}</span>
-              </button>
-            </div>
-
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginBottom: 16 }}>
               {/* Max HR Card */}
               <div style={{

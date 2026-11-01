@@ -248,57 +248,28 @@ export function Vo2MaxChart({
           </div>
         </div>
 
-        {/* Right: Actions (Manual Edit & Refresh) */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <button
-            type="button"
-            onClick={() => setIsEditing(!isEditing)}
-            className="btn btn-ghost btn-sm"
-            style={{
-              height: 30,
-              padding: '0 9px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-              fontSize: '0.75rem',
-              borderRadius: 8,
-              border: '1px solid var(--color-border)',
-              background: isEditing ? 'var(--color-primary-soft)' : 'var(--color-bg-surface)',
-              color: isEditing ? 'var(--color-primary)' : 'var(--color-text-muted)',
-            }}
-            title="แก้ไขค่า VO₂max ด้วยตนเอง"
-          >
-            <PencilSimple size={13} />
-            <span>{isEditing ? 'เสร็จ' : 'แก้ไข'}</span>
-          </button>
-
-          {onRefresh && (
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-              style={{
-                height: 30,
-                width: 30,
-                padding: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: 8,
-                border: '1px solid var(--color-border)',
-                background: 'var(--color-bg-surface)',
-                color: 'var(--color-text-muted)',
-              }}
-              title="รีเฟรชข้อมูล Garmin"
-            >
-              <ArrowsClockwise
-                size={14}
-                className={isRefreshing ? 'animate-spin' : ''}
-              />
-            </button>
-          )}
-        </div>
+        {/* Right: Manual Edit Toggle */}
+        <button
+          type="button"
+          onClick={() => setIsEditing(!isEditing)}
+          className="btn btn-ghost btn-sm"
+          style={{
+            height: 30,
+            padding: '0 9px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            fontSize: '0.75rem',
+            borderRadius: 8,
+            border: '1px solid var(--color-border)',
+            background: isEditing ? 'var(--color-primary-soft)' : 'var(--color-bg-surface)',
+            color: isEditing ? 'var(--color-primary)' : 'var(--color-text-muted)',
+          }}
+          title="แก้ไขค่า VO₂max ด้วยตนเอง"
+        >
+          <PencilSimple size={13} />
+          <span>{isEditing ? 'เสร็จ' : 'แก้ไข'}</span>
+        </button>
       </div>
 
       {/* ── Manual Edit Input (Clean dropdown/row) ── */}
