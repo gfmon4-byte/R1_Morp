@@ -127,7 +127,7 @@ export async function loginGarmin(email: string, password: string): Promise<Auth
     const tokensObj: GarminTokens = {
       di_token: loginRes.oauth2?.access_token,
       di_refresh_token: loginRes.oauth2?.refresh_token,
-      di_client_id: 'GARMIN_CONNECT_MOBILE_ANDROID_DI_2025Q2',
+      di_client_id: 'GARMIN_CONNECT_MOBILE_ANDROID_DI',
       oauth1: loginRes.oauth1,
       oauth2: loginRes.oauth2,
     };
@@ -220,7 +220,7 @@ export async function verifyGarminMfa(sessionId: string, code: string): Promise<
   const tokensObj: GarminTokens = {
     di_token: freshTokens.oauth2.access_token,
     di_refresh_token: freshTokens.oauth2.refresh_token,
-    di_client_id: 'GARMIN_CONNECT_MOBILE_ANDROID_DI_2025Q2',
+    di_client_id: 'GARMIN_CONNECT_MOBILE_ANDROID_DI',
     oauth1: freshTokens.oauth1,
     oauth2: freshTokens.oauth2,
   };

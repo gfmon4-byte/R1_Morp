@@ -412,7 +412,9 @@ export default function ProfilePage() {
 
   const garminPrsList = useMemo(() => {
     const prs = profile?.garmin_prs || {};
-    return Object.values(prs).sort((a: any, b: any) => (a.order || 99) - (b.order || 99));
+    return Object.values(prs)
+      .filter((pr: any) => pr.key !== '1mi' && pr.key !== '1mile' && pr.label !== '1 Mile')
+      .sort((a: any, b: any) => (a.order || 99) - (b.order || 99));
   }, [profile?.garmin_prs]);
 
   useEffect(() => {

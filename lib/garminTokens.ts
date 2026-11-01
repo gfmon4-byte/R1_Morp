@@ -76,7 +76,10 @@ export async function refreshGarminTokens(tokens: GarminTokens): Promise<GarminT
     throw new Error('No refresh token available to renew session');
   }
 
-  const clientId = tokens.di_client_id || 'GARMIN_CONNECT_MOBILE_ANDROID_DI_2025Q2';
+  const rawClientId = tokens.di_client_id || '';
+  const clientId = (!rawClientId || rawClientId.includes('2025Q2'))
+    ? 'GARMIN_CONNECT_MOBILE_ANDROID_DI'
+    : rawClientId;
   const basicAuth = Buffer.from(`${clientId}:`).toString('base64');
   const body = new URLSearchParams({
     grant_type: 'refresh_token',

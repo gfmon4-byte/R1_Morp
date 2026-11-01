@@ -103,12 +103,11 @@ function calcAge(birthDateStr) {
 
 const PR_MAP = {
   1: { key: '1k', label: '1K', order: 1 },
-  2: { key: '1mi', label: '1 Mile', order: 2 },
-  3: { key: '5k', label: '5K', order: 3 },
-  4: { key: '10k', label: '10K', order: 4 },
-  5: { key: 'hm', label: 'Half Marathon', order: 5 },
-  6: { key: 'full', label: 'Full Marathon', order: 6 },
-  7: { key: 'longest', label: 'Longest Run', order: 7 },
+  3: { key: '5k', label: '5K', order: 2 },
+  4: { key: '10k', label: '10K', order: 3 },
+  5: { key: 'hm', label: 'Half Marathon', order: 4 },
+  6: { key: 'full', label: 'Full Marathon', order: 5 },
+  7: { key: 'longest', label: 'Longest Run', order: 6 },
 };
 
 async function saveTokens(tokenData) {
@@ -750,13 +749,13 @@ export async function POST(request) {
             const sorted = [...actZones].sort((a, b) => a.zone_number - b.zone_number);
             garminHrZonesToSave = {
               sport: 'RUNNING',
-              max_hr: 199,
-              resting_hr: 65,
+              max_hr: 193,
+              resting_hr: 63,
               z1: { min: sorted[0].min_bpm, max: sorted[1].min_bpm - 1, name: sorted[0].zone_name, label: 'Z1' },
               z2: { min: sorted[1].min_bpm, max: sorted[2].min_bpm - 1, name: sorted[1].zone_name, label: 'Z2' },
               z3: { min: sorted[2].min_bpm, max: sorted[3].min_bpm - 1, name: sorted[2].zone_name, label: 'Z3' },
               z4: { min: sorted[3].min_bpm, max: sorted[4].min_bpm - 1, name: sorted[3].zone_name, label: 'Z4' },
-              z5: { min: sorted[4].min_bpm, max: 199, name: sorted[4].zone_name, label: 'Z5' },
+              z5: { min: sorted[4].min_bpm, max: 193, name: sorted[4].zone_name, label: 'Z5' },
               source: 'garmin_activity_details',
               updated_at: new Date().toISOString(),
             };
@@ -902,4 +901,8 @@ export async function POST(request) {
     console.error('[garmin-profile-sync]', err);
     return Response.json({ success: false, error: err.message }, { status: 500 });
   }
+}
+
+export async function GET(request) {
+  return POST(request);
 }
