@@ -18,6 +18,7 @@ import {
   Minus,
   SealCheck,
   ArrowsClockwise,
+  PencilSimple,
 } from '@phosphor-icons/react';
 import { format, parseISO } from 'date-fns';
 import { th } from 'date-fns/locale';
@@ -55,6 +56,7 @@ export function Vo2MaxChart({
 }: Vo2MaxChartProps) {
   const [viewMode, setViewMode] = useState<'tests' | '30days'>('tests');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   // Extract recorded test points from metrics history
   const { testPoints, all30DaysPoints, currentVo2, peakVo2, lowVo2, latestChange } = useMemo(() => {
@@ -167,71 +169,109 @@ export function Vo2MaxChart({
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      {/* ── Compact Header Row: Input + Current Value + Garmin Badge ── */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {/* ── Top Hero Bar: Clean Main Metric + Actions ── */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 8,
+          gap: 12,
         }}
       >
-        {/* Left: Input with Garmin indicator */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <label
-            htmlFor="p-vo2"
-            style={{
-              fontSize: '0.8125rem',
-              fontWeight: 700,
-              margin: 0,
-              color: 'var(--color-text)',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            VO₂max
-          </label>
-          <div style={{ width: 72 }}>
-            <input
-              id="p-vo2"
-              type="number"
-              step="0.1"
-              className="form-input"
-              style={{
-                fontFamily: "'Barlow Condensed', sans-serif",
-                fontSize: '1rem',
-                fontWeight: 700,
-                textAlign: 'center',
-                padding: '3px 6px',
-                height: 30,
-                borderRadius: 8,
-              }}
-              {...register('vo2max')}
-              placeholder="44.8"
-            />
-          </div>
-          {profile?.vo2max && (
+        {/* Left: Main VO2max Hero Value */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
             <span
               style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 3,
-                fontSize: '0.625rem',
+                fontFamily: "'Baloo 2', sans-serif",
+                fontSize: '2rem',
+                fontWeight: 800,
+                color: tier.color,
+                lineHeight: 1,
+              }}
+            >
+              {currentVo2.toFixed(1)}
+            </span>
+            <span
+              style={{
+                fontSize: '0.6875rem',
                 fontWeight: 700,
-                padding: '2px 6px',
-                borderRadius: 6,
-                background: 'rgba(16, 185, 129, 0.12)',
-                color: '#10B981',
-                border: '1px solid rgba(16, 185, 129, 0.25)',
+                padding: '2px 8px',
+                borderRadius: 9999,
+                background: tier.bg,
+                color: tier.color,
+                border: `1px solid ${tier.color}33`,
                 whiteSpace: 'nowrap',
               }}
-              title="Garmin Connect Synced"
             >
-              <SealCheck size={11} weight="fill" />
-              Garmin {profile.vo2max}
+              {tier.short}
             </span>
-          )}
+            {latestChange !== 0 && (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 2,
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  color: latestChange > 0 ? '#10B981' : '#EF4444',
+                  fontFamily: "'Barlow Condensed', sans-serif",
+                }}
+              >
+                {latestChange > 0 ? <TrendUp size={13} weight="bold" /> : <TrendDown size={13} weight="bold" />}
+                {latestChange > 0 ? `+${latestChange.toFixed(1)}` : latestChange.toFixed(1)}
+              </span>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {profile?.vo2max ? (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 3,
+                  fontSize: '0.625rem',
+                  fontWeight: 700,
+                  color: '#10B981',
+                  background: 'rgba(16, 185, 129, 0.1)',
+                  padding: '2px 6px',
+                  borderRadius: 6,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <SealCheck size={11} weight="fill" />
+                Garmin
+              </span>
+            ) : null}
+          </div>
+        </div>
+
+        {/* Right: Actions (Manual Edit & Refresh) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button
+            type="button"
+            onClick={() => setIsEditing(!isEditing)}
+            className="btn btn-ghost btn-sm"
+            style={{
+              height: 30,
+              padding: '0 9px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              fontSize: '0.75rem',
+              borderRadius: 8,
+              border: '1px solid var(--color-border)',
+              background: isEditing ? 'var(--color-primary-soft)' : 'var(--color-bg-surface)',
+              color: isEditing ? 'var(--color-primary)' : 'var(--color-text-muted)',
+            }}
+            title="แก้ไขค่า VO₂max ด้วยตนเอง"
+          >
+            <PencilSimple size={13} />
+            <span>{isEditing ? 'เสร็จ' : 'แก้ไข'}</span>
+          </button>
+
           {onRefresh && (
             <button
               type="button"
@@ -239,112 +279,209 @@ export function Vo2MaxChart({
               onClick={handleRefresh}
               disabled={isRefreshing}
               style={{
-                height: 28,
-                width: 28,
+                height: 30,
+                width: 30,
                 padding: 0,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 borderRadius: 8,
+                border: '1px solid var(--color-border)',
+                background: 'var(--color-bg-surface)',
+                color: 'var(--color-text-muted)',
               }}
-              title="รีเฟรช Garmin"
+              title="รีเฟรชข้อมูล Garmin"
             >
               <ArrowsClockwise
-                size={13}
-                style={{ animation: isRefreshing ? 'spin 1s linear infinite' : 'none' }}
+                size={14}
+                className={isRefreshing ? 'animate-spin' : ''}
               />
             </button>
           )}
         </div>
-
-        {/* Right: Current Value, Tier Chip & Trend */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span
-            style={{
-              fontFamily: "'Barlow Condensed', sans-serif",
-              fontSize: '1.25rem',
-              fontWeight: 800,
-              color: tier.color,
-              lineHeight: 1,
-            }}
-          >
-            {currentVo2.toFixed(1)}
-          </span>
-          <span
-            style={{
-              fontSize: '0.6875rem',
-              fontWeight: 700,
-              padding: '2px 7px',
-              borderRadius: 6,
-              background: tier.bg,
-              color: tier.color,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {tier.short}
-          </span>
-          {latestChange !== 0 && (
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 1,
-                fontSize: '0.6875rem',
-                fontWeight: 700,
-                color: latestChange > 0 ? '#10B981' : '#EF4444',
-                fontFamily: "'Barlow Condensed', sans-serif",
-              }}
-            >
-              {latestChange > 0 ? <TrendUp size={12} weight="bold" /> : <TrendDown size={12} weight="bold" />}
-              {latestChange > 0 ? `+${latestChange.toFixed(1)}` : latestChange.toFixed(1)}
-            </span>
-          )}
-        </div>
       </div>
 
-      {/* ── Slim Micro-Stats Row: Peak, Low, and Toggle (Height ~24px) ── */}
+      {/* ── Manual Edit Input (Clean dropdown/row) ── */}
+      <div
+        style={{
+          display: isEditing ? 'flex' : 'none',
+          alignItems: 'center',
+          gap: 10,
+          padding: '8px 12px',
+          background: 'var(--color-bg-elevated)',
+          borderRadius: 10,
+          border: '1px solid var(--color-border)',
+          fontSize: '0.75rem',
+        }}
+      >
+        <label htmlFor="p-vo2" style={{ margin: 0, color: 'var(--color-text)', fontWeight: 600 }}>
+          กำหนดค่า VO₂max:
+        </label>
+        <div style={{ width: 72 }}>
+          <input
+            id="p-vo2"
+            type="number"
+            step="0.1"
+            className="form-input"
+            style={{
+              fontFamily: "'Barlow Condensed', sans-serif",
+              fontSize: '0.9375rem',
+              fontWeight: 700,
+              textAlign: 'center',
+              padding: '2px 6px',
+              height: 28,
+              borderRadius: 6,
+            }}
+            {...register('vo2max')}
+            placeholder="44.8"
+          />
+        </div>
+        <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-subtle)' }}>ml/kg/min</span>
+        <button
+          type="button"
+          onClick={() => setIsEditing(false)}
+          style={{
+            marginLeft: 'auto',
+            fontSize: '0.75rem',
+            fontWeight: 700,
+            color: 'var(--color-primary)',
+            background: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+          }}
+        >
+          บันทึกค่า
+        </button>
+      </div>
+
+      {/* ── Micro-Stats Cards (Clean 3-column grid) ── */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: profile?.fitness_age ? 'repeat(3, 1fr)' : 'repeat(2, 1fr)',
+          gap: 8,
+        }}
+      >
+        <div
+          style={{
+            background: 'var(--color-bg-elevated)',
+            borderRadius: 10,
+            padding: '8px 12px',
+            border: '1px solid var(--color-border)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
+          }}
+        >
+          <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>
+            สูงสุด (Peak)
+          </span>
+          <span
+            style={{
+              fontFamily: "'Baloo 2', sans-serif",
+              fontSize: '1.125rem',
+              fontWeight: 800,
+              color: '#10B981',
+              lineHeight: 1.1,
+            }}
+          >
+            {peakVo2.toFixed(1)}
+          </span>
+        </div>
+
+        <div
+          style={{
+            background: 'var(--color-bg-elevated)',
+            borderRadius: 10,
+            padding: '8px 12px',
+            border: '1px solid var(--color-border)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
+          }}
+        >
+          <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>
+            ต่ำสุด (Low)
+          </span>
+          <span
+            style={{
+              fontFamily: "'Baloo 2', sans-serif",
+              fontSize: '1.125rem',
+              fontWeight: 800,
+              color: '#F59E0B',
+              lineHeight: 1.1,
+            }}
+          >
+            {lowVo2.toFixed(1)}
+          </span>
+        </div>
+
+        {profile?.fitness_age && (
+          <div
+            style={{
+              background: 'var(--color-bg-elevated)',
+              borderRadius: 10,
+              padding: '8px 12px',
+              border: '1px solid var(--color-border)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 2,
+            }}
+          >
+            <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', fontWeight: 600 }}>
+              อายุความฟิต
+            </span>
+            <span
+              style={{
+                fontFamily: "'Baloo 2', sans-serif",
+                fontSize: '1.125rem',
+                fontWeight: 800,
+                color: 'var(--color-foreground)',
+                lineHeight: 1.1,
+              }}
+            >
+              {profile.fitness_age} <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>ปี</span>
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* ── Chart Header: Title & Timeframe Toggle Pill ── */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 6,
-          padding: '4px 8px',
-          background: 'var(--color-bg-elevated)',
-          borderRadius: 8,
-          fontSize: '0.6875rem',
-          color: 'var(--color-text-muted)',
+          marginTop: 2,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <span>
-            สูงสุด: <strong style={{ color: '#10B981', fontFamily: "'Barlow Condensed', sans-serif", fontSize: '0.8125rem' }}>{peakVo2.toFixed(1)}</strong>
-          </span>
-          <span>
-            ต่ำสุด: <strong style={{ color: '#F59E0B', fontFamily: "'Barlow Condensed', sans-serif", fontSize: '0.8125rem' }}>{lowVo2.toFixed(1)}</strong>
-          </span>
-          {profile?.fitness_age && (
-            <span>
-              อายุความฟิต: <strong style={{ color: 'var(--color-text)', fontFamily: "'Barlow Condensed', sans-serif", fontSize: '0.8125rem' }}>{profile.fitness_age} ปี</strong>
-            </span>
-          )}
-        </div>
+        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-muted)' }}>
+          แนวโน้ม VO₂max
+        </span>
 
-        {/* View Mode Toggle */}
-        <div style={{ display: 'inline-flex', gap: 2 }}>
+        <div
+          style={{
+            display: 'inline-flex',
+            padding: 2,
+            background: 'var(--color-bg-elevated)',
+            borderRadius: 8,
+            border: '1px solid var(--color-border)',
+            gap: 2,
+          }}
+        >
           <button
             type="button"
             onClick={() => setViewMode('tests')}
             style={{
-              padding: '1px 6px',
-              fontSize: '0.625rem',
+              padding: '3px 8px',
+              fontSize: '0.6875rem',
               fontWeight: viewMode === 'tests' ? 700 : 500,
-              borderRadius: 4,
+              borderRadius: 6,
               border: 'none',
               background: viewMode === 'tests' ? 'var(--color-primary)' : 'transparent',
               color: viewMode === 'tests' ? '#FFF' : 'var(--color-text-muted)',
               cursor: 'pointer',
+              transition: 'all 0.15s ease',
             }}
           >
             รอบวิ่ง ({testPoints.length})
@@ -353,14 +490,15 @@ export function Vo2MaxChart({
             type="button"
             onClick={() => setViewMode('30days')}
             style={{
-              padding: '1px 6px',
-              fontSize: '0.625rem',
+              padding: '3px 8px',
+              fontSize: '0.6875rem',
               fontWeight: viewMode === '30days' ? 700 : 500,
-              borderRadius: 4,
+              borderRadius: 6,
               border: 'none',
               background: viewMode === '30days' ? 'var(--color-primary)' : 'transparent',
               color: viewMode === '30days' ? '#FFF' : 'var(--color-text-muted)',
               cursor: 'pointer',
+              transition: 'all 0.15s ease',
             }}
           >
             30 วัน

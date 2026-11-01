@@ -418,7 +418,7 @@ export function DailySleepMonitor({ sleepRecords = [], onRefresh, lastSyncTime }
                   letterSpacing: '0.02em',
                 }}
               >
-                ● Garmin Connect
+                ● Garmin
               </span>
             </div>
             <p
@@ -432,7 +432,7 @@ export function DailySleepMonitor({ sleepRecords = [], onRefresh, lastSyncTime }
                 textOverflow: 'ellipsis',
               }}
             >
-              {formattedSyncTime ? `อัปเดตล่าสุด ${formattedSyncTime}` : 'วิเคราะห์คุณภาพการนอนหลับและการฟื้นฟูร่างกาย'}
+              {formattedSyncTime ? `อัปเดต ${formattedSyncTime}` : ''}
             </p>
           </div>
         </div>
@@ -526,10 +526,7 @@ export function DailySleepMonitor({ sleepRecords = [], onRefresh, lastSyncTime }
             <Bed size={28} color="#A855F7" weight="duotone" />
           </div>
           <p style={{ margin: '0 0 4px', fontWeight: 700, fontSize: '0.95rem', fontFamily: "'Baloo 2', sans-serif" }}>
-            ยังไม่มีข้อมูลการนอนจาก Garmin Connect
-          </p>
-          <p style={{ margin: '0 0 14px', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-            กดซิงค์ข้อมูลเพื่อดึงสถิติการนอนหลับ Deep, REM, HRV และ Body Battery
+            ยังไม่มีข้อมูลการนอน
           </p>
           <button
             type="button"
@@ -1454,9 +1451,6 @@ export function DailySleepMonitor({ sleepRecords = [], onRefresh, lastSyncTime }
                 >
                   แนวโน้มการนอน ({timeframe} วันล่าสุด)
                 </div>
-                <div style={{ fontSize: '0.64rem', color: 'var(--color-text-muted)' }}>
-                  แตะที่แท่งกราฟเพื่อดูข้อมูลรายคืน
-                </div>
               </div>
 
               <div
@@ -1828,9 +1822,6 @@ export function DailySleepMonitor({ sleepRecords = [], onRefresh, lastSyncTime }
                 }}
               >
                 บันทึกการนอนย้อนหลัง ({sortedRecords.length} คืน)
-              </span>
-              <span style={{ fontSize: '0.68rem', color: 'var(--color-text-muted)' }}>
-                แตะเพื่อดูสรุปรายคืน
               </span>
             </div>
 

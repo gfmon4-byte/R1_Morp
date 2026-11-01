@@ -10,7 +10,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { computeHRZones } from '@/lib/hrZones';
 import { computeAutoPaceZones, computeManualPaceZones } from '@/lib/paceZones';
 import { secondsToHMMSS, mmssToSeconds, thaiToday } from '@/lib/utils';
-import { User, Lightning, FloppyDisk, Heart, Gauge, Trophy, ArrowsClockwise, CalendarBlank, Trash, PencilSimple, Plus, X, Camera, CheckCircle, Warning } from '@phosphor-icons/react';
+import { User, Lightning, FloppyDisk, Heart, Gauge, Trophy, ArrowsClockwise, CalendarBlank, Trash, PencilSimple, Plus, X, Camera, CheckCircle, Warning, SealCheck } from '@phosphor-icons/react';
 import { format, parseISO, differenceInCalendarDays } from 'date-fns';
 import { useTheme } from '@/components/layout/ThemeProvider';
 import { DailySleepMonitor } from '@/components/profile/DailySleepMonitor';
@@ -1114,38 +1114,34 @@ export default function ProfilePage() {
             title="Official Personal Records"
             icon={<Trophy size={16} color="#F59E0B" weight="fill" />}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
-              <div>
-                <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', margin: 0 }}>
-                  สถิติสถิติส่วนบุคคลอย่างเป็นทางการจาก Garmin Connect • ซิงค์อัตโนมัติ
-                </p>
-                {prSyncMsg && (
-                  <div style={{ fontSize: '0.75rem', color: '#10B981', fontWeight: 600, marginTop: 4 }}>
-                    {prSyncMsg}
-                  </div>
-                )}
-              </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: prSyncMsg ? 'space-between' : 'flex-end', marginBottom: 12, gap: 8 }}>
+              {prSyncMsg && (
+                <div style={{ fontSize: '0.6875rem', color: '#10B981', fontWeight: 600 }}>
+                  {prSyncMsg}
+                </div>
+              )}
               <button
                 type="button"
                 className="btn btn-ghost btn-sm"
                 disabled={isSyncingPrs}
                 onClick={handleSyncPrs}
                 style={{
-                  padding: '0 12px',
-                  height: '32px',
+                  height: 30,
+                  padding: '0 10px',
                   fontSize: '0.75rem',
-                  display: 'flex',
+                  display: 'inline-flex',
                   alignItems: 'center',
-                  gap: 6,
+                  gap: 5,
                   color: 'var(--color-primary)',
                   border: '1px solid var(--color-border)',
-                  borderRadius: 10,
+                  borderRadius: 8,
                   background: 'var(--color-bg-surface)',
                   cursor: isSyncingPrs ? 'not-allowed' : 'pointer',
+                  flexShrink: 0,
                 }}
               >
                 <ArrowsClockwise size={13} className={isSyncingPrs ? 'animate-spin' : ''} />
-                {isSyncingPrs ? 'กำลังซิงค์...' : 'ซิงค์จาก Garmin'}
+                <span>{isSyncingPrs ? 'กำลังซิงค์...' : 'ซิงค์ Garmin'}</span>
               </button>
             </div>
 
@@ -1201,10 +1197,10 @@ export default function ProfilePage() {
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                 <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--color-foreground)' }}>
-                  Benchmark Records (ใช้คำนวณ Pace Zones):
+                  Benchmark Records
                 </span>
                 <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>
-                  Format: H:MM:SS or MM:SS
+                  H:MM:SS / MM:SS
                 </span>
               </div>
               <div className="form-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -1394,68 +1390,187 @@ export default function ProfilePage() {
           </Section>
 
           {/* HR Settings */}
-          <Section title="Heart Rate" icon={<Heart size={16} color="#EF4444" />}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
-              <div>
-                <p style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)', margin: 0 }}>
-                  ค่าอัตราการเต้นของหัวใจจาก Garmin Connect • ซิงค์อัตโนมัติ
-                </p>
-                {hrSyncMsg && (
-                  <div style={{ fontSize: '0.75rem', color: '#10B981', fontWeight: 600, marginTop: 4 }}>
-                    {hrSyncMsg}
-                  </div>
-                )}
-              </div>
+          <Section title="Heart Rate" icon={<Heart size={16} color="#EF4444" weight="fill" />}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: hrSyncMsg ? 'space-between' : 'flex-end', gap: 8, marginBottom: 12 }}>
+              {hrSyncMsg && (
+                <div style={{ fontSize: '0.6875rem', color: '#10B981', fontWeight: 600 }}>
+                  {hrSyncMsg}
+                </div>
+              )}
               <button
                 type="button"
                 className="btn btn-ghost btn-sm"
                 disabled={isSyncingHr}
                 onClick={handleSyncHr}
                 style={{
-                  padding: '0 12px',
-                  height: '32px',
+                  padding: '0 10px',
+                  height: '30px',
                   fontSize: '0.75rem',
-                  display: 'flex',
+                  display: 'inline-flex',
                   alignItems: 'center',
-                  gap: 6,
+                  gap: 5,
                   color: 'var(--color-primary)',
                   border: '1px solid var(--color-border)',
-                  borderRadius: 10,
+                  borderRadius: 8,
                   background: 'var(--color-bg-surface)',
                   cursor: isSyncingHr ? 'not-allowed' : 'pointer',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
                 }}
               >
                 <ArrowsClockwise size={13} className={isSyncingHr ? 'animate-spin' : ''} />
-                {isSyncingHr ? 'กำลังซิงค์...' : 'ซิงค์จาก Garmin'}
+                <span>{isSyncingHr ? 'กำลังซิงค์...' : 'ซิงค์ Garmin'}</span>
               </button>
             </div>
 
-            <div className="form-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <label className="form-label" htmlFor="p-hrmax" style={{ margin: 0 }}>Max HR (bpm)</label>
-                  {profile?.hr_max && (
-                    <span style={{ fontSize: '0.6875rem', color: '#10B981', fontWeight: 600 }}>Garmin: {profile.hr_max} bpm</span>
-                  )}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginBottom: 16 }}>
+              {/* Max HR Card */}
+              <div style={{
+                background: 'var(--color-bg-surface)',
+                border: '1.5px solid var(--color-border)',
+                borderRadius: 14,
+                padding: '10px 12px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 6,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
+                  <label
+                    htmlFor="p-hrmax"
+                    style={{
+                      fontSize: '0.6875rem',
+                      fontWeight: 800,
+                      color: 'var(--color-text-muted)',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px',
+                      margin: 0,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Max HR
+                  </label>
+                  {profile?.hr_max ? (
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 3,
+                      fontSize: '0.625rem',
+                      fontWeight: 700,
+                      color: '#10B981',
+                      background: 'rgba(16, 185, 129, 0.1)',
+                      padding: '1px 6px',
+                      borderRadius: 6,
+                      whiteSpace: 'nowrap',
+                    }}>
+                      <SealCheck size={11} weight="fill" />
+                      Garmin
+                    </span>
+                  ) : null}
                 </div>
-                <input id="p-hrmax" type="number" className="form-input" {...register('hr_max')} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <input
+                    id="p-hrmax"
+                    type="number"
+                    className="form-input"
+                    style={{
+                      fontFamily: "'Baloo 2', sans-serif",
+                      fontSize: '1.25rem',
+                      fontWeight: 800,
+                      padding: '4px 8px',
+                      height: 38,
+                      borderRadius: 8,
+                      width: '100%',
+                    }}
+                    {...register('hr_max')}
+                    placeholder="185"
+                  />
+                  <span style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    color: 'var(--color-text-muted)',
+                    fontFamily: "'Barlow Condensed', sans-serif",
+                  }}>
+                    bpm
+                  </span>
+                </div>
               </div>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <label className="form-label" htmlFor="p-hrrest" style={{ margin: 0 }}>Resting HR (bpm)</label>
-                  {profile?.hr_rest && (
-                    <span style={{ fontSize: '0.6875rem', color: '#10B981', fontWeight: 600 }}>Garmin: {profile.hr_rest} bpm</span>
-                  )}
+
+              {/* Resting HR Card */}
+              <div style={{
+                background: 'var(--color-bg-surface)',
+                border: '1.5px solid var(--color-border)',
+                borderRadius: 14,
+                padding: '10px 12px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 6,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
+                  <label
+                    htmlFor="p-hrrest"
+                    style={{
+                      fontSize: '0.6875rem',
+                      fontWeight: 800,
+                      color: 'var(--color-text-muted)',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px',
+                      margin: 0,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Resting HR
+                  </label>
+                  {profile?.hr_rest ? (
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 3,
+                      fontSize: '0.625rem',
+                      fontWeight: 700,
+                      color: '#10B981',
+                      background: 'rgba(16, 185, 129, 0.1)',
+                      padding: '1px 6px',
+                      borderRadius: 6,
+                      whiteSpace: 'nowrap',
+                    }}>
+                      <SealCheck size={11} weight="fill" />
+                      Garmin
+                    </span>
+                  ) : null}
                 </div>
-                <input id="p-hrrest" type="number" className="form-input" {...register('hr_rest')} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <input
+                    id="p-hrrest"
+                    type="number"
+                    className="form-input"
+                    style={{
+                      fontFamily: "'Baloo 2', sans-serif",
+                      fontSize: '1.25rem',
+                      fontWeight: 800,
+                      padding: '4px 8px',
+                      height: 38,
+                      borderRadius: 8,
+                      width: '100%',
+                    }}
+                    {...register('hr_rest')}
+                    placeholder="60"
+                  />
+                  <span style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    color: 'var(--color-text-muted)',
+                    fontFamily: "'Barlow Condensed', sans-serif",
+                  }}>
+                    bpm
+                  </span>
+                </div>
               </div>
             </div>
 
             {/* HR Zones — synced from Garmin / live computed */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
               <p style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: 6, margin: 0 }}>
-                <ArrowsClockwise size={13} />
-                Heart Rate Zones (Garmin)
+                Heart Rate Zones
               </p>
               {profile?.fitness_age_data?.garmin_hr_zones ? (
                 <span style={{
