@@ -7,30 +7,40 @@ type Theme = 'light' | 'dark';
 const ThemeContext = createContext<{
   theme: Theme;
   toggleTheme: () => void;
-}>({ theme: 'light', toggleTheme: () => {} });
+}>({ theme: 'dark', toggleTheme: () => {} });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>('light');
-  const [mounted, setMounted] = useState(false);
+  const [theme, setTheme] = useState<Theme>('dark');
 
   useEffect(() => {
+    // Read the active theme already applied to <html> by the blocking <head> script
+    const currentAttr = document.documentElement.getAttribute('data-theme') as Theme | null;
+    if (currentAttr === 'dark' || currentAttr === 'light') {
+      setTheme(currentAttr);
+      return;
+    }
+
     const stored = localStorage.getItem('runmorp-theme') as Theme | null;
     if (stored === 'dark' || stored === 'light') {
       setTheme(stored);
-    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      setTheme('dark');
+      document.documentElement.setAttribute('data-theme', stored);
+    } else {
+      const preferred: Theme = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      setTheme(preferred);
+      document.documentElement.setAttribute('data-theme', preferred);
     }
-    setMounted(true);
   }, []);
 
-  useEffect(() => {
-    if (!mounted) return;
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('runmorp-theme', theme);
-  }, [theme, mounted]);
-
-  const toggleTheme = () =>
-    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+  const toggleTheme = () => {
+    setTheme((prev) => {
+      const next: Theme = prev === 'light' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', next);
+      try {
+        localStorage.setItem('runmorp-theme', next);
+      } catch {}
+      return next;
+    });
+  };
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
